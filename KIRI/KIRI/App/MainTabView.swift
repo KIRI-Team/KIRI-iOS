@@ -20,7 +20,9 @@ struct MainTabView: View {
                 systemImage: "house.fill",
                 value: AppTab.home
             ) {
-                HomeView()
+                HomeView(
+                    userMode: userMode
+                )
             }
 
             Tab(

@@ -1,20 +1,27 @@
-
 import SwiftUI
 
 struct HomeView: View {
+    let userMode: AppRouter.UserMode
+
     var body: some View {
-        NavigationStack {
-            VStack {
-                Text("홈")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle("KIRI")
+        switch userMode {
+        case .family:
+            FamilyHomeView()
+
+        case .browse:
+            BrowseHomeView()
         }
     }
 }
 
-#Preview {
-    HomeView()
+#Preview("Family") {
+    HomeView(
+        userMode: .family
+    )
+}
+
+#Preview("Browse") {
+    HomeView(
+        userMode: .browse
+    )
 }
