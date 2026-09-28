@@ -14,42 +14,46 @@ struct MainTabView: View {
     @State private var selectedTab: AppTab = .home
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            Tab(
-                "홈",
-                systemImage: "house.fill",
-                value: AppTab.home
-            ) {
-                HomeView(
-                    userMode: userMode
+        ZStack(alignment: .bottom) {
+            KIRIColor.background
+                .ignoresSafeArea()
+
+            currentContent
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity
                 )
-            }
 
-            Tab(
-                "미션",
-                systemImage: "sparkles",
-                value: AppTab.mission
-            ) {
-                MissionView()
-            }
+            KIRITabBar(
+                selectedTab: $selectedTab
+            )
+            .padding(.horizontal, 18)
+            .padding(.bottom, 8)
+        }
+        .ignoresSafeArea(
+            .keyboard,
+            edges: .bottom
+        )
+    }
 
-            Tab(
-                "기록",
-                systemImage: "calendar",
-                value: AppTab.record
-            ) {
-                RecordView()
-            }
+    @ViewBuilder
+    private var currentContent: some View {
+        switch selectedTab {
+        case .home:
+            HomeView(
+                userMode: userMode
+            )
 
-            Tab(
-                "마이",
-                systemImage: "person.fill",
-                value: AppTab.myPage
-            ) {
-                MyPageView(
-                    onLogout: onLogout
-                )
-            }
+        case .mission:
+            MissionView()
+
+        case .record:
+            RecordView()
+
+        case .myPage:
+            MyPageView(
+                onLogout: onLogout
+            )
         }
     }
 }
