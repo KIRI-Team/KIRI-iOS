@@ -30,7 +30,10 @@ struct RootView: View {
 
             case .main:
                 MainTabView(
-                    userMode: router.userMode
+                    userMode: router.userMode,
+                    onLogout: {
+                        router.logout()
+                    }
                 )
             }
         }
