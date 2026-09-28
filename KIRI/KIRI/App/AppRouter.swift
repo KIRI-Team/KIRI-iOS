@@ -13,13 +13,46 @@ final class AppRouter {
         case browse
     }
 
-    var appState: AppState = .authentication
-    var userMode: UserMode = .browse
+    var appState: AppState
+    var userMode: UserMode
 
     var pendingInvitation: FamilyInvitation?
 
+    private let sessionStore: AppSessionStore
+
     var hasPendingInvitation: Bool {
         pendingInvitation != nil
+    }
+
+    init(
+        sessionStore: AppSessionStore = AppSessionStore()
+    ) {
+        self.sessionStore = sessionStore
+
+        if !sessionStore.isAuthenticated {
+            appState = .authentication
+            userMode = .browse
+            return
+        }
+
+        if !sessionStore.isOnboardingCompleted {
+            appState = .onboarding
+            userMode = .browse
+            return
+        }
+
+        switch sessionStore.userMode {
+        case .family:
+            userMode = .family
+
+        case .browse:
+            userMode = .browse
+
+        case .none:
+            userMode = .browse
+        }
+
+        appState = .main
     }
 
     func receiveInvitation(
@@ -31,10 +64,15 @@ final class AppRouter {
             familyName: familyName
         )
 
-        appState = .authentication
+        if sessionStore.isAuthenticated {
+            appState = .onboarding
+        } else {
+            appState = .authentication
+        }
     }
 
     func completeAuthentication() {
+        sessionStore.saveAuthenticationCompleted()
         appState = .onboarding
     }
 
@@ -47,17 +85,33 @@ final class AppRouter {
     }
 
     func enterFamilyMode() {
+        sessionStore.saveOnboardingCompleted(
+            userMode: .family
+        )
+
         pendingInvitation = nil
         userMode = .family
         appState = .main
     }
 
     func enterBrowseMode() {
+        sessionStore.saveOnboardingCompleted(
+            userMode: .browse
+        )
+
         userMode = .browse
         appState = .main
     }
 
     func clearInvitation() {
         pendingInvitation = nil
+    }
+
+    func logout() {
+        sessionStore.clearSession()
+
+        pendingInvitation = nil
+        userMode = .browse
+        appState = .authentication
     }
 }
