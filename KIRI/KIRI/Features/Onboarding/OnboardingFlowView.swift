@@ -27,6 +27,7 @@ struct OnboardingFlowView: View {
     @State private var enteredFamilyCode: String = ""
     @State private var joinedFamilyName: String = ""
 
+    let onEnterFamily: () -> Void
     let onBrowse: () -> Void
 
     var body: some View {
@@ -68,7 +69,9 @@ struct OnboardingFlowView: View {
                         enteredFamilyCode = ""
                         step = .familyCodeInput
                     },
-                    onBrowse: onBrowse
+                    onBrowse: {
+                        onBrowse()
+                    }
                 )
 
             // MARK: - 가족공간 생성
@@ -94,7 +97,9 @@ struct OnboardingFlowView: View {
                     onBack: {
                         step = .familyName
                     },
-                    onComplete: onBrowse
+                    onComplete: {
+                        onEnterFamily()
+                    }
                 )
 
             // MARK: - 가족공간 참여
@@ -157,10 +162,13 @@ struct OnboardingFlowView: View {
 
     private func joinFamily() {
         // TODO: 가족공간 참여 API 연결
-        onBrowse()
+        onEnterFamily()
     }
 }
 
 #Preview {
-    OnboardingFlowView {}
+    OnboardingFlowView(
+        onEnterFamily: {},
+        onBrowse: {}
+    )
 }

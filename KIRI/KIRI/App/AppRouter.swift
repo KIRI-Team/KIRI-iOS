@@ -7,13 +7,25 @@ final class AppRouter {
         case main
     }
 
+    enum UserMode {
+        case family
+        case browse
+    }
+
     var appState: AppState = .onboarding
+    var userMode: UserMode = .browse
 
     func showOnboarding() {
         appState = .onboarding
     }
 
-    func showMain() {
+    func enterFamilyMode() {
+        userMode = .family
+        appState = .main
+    }
+
+    func enterBrowseMode() {
+        userMode = .browse
         appState = .main
     }
 }

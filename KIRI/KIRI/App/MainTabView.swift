@@ -8,6 +8,8 @@ struct MainTabView: View {
         case myPage
     }
 
+    let userMode: AppRouter.UserMode
+
     @State private var selectedTab: AppTab = .home
 
     var body: some View {
@@ -32,5 +34,7 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView()
+    MainTabView(
+        userMode: .family
+    )
 }

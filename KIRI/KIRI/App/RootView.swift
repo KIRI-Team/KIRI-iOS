@@ -10,12 +10,19 @@ struct RootView: View {
 
             switch router.appState {
             case .onboarding:
-                OnboardingFlowView {
-                    router.showMain()
-                }
+                OnboardingFlowView(
+                    onEnterFamily: {
+                        router.enterFamilyMode()
+                    },
+                    onBrowse: {
+                        router.enterBrowseMode()
+                    }
+                )
 
             case .main:
-                MainTabView()
+                MainTabView(
+                    userMode: router.userMode
+                )
             }
         }
         .preferredColorScheme(.dark)
