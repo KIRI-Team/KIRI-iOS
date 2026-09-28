@@ -27,8 +27,6 @@ struct OnboardingFlowView: View {
     @State private var enteredFamilyCode: String = ""
     @State private var joinedFamilyName: String = ""
 
-    @State private var isInviteSheetPresented = false
-
     let onBrowse: () -> Void
 
     var body: some View {
@@ -96,9 +94,6 @@ struct OnboardingFlowView: View {
                     onBack: {
                         step = .familyName
                     },
-                    onInvite: {
-                        isInviteSheetPresented = true
-                    },
                     onComplete: onBrowse
                 )
 
@@ -132,16 +127,6 @@ struct OnboardingFlowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: step)
-        .sheet(isPresented: $isInviteSheetPresented) {
-            FamilyInviteSheet(
-                familyName: familyName,
-                familyCode: createdFamilyCode,
-                onComplete: {
-                    isInviteSheetPresented = false
-                    onBrowse()
-                }
-            )
-        }
     }
 
     // MARK: - Mock Family Creation

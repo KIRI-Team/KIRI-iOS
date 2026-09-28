@@ -1,11 +1,3 @@
-//
-//  FamilyCodeView 2.swift
-//  KIRI
-//
-//  Created by namhyuk on 9/26/26.
-//
-
-
 import SwiftUI
 
 struct FamilyCodeView: View {
@@ -13,10 +5,21 @@ struct FamilyCodeView: View {
     let familyCode: String
 
     let onBack: () -> Void
-    let onInvite: () -> Void
     let onComplete: () -> Void
 
     @State private var didCopyCode = false
+    @State private var isShareSheetPresented = false
+
+    private var shareMessage: String {
+        """
+        KIRI에서 우리 가족공간에 초대했어요!
+
+        가족명: \(familyName)
+        가족코드: \(familyCode)
+
+        KIRI 앱에서 가족코드를 입력하고 함께 시작해보세요.
+        """
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,7 +45,9 @@ struct FamilyCodeView: View {
                 VStack(spacing: 12) {
                     KIRIPrimaryButton(
                         title: "초대하기",
-                        action: onInvite
+                        action: {
+                            isShareSheetPresented = true
+                        }
                     )
 
                     Button(action: onComplete) {
@@ -59,6 +64,11 @@ struct FamilyCodeView: View {
             .padding(.bottom, 10)
         }
         .background(KIRIColor.background)
+        .sheet(isPresented: $isShareSheetPresented) {
+            KIRIShareSheet(
+                items: [shareMessage]
+            )
+        }
     }
 
     private var header: some View {
@@ -89,17 +99,7 @@ struct FamilyCodeView: View {
                 .foregroundStyle(KIRIColor.textPrimary)
 
             Button {
-                UIPasteboard.general.string = familyCode
-
-                withAnimation {
-                    didCopyCode = true
-                }
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    withAnimation {
-                        didCopyCode = false
-                    }
-                }
+                copyFamilyCode()
             } label: {
                 HStack(spacing: 8) {
                     Image(
@@ -132,14 +132,27 @@ struct FamilyCodeView: View {
             )
         )
     }
+
+    private func copyFamilyCode() {
+        UIPasteboard.general.string = familyCode
+
+        withAnimation {
+            didCopyCode = true
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                didCopyCode = false
+            }
+        }
+    }
 }
 
 #Preview {
     FamilyCodeView(
         familyName: "끼리가족",
-        familyCode: "A7K9P2",
+        familyCode: "KIRI24",
         onBack: {},
-        onInvite: {},
         onComplete: {}
     )
     .background(KIRIColor.background)
