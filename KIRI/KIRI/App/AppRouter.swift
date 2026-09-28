@@ -16,6 +16,24 @@ final class AppRouter {
     var appState: AppState = .authentication
     var userMode: UserMode = .browse
 
+    var pendingInvitation: FamilyInvitation?
+
+    var hasPendingInvitation: Bool {
+        pendingInvitation != nil
+    }
+
+    func receiveInvitation(
+        code: String,
+        familyName: String? = nil
+    ) {
+        pendingInvitation = FamilyInvitation(
+            code: code,
+            familyName: familyName
+        )
+
+        appState = .authentication
+    }
+
     func completeAuthentication() {
         appState = .onboarding
     }
@@ -29,6 +47,7 @@ final class AppRouter {
     }
 
     func enterFamilyMode() {
+        pendingInvitation = nil
         userMode = .family
         appState = .main
     }
@@ -36,5 +55,9 @@ final class AppRouter {
     func enterBrowseMode() {
         userMode = .browse
         appState = .main
+    }
+
+    func clearInvitation() {
+        pendingInvitation = nil
     }
 }

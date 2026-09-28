@@ -16,11 +16,15 @@ struct RootView: View {
 
             case .onboarding:
                 OnboardingFlowView(
+                    invitation: router.pendingInvitation,
                     onEnterFamily: {
                         router.enterFamilyMode()
                     },
                     onBrowse: {
                         router.enterBrowseMode()
+                    },
+                    onCancelInvitation: {
+                        router.clearInvitation()
                     }
                 )
 

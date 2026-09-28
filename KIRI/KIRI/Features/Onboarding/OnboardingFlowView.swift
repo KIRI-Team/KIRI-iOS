@@ -27,8 +27,11 @@ struct OnboardingFlowView: View {
     @State private var enteredFamilyCode: String = ""
     @State private var joinedFamilyName: String = ""
 
+    let invitation: FamilyInvitation?
+
     let onEnterFamily: () -> Void
     let onBrowse: () -> Void
+    let onCancelInvitation: () -> Void
 
     var body: some View {
         ZStack {
@@ -53,7 +56,7 @@ struct OnboardingFlowView: View {
                         step = .nickname
                     },
                     onNext: {
-                        step = .familyEntry
+                        handleRoleSelectionCompleted()
                     }
                 )
 
@@ -123,7 +126,7 @@ struct OnboardingFlowView: View {
                     familyName: joinedFamilyName,
                     familyCode: enteredFamilyCode,
                     onBack: {
-                        step = .familyCodeInput
+                        handleJoinConfirmBack()
                     },
                     onJoin: {
                         joinFamily()
@@ -132,6 +135,18 @@ struct OnboardingFlowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: step)
+    }
+
+    // MARK: - Role Completion
+
+    private func handleRoleSelectionCompleted() {
+        guard let invitation else {
+            step = .familyEntry
+            return
+        }
+
+        enteredFamilyCode = invitation.code
+        findInvitedFamily(invitation)
     }
 
     // MARK: - Mock Family Creation
@@ -146,7 +161,7 @@ struct OnboardingFlowView: View {
         }
     }
 
-    // MARK: - Mock Family Search
+    // MARK: - Mock Manual Family Search
 
     private func findFamily() {
         step = .familyJoinLoading
@@ -158,17 +173,46 @@ struct OnboardingFlowView: View {
         }
     }
 
-    // MARK: - Mock Family Join
+    // MARK: - Mock Invitation Family Search
+
+    private func findInvitedFamily(
+        _ invitation: FamilyInvitation
+    ) {
+        step = .familyJoinLoading
+
+        // TODO: 초대정보 검증 및 가족공간 조회 API 연결
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            joinedFamilyName =
+                invitation.familyName ?? "끼리가족"
+
+            step = .familyJoinConfirm
+        }
+    }
+
+    // MARK: - Family Join
 
     private func joinFamily() {
         // TODO: 가족공간 참여 API 연결
         onEnterFamily()
     }
+
+    private func handleJoinConfirmBack() {
+        if invitation != nil {
+            onCancelInvitation()
+            enteredFamilyCode = ""
+            joinedFamilyName = ""
+            step = .familyEntry
+        } else {
+            step = .familyCodeInput
+        }
+    }
 }
 
 #Preview {
     OnboardingFlowView(
+        invitation: nil,
         onEnterFamily: {},
-        onBrowse: {}
+        onBrowse: {},
+        onCancelInvitation: {}
     )
 }
