@@ -9,6 +9,11 @@ struct RootView: View {
                 .ignoresSafeArea()
 
             switch router.appState {
+            case .authentication:
+                AuthFlowView {
+                    router.completeAuthentication()
+                }
+
             case .onboarding:
                 OnboardingFlowView(
                     onEnterFamily: {

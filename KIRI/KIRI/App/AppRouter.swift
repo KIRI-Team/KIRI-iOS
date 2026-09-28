@@ -3,6 +3,7 @@ import SwiftUI
 @Observable
 final class AppRouter {
     enum AppState {
+        case authentication
         case onboarding
         case main
     }
@@ -12,8 +13,16 @@ final class AppRouter {
         case browse
     }
 
-    var appState: AppState = .onboarding
+    var appState: AppState = .authentication
     var userMode: UserMode = .browse
+
+    func completeAuthentication() {
+        appState = .onboarding
+    }
+
+    func showAuthentication() {
+        appState = .authentication
+    }
 
     func showOnboarding() {
         appState = .onboarding
