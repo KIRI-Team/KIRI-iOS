@@ -6,9 +6,15 @@ struct OnboardingFlowView: View {
         case role
         case familyEntry
 
+        // 가족공간 생성
         case familyName
         case familyCodeLoading
         case familyCode
+
+        // 기존 가족공간 참여
+        case familyCodeInput
+        case familyJoinLoading
+        case familyJoinConfirm
     }
 
     @State private var step: Step = .nickname
@@ -17,7 +23,10 @@ struct OnboardingFlowView: View {
     @State private var selectedRole: FamilyRole?
     @State private var familyName: String = ""
 
-    @State private var familyCode: String = ""
+    @State private var createdFamilyCode: String = ""
+    @State private var enteredFamilyCode: String = ""
+    @State private var joinedFamilyName: String = ""
+
     @State private var isInviteSheetPresented = false
 
     let onBrowse: () -> Void
@@ -58,10 +67,13 @@ struct OnboardingFlowView: View {
                         step = .familyName
                     },
                     onEnterFamilyCode: {
-                        // 다음 단계에서 구현
+                        enteredFamilyCode = ""
+                        step = .familyCodeInput
                     },
                     onBrowse: onBrowse
                 )
+
+            // MARK: - 가족공간 생성
 
             case .familyName:
                 FamilyNameView(
@@ -70,7 +82,7 @@ struct OnboardingFlowView: View {
                         step = .familyEntry
                     },
                     onNext: {
-                        createFamilyCode()
+                        createFamily()
                     }
                 )
 
@@ -80,7 +92,7 @@ struct OnboardingFlowView: View {
             case .familyCode:
                 FamilyCodeView(
                     familyName: familyName,
-                    familyCode: familyCode,
+                    familyCode: createdFamilyCode,
                     onBack: {
                         step = .familyName
                     },
@@ -89,13 +101,41 @@ struct OnboardingFlowView: View {
                     },
                     onComplete: onBrowse
                 )
+
+            // MARK: - 가족공간 참여
+
+            case .familyCodeInput:
+                FamilyCodeInputView(
+                    familyCode: $enteredFamilyCode,
+                    onBack: {
+                        step = .familyEntry
+                    },
+                    onNext: {
+                        findFamily()
+                    }
+                )
+
+            case .familyJoinLoading:
+                FamilyJoinLoadingView()
+
+            case .familyJoinConfirm:
+                FamilyJoinConfirmView(
+                    familyName: joinedFamilyName,
+                    familyCode: enteredFamilyCode,
+                    onBack: {
+                        step = .familyCodeInput
+                    },
+                    onJoin: {
+                        joinFamily()
+                    }
+                )
             }
         }
         .animation(.easeInOut(duration: 0.2), value: step)
         .sheet(isPresented: $isInviteSheetPresented) {
             FamilyInviteSheet(
                 familyName: familyName,
-                familyCode: familyCode,
+                familyCode: createdFamilyCode,
                 onComplete: {
                     isInviteSheetPresented = false
                     onBrowse()
@@ -104,14 +144,35 @@ struct OnboardingFlowView: View {
         }
     }
 
-    private func createFamilyCode() {
+    // MARK: - Mock Family Creation
+
+    private func createFamily() {
         step = .familyCodeLoading
 
         // TODO: 가족공간 생성 API 연결 후 제거
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            familyCode = "KIRI24"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            createdFamilyCode = "KIRI24"
             step = .familyCode
         }
+    }
+
+    // MARK: - Mock Family Search
+
+    private func findFamily() {
+        step = .familyJoinLoading
+
+        // TODO: 가족코드 조회 API 연결 후 제거
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            joinedFamilyName = "끼리가족"
+            step = .familyJoinConfirm
+        }
+    }
+
+    // MARK: - Mock Family Join
+
+    private func joinFamily() {
+        // TODO: 가족공간 참여 API 연결
+        onBrowse()
     }
 }
 
