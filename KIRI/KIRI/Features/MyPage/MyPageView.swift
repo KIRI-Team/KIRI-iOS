@@ -30,7 +30,6 @@ struct MyPageView: View {
                         logoutButton
                             .padding(.top, 20)
 
-                        // 커스텀 탭바에 가리지 않도록 여백
                         Color.clear
                             .frame(height: 120)
                     }
@@ -42,9 +41,15 @@ struct MyPageView: View {
                 "로그아웃할까요?",
                 isPresented: $isLogoutAlertPresented
             ) {
-                Button("취소", role: .cancel) {}
+                Button(
+                    "취소",
+                    role: .cancel
+                ) {}
 
-                Button("로그아웃", role: .destructive) {
+                Button(
+                    "로그아웃",
+                    role: .destructive
+                ) {
                     onLogout()
                 }
             } message: {
@@ -57,8 +62,15 @@ struct MyPageView: View {
 
     private var header: some View {
         Text("설정")
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(KIRIColor.textPrimary)
+            .font(
+                .system(
+                    size: 18,
+                    weight: .semibold
+                )
+            )
+            .foregroundStyle(
+                KIRIColor.textPrimary
+            )
             .frame(maxWidth: .infinity)
             .padding(.top, 14)
     }
@@ -69,33 +81,74 @@ struct MyPageView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.14))
-                    .frame(width: 48, height: 48)
+                    .fill(
+                        Color.white.opacity(0.14)
+                    )
+                    .frame(
+                        width: 48,
+                        height: 48
+                    )
 
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.32))
+                Image(
+                    systemName: "person.2.fill"
+                )
+                .font(
+                    .system(
+                        size: 20,
+                        weight: .medium
+                    )
+                )
+                .foregroundStyle(
+                    Color.white.opacity(0.32)
+                )
             }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(
+                alignment: .leading,
+                spacing: 5
+            ) {
                 Text("쥬123")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(
+                        .system(
+                            size: 17,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(
+                        KIRIColor.textPrimary
+                    )
 
                 Text("끼리네가족 | 딸")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    .font(
+                        .system(
+                            size: 13,
+                            weight: .regular
+                        )
+                    )
+                    .foregroundStyle(
+                        KIRIColor.textSecondary
+                    )
             }
 
             Spacer()
 
             Button {
-                // TODO: 프로필 수정 화면 연결
+                // TODO: 프로필 수정
             } label: {
                 Image(systemName: "pencil")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.55))
-                    .frame(width: 40, height: 40)
+                    .font(
+                        .system(
+                            size: 17,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(
+                        Color.white.opacity(0.55)
+                    )
+                    .frame(
+                        width: 40,
+                        height: 40
+                    )
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -107,18 +160,34 @@ struct MyPageView: View {
 
     private var tasteTestButton: some View {
         Button {
-            // TODO: 취향 테스트 화면 연결
+            // TODO: 취향 테스트
         } label: {
             HStack {
                 Text("취향테스트 하기")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(
+                        .system(
+                            size: 16,
+                            weight: .regular
+                        )
+                    )
+                    .foregroundStyle(
+                        KIRIColor.textPrimary
+                    )
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(Color.white.opacity(0.25))
+                Image(
+                    systemName: "chevron.right"
+                )
+                .font(
+                    .system(
+                        size: 16,
+                        weight: .regular
+                    )
+                )
+                .foregroundStyle(
+                    Color.white.opacity(0.25)
+                )
             }
             .padding(.horizontal, 16)
             .frame(height: 88)
@@ -127,7 +196,9 @@ struct MyPageView: View {
                     cornerRadius: 8,
                     style: .continuous
                 )
-                .fill(Color.white.opacity(0.07))
+                .fill(
+                    Color.white.opacity(0.07)
+                )
             )
             .contentShape(Rectangle())
         }
@@ -137,27 +208,39 @@ struct MyPageView: View {
     // MARK: - Family Management
 
     private var familyManagementSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(
+            alignment: .leading,
+            spacing: 16
+        ) {
             sectionTitle("가족관리")
 
             menuCard {
-                menuRow(
-                    title: "가족 기본 설정"
-                ) {
-                    // TODO: 가족 기본 설정
+                NavigationLink {
+                    FamilySettingsView()
+                } label: {
+                    menuRowLabel(
+                        title: "가족 기본 설정"
+                    )
                 }
+                .buttonStyle(.plain)
 
-                menuRow(
-                    title: "우리집 주소 설정"
-                ) {
-                    // TODO: 주소 설정
+                Button {
+                    // TODO: 우리집 주소 설정
+                } label: {
+                    menuRowLabel(
+                        title: "우리집 주소 설정"
+                    )
                 }
+                .buttonStyle(.plain)
 
-                menuRow(
-                    title: "공용초대링크 관리"
-                ) {
-                    // TODO: 초대링크 관리
+                Button {
+                    // TODO: 공용 초대링크 관리
+                } label: {
+                    menuRowLabel(
+                        title: "공용초대링크 관리"
+                    )
                 }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -165,33 +248,48 @@ struct MyPageView: View {
     // MARK: - Settings
 
     private var settingsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(
+            alignment: .leading,
+            spacing: 16
+        ) {
             sectionTitle("설정")
 
             menuCard {
-                menuRow(
-                    title: "계정 정보"
-                ) {
+                Button {
                     // TODO: 계정 정보
+                } label: {
+                    menuRowLabel(
+                        title: "계정 정보"
+                    )
                 }
+                .buttonStyle(.plain)
 
-                menuRow(
-                    title: "건의함"
-                ) {
+                Button {
                     // TODO: 건의함
+                } label: {
+                    menuRowLabel(
+                        title: "건의함"
+                    )
                 }
+                .buttonStyle(.plain)
 
-                menuRow(
-                    title: "약관정보"
-                ) {
-                    // TODO: 약관 정보
+                Button {
+                    // TODO: 약관정보
+                } label: {
+                    menuRowLabel(
+                        title: "약관정보"
+                    )
                 }
+                .buttonStyle(.plain)
 
-                menuRow(
-                    title: "알림 설정"
-                ) {
+                Button {
                     // TODO: 알림 설정
+                } label: {
+                    menuRowLabel(
+                        title: "알림 설정"
+                    )
                 }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -204,8 +302,15 @@ struct MyPageView: View {
         } label: {
             HStack {
                 Text("로그아웃")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    .font(
+                        .system(
+                            size: 15,
+                            weight: .regular
+                        )
+                    )
+                    .foregroundStyle(
+                        KIRIColor.textSecondary
+                    )
 
                 Spacer()
             }
@@ -218,11 +323,23 @@ struct MyPageView: View {
 
     // MARK: - Components
 
-    private func sectionTitle(_ title: String) -> some View {
+    private func sectionTitle(
+        _ title: String
+    ) -> some View {
         Text(title)
-            .font(.system(size: 17, weight: .medium))
-            .foregroundStyle(KIRIColor.textPrimary)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .font(
+                .system(
+                    size: 17,
+                    weight: .medium
+                )
+            )
+            .foregroundStyle(
+                KIRIColor.textPrimary
+            )
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
     }
 
     private func menuCard<Content: View>(
@@ -236,7 +353,9 @@ struct MyPageView: View {
                 cornerRadius: 8,
                 style: .continuous
             )
-            .fill(Color.white.opacity(0.07))
+            .fill(
+                Color.white.opacity(0.07)
+            )
         )
         .clipShape(
             RoundedRectangle(
@@ -246,27 +365,39 @@ struct MyPageView: View {
         )
     }
 
-    private func menuRow(
-        title: String,
-        action: @escaping () -> Void
+    private func menuRowLabel(
+        title: String
     ) -> some View {
-        Button(action: action) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(KIRIColor.textPrimary)
+        HStack {
+            Text(title)
+                .font(
+                    .system(
+                        size: 16,
+                        weight: .regular
+                    )
+                )
+                .foregroundStyle(
+                    KIRIColor.textPrimary
+                )
 
-                Spacer()
+            Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundStyle(Color.white.opacity(0.25))
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 56)
-            .contentShape(Rectangle())
+            Image(
+                systemName: "chevron.right"
+            )
+            .font(
+                .system(
+                    size: 16,
+                    weight: .regular
+                )
+            )
+            .foregroundStyle(
+                Color.white.opacity(0.25)
+            )
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .frame(height: 56)
+        .contentShape(Rectangle())
     }
 }
 
