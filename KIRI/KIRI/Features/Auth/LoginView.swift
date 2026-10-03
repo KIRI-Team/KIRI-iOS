@@ -1,89 +1,31 @@
-
-//
-//  LoginView 2.swift
-//  KIRI
-//
-//  Created by namhyuk on 9/28/26.
-//
-
-
 import SwiftUI
 
 struct LoginView: View {
-    @State private var email = ""
-    @State private var password = ""
-
     let onBack: () -> Void
-    let onLogin: () -> Void
-    let onSignUp: () -> Void
-
-    private var isValid: Bool {
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !password.isEmpty
-    }
+    let onKakaoLogin: () -> Void
+    let onGoogleLogin: () -> Void
+    let onAppleLogin: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack {
+            KIRIColor.background
+                .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text("다시 만나서\n반가워요!")
-                    .font(KIRITypography.title)
-                    .foregroundStyle(KIRIColor.textPrimary)
-                    .lineSpacing(7)
-
-                Text("KIRI 계정으로 로그인해주세요.")
-                    .font(KIRITypography.subtitle)
-                    .foregroundStyle(KIRIColor.textSecondary)
-                    .padding(.top, 12)
-
-                VStack(spacing: 14) {
-                    KIRITextField(
-                        placeholder: "이메일",
-                        text: $email
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.emailAddress)
-
-                    SecureField("비밀번호", text: $password)
-                        .font(KIRITypography.bodyMedium)
-                        .foregroundStyle(KIRIColor.textPrimary)
-                        .padding(.horizontal, 20)
-                        .frame(height: 56)
-                        .background(KIRIColor.surface)
-                        .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: KIRIRadius.large
-                            )
-                        )
-                }
-                .padding(.top, 50)
+            VStack(spacing: 0) {
+                header
 
                 Spacer()
 
-                VStack(spacing: 12) {
-                    KIRIPrimaryButton(
-                        title: "로그인",
-                        isEnabled: isValid,
-                        action: onLogin
-                    )
+                logoSection
 
-                    Button(action: onSignUp) {
-                        Text("아직 계정이 없나요? 회원가입")
-                            .font(KIRITypography.caption)
-                            .foregroundStyle(KIRIColor.textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                    }
-                    .buttonStyle(.plain)
-                }
+                Spacer()
+
+                socialLoginSection
             }
-            .padding(.horizontal, KIRISpacing.horizontal)
-            .padding(.bottom, 10)
         }
-        .background(KIRIColor.background)
     }
+
+    // MARK: - Header
 
     private var header: some View {
         HStack {
@@ -92,14 +34,149 @@ struct LoginView: View {
             Spacer()
         }
         .padding(.horizontal, 4)
-        .frame(height: 70)
+        .frame(height: 56)
+    }
+
+    // MARK: - Logo
+
+    private var logoSection: some View {
+        Text("KIRI")
+            .font(
+                .system(
+                    size: 64,
+                    weight: .black,
+                    design: .rounded
+                )
+            )
+            .tracking(-4)
+            .foregroundStyle(KIRIColor.textPrimary)
+    }
+
+    // MARK: - Social Login Section
+
+    private var socialLoginSection: some View {
+        VStack(spacing: 12) {
+            kakaoLoginButton
+            googleLoginButton
+            appleLoginButton
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 38)
+    }
+
+    // MARK: - Kakao
+
+    private var kakaoLoginButton: some View {
+        Button(action: onKakaoLogin) {
+            SocialLoginButtonContent(
+                title: "카카오 로그인",
+                foregroundColor: Color.black.opacity(0.85)
+            ) {
+                Image("kakao_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+            }
+            .frame(height: 56)
+            .background(
+                Color(
+                    red: 254 / 255,
+                    green: 229 / 255,
+                    blue: 0 / 255
+                )
+            )
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Google
+
+    private var googleLoginButton: some View {
+        Button(action: onGoogleLogin) {
+            SocialLoginButtonContent(
+                title: "Google로 로그인",
+                foregroundColor: Color.black.opacity(0.82)
+            ) {
+                Image("google_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+            }
+            .frame(height: 56)
+            .background(Color.white)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Apple
+
+    private var appleLoginButton: some View {
+        Button(action: onAppleLogin) {
+            SocialLoginButtonContent(
+                title: "Apple로 로그인",
+                foregroundColor: Color.white
+            ) {
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 23, weight: .medium))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 22, height: 22)
+            }
+            .frame(height: 56)
+            .background(Color.black)
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .stroke(
+                        Color.white.opacity(0.18),
+                        lineWidth: 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
+
+// MARK: - Social Login Button Content
+
+private struct SocialLoginButtonContent<Logo: View>: View {
+    let title: String
+    let foregroundColor: Color
+
+    @ViewBuilder
+    let logo: () -> Logo
+
+    var body: some View {
+        ZStack {
+            Text(title)
+                .font(
+                    .system(
+                        size: 16,
+                        weight: .medium
+                    )
+                )
+                .foregroundStyle(foregroundColor)
+
+            HStack {
+                logo()
+                    .frame(width: 24, height: 24)
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Preview
 
 #Preview {
     LoginView(
         onBack: {},
-        onLogin: {},
-        onSignUp: {}
+        onKakaoLogin: {},
+        onGoogleLogin: {},
+        onAppleLogin: {}
     )
 }
