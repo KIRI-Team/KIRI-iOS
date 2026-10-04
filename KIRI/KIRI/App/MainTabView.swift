@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+
     enum AppTab: Hashable {
         case home
         case mission
@@ -15,7 +16,7 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            KIRIColor.background
+            KIRIColor.Background.base
                 .ignoresSafeArea()
 
             currentContent
@@ -27,7 +28,7 @@ struct MainTabView: View {
             KIRITabBar(
                 selectedTab: $selectedTab
             )
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 20)
             .padding(.bottom, 8)
         }
         .ignoresSafeArea(
@@ -35,6 +36,8 @@ struct MainTabView: View {
             edges: .bottom
         )
     }
+
+    // MARK: - Content
 
     @ViewBuilder
     private var currentContent: some View {
@@ -57,6 +60,8 @@ struct MainTabView: View {
         }
     }
 }
+
+// MARK: - Preview
 
 #Preview {
     MainTabView(

@@ -10,33 +10,20 @@ struct KIRISearchField: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .font(
-                    .system(
-                        size: 18,
-                        weight: .medium
-                    )
-                )
-                .foregroundStyle(KIRIColor.Icon.secondary)
-                .frame(
-                    width: 24,
-                    height: 24
-                )
-
+        HStack(spacing: 0) {
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text(placeholder)
                         .font(KIRITypography.bodyMedium)
                         .tracking(-0.64)
-                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .foregroundStyle(KIRIColor.Input.helperDefault)
                         .allowsHitTesting(false)
                 }
 
                 TextField("", text: $text)
                     .font(KIRITypography.bodyMedium)
                     .tracking(-0.64)
-                    .foregroundStyle(KIRIColor.Text.primary)
+                    .foregroundStyle(KIRIColor.Input.contentDefault)
                     .tint(KIRIColor.Primary.default)
                     .focused($isFocused)
                     .submitLabel(.search)
@@ -44,30 +31,54 @@ struct KIRISearchField: View {
                         onSubmit?()
                     }
             }
+            .padding(.leading, 20)
 
-            if !text.isEmpty {
-                Button {
-                    text = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(KIRIColor.Icon.secondary)
-                        .frame(
-                            width: 24,
-                            height: 24
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("검색어 지우기")
-            }
+            trailingButton
         }
-        .padding(.horizontal, 20)
         .frame(height: 56)
-        .background(KIRIColor.Background.secondary)
+        .background(KIRIColor.Input.backgroundDefault)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: KIRIRadius.large
             )
+        )
+    }
+
+    // MARK: - Trailing Button
+
+    private var trailingButton: some View {
+        Button {
+            if text.isEmpty {
+                isFocused = true
+            } else {
+                text = ""
+                isFocused = true
+            }
+        } label: {
+            Image(
+                systemName: text.isEmpty
+                    ? "magnifyingglass"
+                    : "xmark"
+            )
+            .font(
+                .system(
+                    size: 17,
+                    weight: .medium
+                )
+            )
+            .foregroundStyle(KIRIColor.Icon.secondary)
+            .frame(
+                width: 48,
+                height: 48
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 4)
+        .accessibilityLabel(
+            text.isEmpty
+                ? "검색"
+                : "검색어 지우기"
         )
     }
 }

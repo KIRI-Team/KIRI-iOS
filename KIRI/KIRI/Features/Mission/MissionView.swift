@@ -1,19 +1,282 @@
-
 import SwiftUI
 
 struct MissionView: View {
-    var body: some View {
-        NavigationStack {
-            VStack {
-                Text("미션")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle("미션")
+
+    private enum Category: String, CaseIterable, Hashable {
+        case all = "전체"
+        case exhibition = "전시·문화"
+        case popup = "팝업·행사"
+        case experience = "체험·놀거리"
+        case outdoor = "산책·야외"
+        case performance = "공연"
+        case food = "맛집·카페"
+    }
+
+    private struct PlaceItem: Identifiable {
+        let id = UUID()
+        let title: String
+        let placeName: String
+        let district: String
+        let rating: Double?
+        let tags: [String]
+        let isRecommended: Bool
+        let category: Category
+        var isBookmarked: Bool
+    }
+
+    @State private var searchText = ""
+    @State private var selectedCategory: Category = .all
+
+    @State private var places: [PlaceItem] = [
+        PlaceItem(
+            title: "광장시장에서 시장음식 먹어보기",
+            placeName: "광장시장",
+            district: "종로구",
+            rating: nil,
+            tags: ["혼잡도 높음"],
+            isRecommended: true,
+            category: .food,
+            isBookmarked: true
+        ),
+        PlaceItem(
+            title: "광장시장에서 시장음식 먹어보기",
+            placeName: "광장시장",
+            district: "종로구",
+            rating: 4.6,
+            tags: [
+                "대중교통 편리",
+                "혼잡도 높음"
+            ],
+            isRecommended: false,
+            category: .food,
+            isBookmarked: true
+        ),
+        PlaceItem(
+            title: "광장시장에서 시장음식 먹어보기",
+            placeName: "광장시장",
+            district: "종로구",
+            rating: 4.6,
+            tags: [
+                "대중교통 편리",
+                "혼잡도 높음"
+            ],
+            isRecommended: false,
+            category: .food,
+            isBookmarked: false
+        ),
+        PlaceItem(
+            title: "한강공원에서 산책하기",
+            placeName: "뚝섬한강공원",
+            district: "광진구",
+            rating: 4.8,
+            tags: [
+                "좌석충분",
+                "계단 없음"
+            ],
+            isRecommended: false,
+            category: .outdoor,
+            isBookmarked: false
+        ),
+        PlaceItem(
+            title: "가족과 함께 전시 관람하기",
+            placeName: "국립현대미술관",
+            district: "종로구",
+            rating: 4.7,
+            tags: [
+                "실내",
+                "대중교통 편리"
+            ],
+            isRecommended: false,
+            category: .exhibition,
+            isBookmarked: false
+        )
+    ]
+
+    private var filteredPlaces: [PlaceItem] {
+        places.filter { place in
+            let matchesCategory =
+                selectedCategory == .all ||
+                place.category == selectedCategory
+
+            let keyword = searchText.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+
+            let matchesSearch =
+                keyword.isEmpty ||
+                place.title.localizedCaseInsensitiveContains(keyword) ||
+                place.placeName.localizedCaseInsensitiveContains(keyword) ||
+                place.district.localizedCaseInsensitiveContains(keyword)
+
+            return matchesCategory && matchesSearch
         }
     }
+
+    var body: some View {
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                appBar
+
+                ScrollView(
+                    .vertical,
+                    showsIndicators: false
+                ) {
+                    VStack(spacing: 0) {
+                        KIRISearchField(
+                            text: $searchText
+                        )
+                        .padding(.horizontal, 18)
+                        .padding(.top, 6)
+
+                        categorySection
+                            .padding(.top, 13)
+
+                        filterHeader
+                            .padding(.horizontal, 18)
+                            .padding(.top, 24)
+
+                        placeList
+                            .padding(.horizontal, 18)
+                            .padding(.top, 16)
+
+                        Color.clear
+                            .frame(height: 110)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - App Bar
+
+    private var appBar: some View {
+        ZStack {
+            Text("미션")
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(KIRIColor.Text.strong)
+        }
+        .frame(height: 62)
+    }
+
+    // MARK: - Categories
+
+    private var categorySection: some View {
+        ScrollView(
+            .horizontal,
+            showsIndicators: false
+        ) {
+            HStack(spacing: 8) {
+                ForEach(
+                    Category.allCases,
+                    id: \.self
+                ) { category in
+                    KIRIChip(
+                        title: category.rawValue,
+                        isSelected: selectedCategory == category
+                    ) {
+                        selectedCategory = category
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+        }
+    }
+
+    // MARK: - Filter Header
+
+    private var filterHeader: some View {
+        HStack {
+            Text("활동 \(filteredPlaces.count)개")
+                .font(KIRITypography.bodySmallMedium)
+                .tracking(-0.56)
+                .foregroundStyle(KIRIColor.Text.secondary)
+
+            Spacer()
+
+            HStack(spacing: 12) {
+                filterButton(
+                    title: "날짜·시간"
+                )
+
+                filterButton(
+                    title: "지역·거리"
+                )
+            }
+        }
+    }
+
+    private func filterButton(
+        title: String
+    ) -> some View {
+        Button {
+            // TODO: 필터 정책 연결
+        } label: {
+            HStack(spacing: 5) {
+                Text(title)
+                    .font(KIRITypography.bodySmallMedium)
+                    .tracking(-0.56)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+
+                Image(systemName: "chevron.down")
+                    .font(
+                        .system(
+                            size: 8,
+                            weight: .bold
+                        )
+                    )
+                    .foregroundStyle(KIRIColor.Text.disabled)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Place List
+
+    private var placeList: some View {
+        LazyVStack(spacing: 16) {
+            ForEach(filteredPlaces) { place in
+                MissionPlaceCard(
+                    title: place.title,
+                    placeName: place.placeName,
+                    district: place.district,
+                    rating: place.rating,
+                    tags: place.tags,
+                    isRecommended: place.isRecommended,
+                    isBookmarked: bookmarkBinding(
+                        for: place.id
+                    )
+                )
+            }
+        }
+    }
+
+    private func bookmarkBinding(
+        for id: UUID
+    ) -> Binding<Bool> {
+        Binding(
+            get: {
+                places.first(
+                    where: { $0.id == id }
+                )?.isBookmarked ?? false
+            },
+            set: { newValue in
+                guard let index = places.firstIndex(
+                    where: { $0.id == id }
+                ) else {
+                    return
+                }
+
+                places[index].isBookmarked = newValue
+            }
+        )
+    }
 }
+
+// MARK: - Preview
 
 #Preview {
     MissionView()

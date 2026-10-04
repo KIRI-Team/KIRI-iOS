@@ -13,11 +13,14 @@ struct KIRITabBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(tabs, id: \.self) { tab in
+            ForEach(
+                tabs,
+                id: \.self
+            ) { tab in
                 tabItem(tab)
             }
         }
-        .padding(.horizontal, 4)
+        .padding(4)
         .frame(height: 62)
         .background(
             KIRIColor.Navigation.Bar.background
@@ -32,7 +35,7 @@ struct KIRITabBar: View {
         }
     }
 
-    // MARK: - Tab Item
+    // MARK: - Item
 
     private func tabItem(
         _ tab: MainTabView.AppTab
@@ -40,13 +43,20 @@ struct KIRITabBar: View {
         let isSelected = selectedTab == tab
 
         return Button {
-            selectedTab = tab
+            withAnimation(
+                .easeOut(duration: 0.15)
+            ) {
+                selectedTab = tab
+            }
         } label: {
-            VStack(spacing: isSelected ? 1 : 0.5) {
+            VStack(
+                spacing: isSelected ? 1 : 0.5
+            ) {
                 Image(
-                    systemName: isSelected
-                        ? activeIconName(for: tab)
-                        : iconName(for: tab)
+                    systemName:
+                        isSelected
+                            ? activeIconName(for: tab)
+                            : iconName(for: tab)
                 )
                 .font(
                     .system(
@@ -59,19 +69,21 @@ struct KIRITabBar: View {
                     height: 28
                 )
 
-                Text(title(for: tab))
-                    .font(
-                        .system(
-                            size: 10,
-                            weight: .semibold
-                        )
+                Text(
+                    title(for: tab)
+                )
+                .font(
+                    .system(
+                        size: 10,
+                        weight: .semibold
                     )
-                    .tracking(
-                        isSelected
-                            ? -0.1
-                            : 0
-                    )
-                    .frame(height: 12)
+                )
+                .tracking(
+                    isSelected
+                        ? -0.1
+                        : 0
+                )
+                .frame(height: 12)
             }
             .foregroundStyle(
                 isSelected
@@ -93,8 +105,12 @@ struct KIRITabBar: View {
             }
             .contentShape(Capsule())
         }
-        .buttonStyle(KIRITabButtonStyle())
-        .accessibilityLabel(title(for: tab))
+        .buttonStyle(
+            KIRITabButtonStyle()
+        )
+        .accessibilityLabel(
+            title(for: tab)
+        )
         .accessibilityAddTraits(
             isSelected
                 ? .isSelected
@@ -183,29 +199,5 @@ private struct KIRITabButtonStyle: ButtonStyle {
                 .easeOut(duration: 0.1),
                 value: configuration.isPressed
             )
-    }
-}
-
-// MARK: - Preview
-
-#Preview {
-    KIRITabBarPreview()
-}
-
-private struct KIRITabBarPreview: View {
-
-    @State private var selectedTab: MainTabView.AppTab = .home
-
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            KIRIColor.Background.base
-                .ignoresSafeArea()
-
-            KIRITabBar(
-                selectedTab: $selectedTab
-            )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 24)
-        }
     }
 }
