@@ -12,107 +12,44 @@ struct KIRITextField: View {
 
     @Binding var text: String
 
-    var state: State = .normal
+    var state: State
     var helperText: String?
-    var trailingIcon: String?
+    var trailingIcon: Image?
 
     @FocusState private var isFocused: Bool
+
+    // MARK: - Initializer
+
+    init(
+        placeholder: String,
+        text: Binding<String>,
+        state: State = .normal,
+        helperText: String? = nil,
+        trailingIcon: Image? = nil
+    ) {
+        self.placeholder = placeholder
+        self._text = text
+        self.state = state
+        self.helperText = helperText
+        self.trailingIcon = trailingIcon
+    }
+
+    // MARK: - State
 
     private var isDisabled: Bool {
         state == .disabled
     }
 
-    private var hasError: Bool {
+    private var isError: Bool {
         state == .error
     }
-
-    var body: some View {
-        VStack(
-            alignment: .leading,
-            spacing: KIRISpacing.small
-        ) {
-            field
-
-            if let helperText {
-                helperLabel(helperText)
-            }
-        }
-    }
-
-    // MARK: - Field
-
-    private var field: some View {
-        HStack(spacing: KIRISpacing.medium) {
-            TextField(
-                "",
-                text: $text,
-                prompt: Text(placeholder)
-                    .foregroundStyle(placeholderColor)
-            )
-            .font(KIRITypography.body)
-            .foregroundStyle(contentColor)
-            .focused($isFocused)
-            .disabled(isDisabled)
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-
-            if let trailingIcon {
-                Image(systemName: trailingIcon)
-                    .font(
-                        .system(
-                            size: 18,
-                            weight: .regular
-                        )
-                    )
-                    .foregroundStyle(iconColor)
-                    .frame(
-                        width: 24,
-                        height: 24
-                    )
-            }
-        }
-        .padding(.horizontal, KIRISpacing.xLarge)
-        .frame(height: 56)
-        .background(backgroundColor)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: KIRIRadius.small
-            )
-        )
-        .overlay {
-            RoundedRectangle(
-                cornerRadius: KIRIRadius.small
-            )
-            .stroke(
-                borderColor,
-                lineWidth: borderWidth
-            )
-        }
-        .animation(
-            .easeInOut(duration: 0.15),
-            value: isFocused
-        )
-    }
-
-    // MARK: - Helper
-
-    private func helperLabel(
-        _ text: String
-    ) -> some View {
-        Text(text)
-            .font(KIRITypography.caption)
-            .foregroundStyle(helperColor)
-            .padding(.horizontal, 2)
-    }
-
-    // MARK: - Colors
 
     private var backgroundColor: Color {
         if isDisabled {
             return KIRIColor.Input.backgroundDisabled
         }
 
-        if hasError {
+        if isError {
             return KIRIColor.Input.backgroundError
         }
 
@@ -132,7 +69,7 @@ struct KIRITextField: View {
             return KIRIColor.Input.borderDisabled
         }
 
-        if hasError {
+        if isError {
             return KIRIColor.Input.borderError
         }
 
@@ -148,8 +85,8 @@ struct KIRITextField: View {
     }
 
     private var borderWidth: CGFloat {
-        if isFocused || hasError {
-            return 1.5
+        if isFocused || isError {
+            return 2
         }
 
         return 1
@@ -160,7 +97,7 @@ struct KIRITextField: View {
             return KIRIColor.Input.contentDisabled
         }
 
-        if hasError {
+        if isError {
             return KIRIColor.Input.contentError
         }
 
@@ -180,7 +117,7 @@ struct KIRITextField: View {
             return KIRIColor.Input.placeholderDisabled
         }
 
-        if hasError {
+        if isError {
             return KIRIColor.Input.placeholderError
         }
 
@@ -196,7 +133,7 @@ struct KIRITextField: View {
             return KIRIColor.Input.helperDisabled
         }
 
-        if hasError {
+        if isError {
             return KIRIColor.Input.helperError
         }
 
@@ -211,54 +148,140 @@ struct KIRITextField: View {
         return KIRIColor.Input.helperDefault
     }
 
-    private var iconColor: Color {
+    private var trailingIconColor: Color {
         if isDisabled {
             return KIRIColor.Icon.disabled
         }
 
-        if isFocused {
-            return KIRIColor.Icon.accent
-        }
-
         return KIRIColor.Icon.secondary
+    }
+
+    // MARK: - Body
+
+    var body: some View {
+        VStack(
+            alignment: .leading,
+            spacing: KIRISpacing.small
+        ) {
+            inputField
+
+            if let helperText,
+               !helperText.isEmpty {
+                helperLabel(helperText)
+            }
+        }
+    }
+
+    // MARK: - Input Field
+
+    private var inputField: some View {
+        HStack(spacing: 4) {
+            ZStack(alignment: .leading) {
+                if text.isEmpty {
+                    Text(placeholder)
+                        .font(KIRITypography.bodyMedium)
+                        .tracking(-0.64)
+                        .foregroundStyle(placeholderColor)
+                        .allowsHitTesting(false)
+                }
+
+                TextField("", text: $text)
+                    .font(KIRITypography.bodyMedium)
+                    .tracking(-0.64)
+                    .foregroundStyle(contentColor)
+                    .tint(KIRIColor.Primary.default)
+                    .focused($isFocused)
+                    .disabled(isDisabled)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+
+            if let trailingIcon {
+                trailingIcon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(
+                        width: 24,
+                        height: 24
+                    )
+                    .foregroundStyle(trailingIconColor)
+            }
+        }
+        .padding(.horizontal, 24)
+        .frame(height: 54)
+        .background(backgroundColor)
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: KIRIRadius.small
+            )
+        )
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: KIRIRadius.small
+            )
+            .stroke(
+                borderColor,
+                lineWidth: borderWidth
+            )
+        }
+    }
+
+    // MARK: - Helper
+
+    private func helperLabel(
+        _ text: String
+    ) -> some View {
+        Text(text)
+            .font(KIRITypography.captionMedium)
+            .tracking(-0.48)
+            .foregroundStyle(helperColor)
+            .padding(.horizontal, 4)
     }
 }
 
 // MARK: - Preview
 
 #Preview {
-    @Previewable @State var defaultText = ""
-    @Previewable @State var filledText = "지금 닉네임 : 쥬123"
-    @Previewable @State var errorText = ""
+    KIRITextFieldPreview()
+}
 
-    ZStack {
-        KIRIColor.Background.base
-            .ignoresSafeArea()
+private struct KIRITextFieldPreview: View {
 
-        VStack(spacing: 20) {
-            KIRITextField(
-                placeholder: "이름을 입력하세요.",
-                text: $defaultText
-            )
+    @State private var defaultText = ""
+    @State private var filledText = "지금 닉네임 : 쥬123"
+    @State private var errorText = ""
+    @State private var disabledText = ""
 
-            KIRITextField(
-                placeholder: "이름을 입력하세요.",
-                text: $filledText
-            )
+    var body: some View {
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
 
-            KIRITextField(
-                placeholder: "이름을 입력하세요.",
-                text: $errorText,
-                state: .error,
-                helperText: "사용할 수 없는 이름이에요."
-            )
+            VStack(spacing: 20) {
+                KIRITextField(
+                    placeholder: "이름을 입력하세요.",
+                    text: $defaultText
+                )
 
-            KIRITextField(
-                placeholder: "이름을 입력하세요.",
-                text: .constant(""),
-                state: .disabled
-            )
+                KIRITextField(
+                    placeholder: "이름을 입력하세요.",
+                    text: $filledText
+                )
+
+                KIRITextField(
+                    placeholder: "이름을 입력하세요.",
+                    text: $errorText,
+                    state: .error,
+                    helperText: "사용할 수 없는 이름입니다."
+                )
+
+                KIRITextField(
+                    placeholder: "이름을 입력하세요.",
+                    text: $disabledText,
+                    state: .disabled
+                )
+            }
+            .padding(.horizontal, 18)
         }
-        .padding(.horizontal, KIRISpacing.horizontal)
     }
 }

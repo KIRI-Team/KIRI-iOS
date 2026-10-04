@@ -4,42 +4,25 @@ struct KIRITabBar: View {
 
     @Binding var selectedTab: MainTabView.AppTab
 
-    private let height: CGFloat = 64
+    private let tabs: [MainTabView.AppTab] = [
+        .home,
+        .mission,
+        .record,
+        .myPage
+    ]
 
     var body: some View {
         HStack(spacing: 0) {
-            tabButton(
-                tab: .home,
-                title: "홈",
-                icon: "house.fill"
-            )
-
-            tabButton(
-                tab: .mission,
-                title: "미션",
-                icon: "sparkles"
-            )
-
-            tabButton(
-                tab: .record,
-                title: "기록",
-                icon: "calendar"
-            )
-
-            tabButton(
-                tab: .myPage,
-                title: "마이",
-                icon: "person.fill"
-            )
+            ForEach(tabs, id: \.self) { tab in
+                tabItem(tab)
+            }
         }
-        .padding(4)
-        .frame(height: height)
+        .padding(.horizontal, 4)
+        .frame(height: 62)
         .background(
             KIRIColor.Navigation.Bar.background
         )
-        .clipShape(
-            Capsule()
-        )
+        .clipShape(Capsule())
         .overlay {
             Capsule()
                 .stroke(
@@ -49,83 +32,138 @@ struct KIRITabBar: View {
         }
     }
 
-    // MARK: - Tab Button
+    // MARK: - Tab Item
 
-    private func tabButton(
-        tab: MainTabView.AppTab,
-        title: String,
-        icon: String
+    private func tabItem(
+        _ tab: MainTabView.AppTab
     ) -> some View {
-
         let isSelected = selectedTab == tab
 
         return Button {
-            withAnimation(
-                .easeInOut(duration: 0.18)
-            ) {
-                selectedTab = tab
-            }
+            selectedTab = tab
         } label: {
-            VStack(spacing: 3) {
-                Image(systemName: icon)
-                    .font(
-                        .system(
-                            size: 18,
-                            weight: .semibold
-                        )
+            VStack(spacing: isSelected ? 1 : 0.5) {
+                Image(
+                    systemName: isSelected
+                        ? activeIconName(for: tab)
+                        : iconName(for: tab)
+                )
+                .font(
+                    .system(
+                        size: 18,
+                        weight: .semibold
                     )
-                    .frame(
-                        width: 24,
-                        height: 24
-                    )
+                )
+                .frame(
+                    width: 24,
+                    height: 28
+                )
 
-                Text(title)
+                Text(title(for: tab))
                     .font(
                         .system(
                             size: 10,
-                            weight: .medium
+                            weight: .semibold
                         )
                     )
-                    .lineLimit(1)
+                    .tracking(
+                        isSelected
+                            ? -0.1
+                            : 0
+                    )
+                    .frame(height: 12)
             }
             .foregroundStyle(
                 isSelected
-                ? KIRIColor.Navigation.Item.contentActive
-                : KIRIColor.Navigation.Item.contentDefault
+                    ? KIRIColor.Navigation.Item.contentActive
+                    : KIRIColor.Navigation.Item.contentDefault
             )
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(
-                isSelected
-                ? KIRIColor.Navigation.Item.backgroundActive
-                : KIRIColor.Navigation.Item.backgroundDefault
+            .frame(
+                maxWidth: .infinity,
+                minHeight: 54,
+                maxHeight: 54
             )
-            .clipShape(
-                Capsule()
-            )
-            .contentShape(
-                Capsule()
-            )
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(
+                            KIRIColor.Navigation.Item.backgroundActive
+                        )
+                }
+            }
+            .contentShape(Capsule())
         }
-        .buttonStyle(
-            KIRITabItemButtonStyle(
-                isSelected: isSelected
-            )
-        )
-        .accessibilityLabel(title)
+        .buttonStyle(KIRITabButtonStyle())
+        .accessibilityLabel(title(for: tab))
         .accessibilityAddTraits(
             isSelected
-            ? .isSelected
-            : []
+                ? .isSelected
+                : []
         )
+    }
+
+    // MARK: - Title
+
+    private func title(
+        for tab: MainTabView.AppTab
+    ) -> String {
+        switch tab {
+        case .home:
+            return "홈"
+
+        case .mission:
+            return "미션"
+
+        case .record:
+            return "기록"
+
+        case .myPage:
+            return "마이"
+        }
+    }
+
+    // MARK: - Icon
+
+    private func iconName(
+        for tab: MainTabView.AppTab
+    ) -> String {
+        switch tab {
+        case .home:
+            return "house"
+
+        case .mission:
+            return "flag"
+
+        case .record:
+            return "calendar"
+
+        case .myPage:
+            return "person"
+        }
+    }
+
+    private func activeIconName(
+        for tab: MainTabView.AppTab
+    ) -> String {
+        switch tab {
+        case .home:
+            return "house.fill"
+
+        case .mission:
+            return "flag.fill"
+
+        case .record:
+            return "calendar"
+
+        case .myPage:
+            return "person.fill"
+        }
     }
 }
 
-// MARK: - Tab Item Button Style
+// MARK: - Button Style
 
-private struct KIRITabItemButtonStyle: ButtonStyle {
-
-    let isSelected: Bool
+private struct KIRITabButtonStyle: ButtonStyle {
 
     func makeBody(
         configuration: Configuration
@@ -133,13 +171,13 @@ private struct KIRITabItemButtonStyle: ButtonStyle {
         configuration.label
             .opacity(
                 configuration.isPressed
-                ? 0.8
-                : 1
+                    ? 0.8
+                    : 1
             )
             .scaleEffect(
                 configuration.isPressed
-                ? 0.97
-                : 1
+                    ? 0.97
+                    : 1
             )
             .animation(
                 .easeOut(duration: 0.1),
@@ -151,28 +189,23 @@ private struct KIRITabItemButtonStyle: ButtonStyle {
 // MARK: - Preview
 
 #Preview {
-    @Previewable
-    @State var selectedTab:
-        MainTabView.AppTab = .home
+    KIRITabBarPreview()
+}
 
-    ZStack {
-        KIRIColor.Background.base
-            .ignoresSafeArea()
+private struct KIRITabBarPreview: View {
 
-        VStack {
-            Spacer()
+    @State private var selectedTab: MainTabView.AppTab = .home
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
 
             KIRITabBar(
                 selectedTab: $selectedTab
             )
-            .padding(
-                .horizontal,
-                KIRISpacing.horizontal
-            )
-            .padding(
-                .bottom,
-                KIRISpacing.small
-            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
     }
 }
