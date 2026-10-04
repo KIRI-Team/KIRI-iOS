@@ -20,13 +20,19 @@ struct AuthFlowView: View {
                 LoginView(
                     onBack: {},
                     onKakaoLogin: {
-                        handleSocialLogin(provider: .kakao)
+                        handleSocialLogin(
+                            provider: .kakao
+                        )
                     },
                     onGoogleLogin: {
-                        handleSocialLogin(provider: .google)
+                        handleSocialLogin(
+                            provider: .google
+                        )
                     },
                     onAppleLogin: {
-                        handleSocialLogin(provider: .apple)
+                        handleSocialLogin(
+                            provider: .apple
+                        )
                     }
                 )
 
@@ -55,41 +61,45 @@ struct AuthFlowView: View {
         switch provider {
         case .kakao:
             // TODO:
-            // Kakao SDK 로그인
-            // → 카카오 access token 획득
-            // → KIRI Server 전달
-            // → 신규/기존 회원 여부 확인
+            // Kakao SDK 인증
+            //
+            // 1. Kakao 로그인
+            // 2. Kakao Access Token 획득
+            // 3. KIRI Server 전달
+            // 4. 서버에서 신규/기존 회원 판단
             break
 
         case .google:
             // TODO:
-            // Google Sign-In
-            // → Google ID Token 획득
-            // → KIRI Server 전달
-            // → 신규/기존 회원 여부 확인
+            // Google Sign-In 인증
+            //
+            // 1. Google 로그인
+            // 2. Google ID Token 획득
+            // 3. KIRI Server 전달
+            // 4. 서버에서 신규/기존 회원 판단
             break
 
         case .apple:
-            // TODO:
-            // Sign in with Apple
-            // → identityToken / authorizationCode 획득
-            // → KIRI Server 전달
-            // → 신규/기존 회원 여부 확인
+            // Apple 인증 자체는
+            // LoginView의 SignInWithAppleButton에서 수행한다.
+            //
+            // 추후 LoginView에서 받은 Apple Credential을
+            // AuthService/ViewModel 쪽으로 이동시킬 예정이다.
             break
         }
 
-        // MARK: Temporary Flow
+        // MARK: - Temporary Authentication Flow
         //
-        // 현재는 소셜 로그인 UI/온보딩 플로우 확인 단계이므로
-        // 세 로그인 모두 신규 회원으로 가정한다.
+        // 현재는 서버 인증 API가 연결되지 않았으므로
+        // 로그인에 성공했다고 가정하고 신규 회원 플로우로 이동한다.
         //
-        // API 연결 이후 서버 응답에 따라 아래처럼 분기:
+        // 실제 서버 연결 후에는 다음처럼 처리:
         //
-        // 신규 회원:
-        // step = .terms
+        // 신규 회원
+        // → step = .terms
         //
-        // 기존 회원:
-        // onAuthenticated()
+        // 기존 회원
+        // → onAuthenticated()
 
         step = .terms
     }
@@ -100,14 +110,15 @@ struct AuthFlowView: View {
         // TODO:
         // 약관 동의 API 연결
         //
-        // 서버 저장 대상:
+        // 서버에 다음 동의 여부를 전달:
         //
         // 1. 서비스 이용약관
-        // 2. 개인정보 수집·이용 동의
+        // 2. 개인정보 수집·이용
         // 3. 개인정보 처리방침 확인
         // 4. 위치정보 이용 동의 여부
         //
-        // 저장 완료 후 KIRI 온보딩으로 이동
+        // 서버 저장 완료 후
+        // KIRI 온보딩으로 이동한다.
 
         onAuthenticated()
     }

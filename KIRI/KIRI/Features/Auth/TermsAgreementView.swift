@@ -11,8 +11,6 @@ struct TermsAgreementView: View {
     let onBack: () -> Void
     let onComplete: () -> Void
 
-    // MARK: - Agreement State
-
     private var allAgreed: Bool {
         serviceTermsAgreed &&
         privacyCollectionAgreed &&
@@ -26,26 +24,34 @@ struct TermsAgreementView: View {
         privacyPolicyConfirmed
     }
 
-    // MARK: - Body
-
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 0) {
-                titleSection
+            VStack(spacing: 0) {
+                header
 
-                agreementSection
-                    .padding(.top, 82)
+                VStack(
+                    alignment: .leading,
+                    spacing: 0
+                ) {
+                    titleSection
 
-                Spacer()
+                    agreementSection
+                        .padding(.top, 72)
 
-                continueButton
+                    Spacer()
+
+                    continueButton
+                }
+                .padding(
+                    .horizontal,
+                    KIRISpacing.horizontal
+                )
+                .padding(.bottom, 10)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 10)
         }
-        .background(KIRIColor.background)
         .sheet(item: $selectedTerm) { term in
             TermDetailView(term: term)
         }
@@ -59,27 +65,37 @@ struct TermsAgreementView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 4)
+        .padding(
+            .horizontal,
+            KIRISpacing.xSmall
+        )
         .frame(height: 56)
     }
 
     // MARK: - Title
 
     private var titleSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(
+            alignment: .leading,
+            spacing: 10
+        ) {
             Text("서비스 이용을 위해\n동의가 필요해요")
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(KIRIColor.textPrimary)
+                .font(KIRITypography.titleBold)
+                .foregroundStyle(
+                    KIRIColor.Text.strong
+                )
                 .tracking(-0.8)
                 .lineSpacing(8)
 
             Text("필수 내용을 확인한 뒤 계속할 수 있어요")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(KIRIColor.textSecondary)
+                .font(KIRITypography.subtitle)
+                .foregroundStyle(
+                    KIRIColor.Text.secondary
+                )
         }
     }
 
-    // MARK: - Agreement Section
+    // MARK: - Agreements
 
     private var agreementSection: some View {
         VStack(spacing: 10) {
@@ -148,57 +164,42 @@ struct TermsAgreementView: View {
                 )
 
                 Text("전체동의")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(
+                        KIRIColor.Text.strong
+                    )
 
                 Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(
-                        KIRIColor.textSecondary.opacity(0.35)
-                    )
             }
-            .padding(.horizontal, 28)
-            .frame(height: 57)
+            .padding(
+                .horizontal,
+                KIRISpacing.xLarge
+            )
+            .frame(height: 56)
             .background(
-                Color.white.opacity(0.08)
+                KIRIColor.Card.backgroundPressed
             )
             .clipShape(
                 RoundedRectangle(
-                    cornerRadius: 8
+                    cornerRadius: KIRIRadius.small
                 )
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("약관 전체 동의")
+        .accessibilityValue(
+            allAgreed ? "동의됨" : "동의 안 됨"
+        )
     }
 
-    // MARK: - Continue Button
+    // MARK: - Continue
 
     private var continueButton: some View {
-        Button(action: onComplete) {
-            Text("동의하고 계속하기")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(
-                    requiredAgreed
-                        ? Color.black
-                        : KIRIColor.textSecondary
-                )
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .background(
-                    requiredAgreed
-                        ? Color.white
-                        : KIRIColor.surface
-                )
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: 8
-                    )
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(!requiredAgreed)
+        KIRIPrimaryButton(
+            title: "동의하고 계속하기",
+            isEnabled: requiredAgreed,
+            action: onComplete
+        )
     }
 }
 
@@ -222,8 +223,10 @@ private struct TermAgreementRow: View {
 
             Button(action: onCheck) {
                 Text(title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(KIRITypography.subtitle)
+                    .foregroundStyle(
+                        KIRIColor.Text.primary
+                    )
                     .frame(
                         maxWidth: .infinity,
                         alignment: .leading
@@ -233,25 +236,45 @@ private struct TermAgreementRow: View {
 
             Button(action: onDetail) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 15))
+                    .font(
+                        .system(
+                            size: 15,
+                            weight: .regular
+                        )
+                    )
                     .foregroundStyle(
-                        KIRIColor.textSecondary.opacity(0.4)
+                        KIRIColor.Icon.secondary
                     )
                     .frame(
                         width: 30,
                         height: 44
                     )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("\(title) 상세보기")
         }
-        .padding(.horizontal, 28)
-        .frame(height: 57)
+        .padding(
+            .horizontal,
+            KIRISpacing.xLarge
+        )
+        .frame(height: 56)
+        .background(
+            KIRIColor.Card.backgroundDefault
+        )
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: KIRIRadius.small
+            )
+        )
         .overlay {
             RoundedRectangle(
-                cornerRadius: 8
+                cornerRadius: KIRIRadius.small
             )
             .stroke(
-                Color.white.opacity(0.14),
+                isChecked
+                ? KIRIColor.Card.borderSelected
+                : KIRIColor.Card.borderDefault,
                 lineWidth: 1
             )
         }
@@ -268,10 +291,23 @@ private struct AgreementCheckbox: View {
             RoundedRectangle(
                 cornerRadius: 4
             )
+            .fill(
+                isChecked
+                ? KIRIColor.Primary.default
+                : KIRIColor.Background.transparent
+            )
+            .frame(
+                width: 20,
+                height: 20
+            )
+
+            RoundedRectangle(
+                cornerRadius: 4
+            )
             .stroke(
                 isChecked
-                    ? Color.white
-                    : Color.white.opacity(0.12),
+                ? KIRIColor.Primary.default
+                : KIRIColor.Border.default,
                 lineWidth: 1
             )
             .frame(
@@ -280,15 +316,6 @@ private struct AgreementCheckbox: View {
             )
 
             if isChecked {
-                RoundedRectangle(
-                    cornerRadius: 4
-                )
-                .fill(Color.white)
-                .frame(
-                    width: 20,
-                    height: 20
-                )
-
                 Image(systemName: "checkmark")
                     .font(
                         .system(
@@ -296,13 +323,15 @@ private struct AgreementCheckbox: View {
                             weight: .bold
                         )
                     )
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(
+                        KIRIColor.Icon.onGreen
+                    )
             }
         }
     }
 }
 
-// MARK: - Terms
+// MARK: - Term Type
 
 private enum TermType: String, Identifiable {
     case service
@@ -428,17 +457,19 @@ private struct TermDetailView: View {
         NavigationStack {
             ScrollView {
                 Text(term.content)
-                    .font(.system(size: 15))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(KIRITypography.subtitle)
+                    .foregroundStyle(
+                        KIRIColor.Text.primary
+                    )
                     .lineSpacing(6)
                     .frame(
                         maxWidth: .infinity,
                         alignment: .leading
                     )
-                    .padding(20)
+                    .padding(KIRISpacing.large)
             }
             .background(
-                KIRIColor.background
+                KIRIColor.Background.base
                     .ignoresSafeArea()
             )
             .navigationTitle(term.title)
@@ -450,7 +481,9 @@ private struct TermDetailView: View {
                     Button("닫기") {
                         dismiss()
                     }
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(
+                        KIRIColor.Text.accent
+                    )
                 }
             }
         }

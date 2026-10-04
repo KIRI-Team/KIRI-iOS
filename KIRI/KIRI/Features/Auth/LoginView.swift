@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct LoginView: View {
     let onBack: () -> Void
@@ -8,7 +9,7 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            KIRIColor.background
+            KIRIColor.Background.base
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -33,7 +34,7 @@ struct LoginView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, KIRISpacing.xSmall)
         .frame(height: 56)
     }
 
@@ -49,18 +50,20 @@ struct LoginView: View {
                 )
             )
             .tracking(-4)
-            .foregroundStyle(KIRIColor.textPrimary)
+            .foregroundStyle(KIRIColor.Text.strong)
     }
 
-    // MARK: - Social Login Section
+    // MARK: - Social Login
 
     private var socialLoginSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: KIRISpacing.medium) {
             kakaoLoginButton
+
             googleLoginButton
+
             appleLoginButton
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, KIRISpacing.horizontal)
         .padding(.bottom, 38)
     }
 
@@ -75,19 +78,25 @@ struct LoginView: View {
                 Image("kakao_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 22, height: 22)
+                    .frame(
+                        width: 20,
+                        height: 20
+                    )
             }
-            .frame(height: 56)
-            .background(
-                Color(
-                    red: 254 / 255,
-                    green: 229 / 255,
-                    blue: 0 / 255
-                )
-            )
-            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .background(
+            Color(
+                red: 254 / 255,
+                green: 229 / 255,
+                blue: 0 / 255
+            )
+        )
+        .clipShape(Capsule())
+        .contentShape(Capsule())
+        .accessibilityLabel("카카오 로그인")
     }
 
     // MARK: - Google
@@ -96,49 +105,94 @@ struct LoginView: View {
         Button(action: onGoogleLogin) {
             SocialLoginButtonContent(
                 title: "Google로 로그인",
-                foregroundColor: Color.black.opacity(0.82)
+                foregroundColor: Color.black.opacity(0.85)
             ) {
                 Image("google_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 22, height: 22)
+                    .frame(
+                        width: 20,
+                        height: 20
+                    )
             }
-            .frame(height: 56)
-            .background(Color.white)
-            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .background(Color.white)
+        .clipShape(Capsule())
+        .contentShape(Capsule())
+        .accessibilityLabel("Google로 로그인")
     }
 
     // MARK: - Apple
 
     private var appleLoginButton: some View {
-        Button(action: onAppleLogin) {
-            SocialLoginButtonContent(
-                title: "Apple로 로그인",
-                foregroundColor: Color.white
-            ) {
-                Image(systemName: "apple.logo")
-                    .font(.system(size: 23, weight: .medium))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 22, height: 22)
+        SignInWithAppleButton(
+            .signIn,
+            onRequest: { request in
+                request.requestedScopes = [
+                    .fullName,
+                    .email
+                ]
+            },
+            onCompletion: { result in
+                handleAppleSignInResult(result)
             }
-            .frame(height: 56)
-            .background(Color.black)
-            .clipShape(Capsule())
-            .overlay {
-                Capsule()
-                    .stroke(
-                        Color.white.opacity(0.18),
-                        lineWidth: 1
-                    )
+        )
+        .signInWithAppleButtonStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .clipShape(Capsule())
+        .accessibilityLabel("Apple로 로그인")
+    }
+
+    // MARK: - Apple Result
+
+    private func handleAppleSignInResult(
+        _ result: Result<ASAuthorization, Error>
+    ) {
+        switch result {
+        case .success(let authorization):
+            guard let credential =
+                authorization.credential
+                as? ASAuthorizationAppleIDCredential
+            else {
+                return
             }
+
+            let userIdentifier = credential.user
+            let identityToken = credential.identityToken
+            let authorizationCode = credential.authorizationCode
+            let fullName = credential.fullName
+            let email = credential.email
+
+            // TODO:
+            // 실제 서버 연동 시 AuthService로 이동한다.
+            //
+            // identityToken / authorizationCode
+            // → KIRI Server
+            //
+            // fullName / email은 최초 Apple 승인 시에만
+            // 전달될 수 있으므로 최초 로그인 시 처리한다.
+
+            _ = userIdentifier
+            _ = identityToken
+            _ = authorizationCode
+            _ = fullName
+            _ = email
+
+            onAppleLogin()
+
+        case .failure(let error):
+            print(
+                "Apple Sign In Error: \(error.localizedDescription)"
+            )
         }
-        .buttonStyle(.plain)
     }
 }
 
-// MARK: - Social Login Button Content
+// MARK: - Social Login Content
 
 private struct SocialLoginButtonContent<Logo: View>: View {
     let title: String
@@ -148,25 +202,20 @@ private struct SocialLoginButtonContent<Logo: View>: View {
     let logo: () -> Logo
 
     var body: some View {
-        ZStack {
-            Text(title)
-                .font(
-                    .system(
-                        size: 16,
-                        weight: .medium
-                    )
+        HStack(spacing: KIRISpacing.small) {
+            logo()
+                .frame(
+                    width: 20,
+                    height: 20
                 )
+
+            Text(title)
+                .font(KIRITypography.button)
                 .foregroundStyle(foregroundColor)
-
-            HStack {
-                logo()
-                    .frame(width: 24, height: 24)
-
-                Spacer()
-            }
-            .padding(.horizontal, 20)
         }
         .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .contentShape(Rectangle())
     }
 }
 

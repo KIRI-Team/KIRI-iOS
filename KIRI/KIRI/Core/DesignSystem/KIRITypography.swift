@@ -1,49 +1,131 @@
-
 import SwiftUI
 
 enum KIRITypography {
-    static let title = Font.system(
-        size: 26,
-        weight: .regular
+
+    // MARK: - Font Family
+
+    private static let regularName = "Pretendard-Regular"
+    private static let mediumName = "Pretendard-Medium"
+    private static let semiBoldName = "Pretendard-SemiBold"
+
+    // MARK: - Display / Title
+
+    /// 28 / 40 / Medium / -2%
+    static let title = pretendard(
+        name: mediumName,
+        size: 28
     )
 
-    static let titleBold = Font.system(
-        size: 26,
-        weight: .semibold
+    /// 28 / 40 / Medium / -2%
+    static let titleBold = pretendard(
+        name: mediumName,
+        size: 28
     )
 
-    static let subtitle = Font.system(
-        size: 15,
-        weight: .regular
+    /// 24 / 32 / SemiBold / -2%
+    static let headingLarge = pretendard(
+        name: semiBoldName,
+        size: 24
     )
 
-    static let body = Font.system(
-        size: 16,
-        weight: .regular
+    /// 20 / 30 / Medium / -4%
+    static let headingMedium = pretendard(
+        name: mediumName,
+        size: 20
     )
 
-    static let bodyMedium = Font.system(
-        size: 16,
-        weight: .medium
+    /// 18 / 27 / Medium / -4%
+    static let headingSmall = pretendard(
+        name: mediumName,
+        size: 18
     )
 
-    static let button = Font.system(
-        size: 16,
-        weight: .medium
+    // MARK: - Body
+
+    /// 16 / 26 / Regular / -4%
+    static let body = pretendard(
+        name: regularName,
+        size: 16
     )
 
-    static let caption = Font.system(
-        size: 12,
-        weight: .regular
+    /// 16 / 24 / Medium / -4%
+    static let bodyMedium = pretendard(
+        name: mediumName,
+        size: 16
     )
 
-    static let roleKorean = Font.system(
-        size: 22,
-        weight: .semibold
+    /// 14 / 21 / Regular / -4%
+    static let bodySmall = pretendard(
+        name: regularName,
+        size: 14
     )
 
-    static let roleEnglish = Font.system(
-        size: 17,
-        weight: .medium
+    /// 14 / 20 / Medium / -4%
+    static let bodySmallMedium = pretendard(
+        name: mediumName,
+        size: 14
     )
+
+    // MARK: - Components
+
+    /// KIRI/Button
+    /// 16 / 24 / Medium / -4%
+    static let button = pretendard(
+        name: mediumName,
+        size: 16
+    )
+
+    /// 14 / 20 / Medium / -4%
+    static let chip = pretendard(
+        name: mediumName,
+        size: 14
+    )
+
+    /// 12 / 18 / Regular / -4%
+    static let caption = pretendard(
+        name: regularName,
+        size: 12
+    )
+
+    /// 12 / 17 / Medium / -4%
+    static let captionMedium = pretendard(
+        name: mediumName,
+        size: 12
+    )
+
+    /// Bottom Navigation
+    static let navigation = pretendard(
+        name: mediumName,
+        size: 10
+    )
+
+    // MARK: - Role
+
+    /// 가족 역할 한글
+    static let roleKorean = pretendard(
+        name: semiBoldName,
+        size: 24
+    )
+
+    /// 가족 역할 영문
+    static let roleEnglish = pretendard(
+        name: semiBoldName,
+        size: 18
+    )
+
+    // MARK: - Legacy Compatibility
+
+    static let subtitle = bodySmall
+
+    // MARK: - Font Factory
+
+    private static func pretendard(
+        name: String,
+        size: CGFloat
+    ) -> Font {
+        .custom(
+            name,
+            fixedSize: size
+        )
+    }
 }
