@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct KIRITabBar: View {
+
     @Binding var selectedTab: MainTabView.AppTab
 
-    private let tabBarHeight: CGFloat = 72
-    private let cornerRadius: CGFloat = 30
+    private let height: CGFloat = 64
 
     var body: some View {
         HStack(spacing: 0) {
@@ -32,82 +32,31 @@ struct KIRITabBar: View {
                 icon: "person.fill"
             )
         }
-        .padding(.horizontal, 8)
-        .frame(height: tabBarHeight)
-        .background {
-            glassBackground
-        }
+        .padding(4)
+        .frame(height: height)
+        .background(
+            KIRIColor.Navigation.Bar.background
+        )
         .clipShape(
-            RoundedRectangle(
-                cornerRadius: cornerRadius,
-                style: .continuous
-            )
+            Capsule()
         )
         .overlay {
-            RoundedRectangle(
-                cornerRadius: cornerRadius,
-                style: .continuous
-            )
-            .stroke(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.24),
-                        Color.white.opacity(0.08),
-                        Color.white.opacity(0.04)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 0.8
-            )
-        }
-        .shadow(
-            color: Color.black.opacity(0.28),
-            radius: 20,
-            x: 0,
-            y: 8
-        )
-    }
-
-    private var glassBackground: some View {
-        ZStack {
-            RoundedRectangle(
-                cornerRadius: cornerRadius,
-                style: .continuous
-            )
-            .fill(.ultraThinMaterial)
-
-            RoundedRectangle(
-                cornerRadius: cornerRadius,
-                style: .continuous
-            )
-            .fill(
-                Color.black.opacity(0.16)
-            )
-
-            RoundedRectangle(
-                cornerRadius: cornerRadius,
-                style: .continuous
-            )
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.10),
-                        Color.white.opacity(0.025),
-                        Color.clear
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
+            Capsule()
+                .stroke(
+                    KIRIColor.Navigation.Bar.border,
+                    lineWidth: 1
                 )
-            )
         }
     }
+
+    // MARK: - Tab Button
 
     private func tabButton(
         tab: MainTabView.AppTab,
         title: String,
         icon: String
     ) -> some View {
+
         let isSelected = selectedTab == tab
 
         return Button {
@@ -117,11 +66,11 @@ struct KIRITabBar: View {
                 selectedTab = tab
             }
         } label: {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: icon)
                     .font(
                         .system(
-                            size: 19,
+                            size: 18,
                             weight: .semibold
                         )
                     )
@@ -133,34 +82,81 @@ struct KIRITabBar: View {
                 Text(title)
                     .font(
                         .system(
-                            size: 11,
-                            weight: .semibold
+                            size: 10,
+                            weight: .medium
                         )
                     )
                     .lineLimit(1)
             }
             .foregroundStyle(
                 isSelected
-                    ? Color.green
-                    : Color.white.opacity(0.45)
+                ? KIRIColor.Navigation.Item.contentActive
+                : KIRIColor.Navigation.Item.contentDefault
             )
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .contentShape(Rectangle())
+            .frame(height: 56)
+            .background(
+                isSelected
+                ? KIRIColor.Navigation.Item.backgroundActive
+                : KIRIColor.Navigation.Item.backgroundDefault
+            )
+            .clipShape(
+                Capsule()
+            )
+            .contentShape(
+                Capsule()
+            )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(
+            KIRITabItemButtonStyle(
+                isSelected: isSelected
+            )
+        )
         .accessibilityLabel(title)
         .accessibilityAddTraits(
-            isSelected ? .isSelected : []
+            isSelected
+            ? .isSelected
+            : []
         )
     }
 }
 
+// MARK: - Tab Item Button Style
+
+private struct KIRITabItemButtonStyle: ButtonStyle {
+
+    let isSelected: Bool
+
+    func makeBody(
+        configuration: Configuration
+    ) -> some View {
+        configuration.label
+            .opacity(
+                configuration.isPressed
+                ? 0.8
+                : 1
+            )
+            .scaleEffect(
+                configuration.isPressed
+                ? 0.97
+                : 1
+            )
+            .animation(
+                .easeOut(duration: 0.1),
+                value: configuration.isPressed
+            )
+    }
+}
+
+// MARK: - Preview
+
 #Preview {
-    @Previewable @State var selectedTab: MainTabView.AppTab = .home
+    @Previewable
+    @State var selectedTab:
+        MainTabView.AppTab = .home
 
     ZStack {
-        KIRIColor.background
+        KIRIColor.Background.base
             .ignoresSafeArea()
 
         VStack {
@@ -169,8 +165,14 @@ struct KIRITabBar: View {
             KIRITabBar(
                 selectedTab: $selectedTab
             )
-            .padding(.horizontal, 18)
-            .padding(.bottom, 8)
+            .padding(
+                .horizontal,
+                KIRISpacing.horizontal
+            )
+            .padding(
+                .bottom,
+                KIRISpacing.small
+            )
         }
     }
 }
