@@ -1,14 +1,16 @@
-
 import SwiftUI
 
 struct FamilyNameView: View {
+
     @Binding var familyName: String
 
     let onBack: () -> Void
     let onNext: () -> Void
 
     private var trimmedFamilyName: String {
-        familyName.trimmingCharacters(in: .whitespacesAndNewlines)
+        familyName.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
     }
 
     private var isValid: Bool {
@@ -21,15 +23,18 @@ struct FamilyNameView: View {
         VStack(spacing: 0) {
             header
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(
+                alignment: .leading,
+                spacing: 0
+            ) {
                 Text("우리 가족의\n가족명을 설정해주세요.")
                     .font(KIRITypography.title)
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .foregroundStyle(KIRIColor.Text.primary)
                     .lineSpacing(7)
 
                 Text("우리 가족만의 이름을 만들어주세요!")
                     .font(KIRITypography.subtitle)
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.top, 12)
 
                 KIRITextField(
@@ -37,16 +42,13 @@ struct FamilyNameView: View {
                     text: $familyName
                 )
                 .padding(.top, 50)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("✓ 한글/영어/숫자 혼합 가능")
-                    Text("✓ 최소 2자 ~ 최대 10자 이내")
-                    Text("✓ 특수 문자 입력 불가능")
+                .onChange(of: familyName) { _, newValue in
+                    familyName = sanitize(newValue)
                 }
-                .font(KIRITypography.caption)
-                .foregroundStyle(KIRIColor.textSecondary)
-                .padding(.leading, 24)
-                .padding(.top, 10)
+
+                KIRIValidationGuidance()
+                    .padding(.leading, 24)
+                    .padding(.top, 10)
 
                 Spacer()
 
@@ -56,15 +58,22 @@ struct FamilyNameView: View {
                     action: onNext
                 )
             }
-            .padding(.horizontal, KIRISpacing.horizontal)
+            .padding(
+                .horizontal,
+                KIRISpacing.horizontal
+            )
             .padding(.bottom, 10)
         }
-        .background(KIRIColor.background)
+        .background(KIRIColor.Background.base)
     }
+
+    // MARK: - Header
 
     private var header: some View {
         HStack {
-            KIRIBackButton(action: onBack)
+            KIRIBackButton(
+                action: onBack
+            )
 
             Spacer()
         }
@@ -72,7 +81,11 @@ struct FamilyNameView: View {
         .frame(height: 70)
     }
 
-    private func containsOnlyAllowedCharacters(_ value: String) -> Bool {
+    // MARK: - Validation
+
+    private func containsOnlyAllowedCharacters(
+        _ value: String
+    ) -> Bool {
         let pattern = "^[가-힣A-Za-z0-9]+$"
 
         return value.range(
@@ -80,7 +93,22 @@ struct FamilyNameView: View {
             options: .regularExpression
         ) != nil
     }
+
+    private func sanitize(
+        _ value: String
+    ) -> String {
+        let filtered = value.filter { character in
+            String(character).range(
+                of: "[가-힣A-Za-z0-9]",
+                options: .regularExpression
+            ) != nil
+        }
+
+        return String(filtered.prefix(10))
+    }
 }
+
+// MARK: - Preview
 
 #Preview {
     @Previewable @State var familyName = "주연이가족"
@@ -90,5 +118,5 @@ struct FamilyNameView: View {
         onBack: {},
         onNext: {}
     )
-    .background(KIRIColor.background)
+    .background(KIRIColor.Background.base)
 }

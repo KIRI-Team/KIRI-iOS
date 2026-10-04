@@ -5,10 +5,10 @@
 //  Created by namhyuk on 9/28/26.
 //
 
-
 import SwiftUI
 
 struct FamilyCodeInputView: View {
+
     @Binding var familyCode: String
 
     let onBack: () -> Void
@@ -16,45 +16,53 @@ struct FamilyCodeInputView: View {
 
     private var normalizedCode: String {
         familyCode
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
             .uppercased()
     }
 
     private var isValid: Bool {
         normalizedCode.count == 6 &&
-        normalizedCode.allSatisfy { $0.isLetter || $0.isNumber }
+        normalizedCode.allSatisfy { character in
+            character.isASCII &&
+            (character.isLetter || character.isNumber)
+        }
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(
+                alignment: .leading,
+                spacing: 0
+            ) {
                 Text("가족에게 받은\n코드를 입력해주세요.")
                     .font(KIRITypography.title)
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .foregroundStyle(KIRIColor.Text.primary)
                     .lineSpacing(7)
 
                 Text("가족코드를 입력하면 참여할 가족공간을 확인할 수 있어요.")
                     .font(KIRITypography.subtitle)
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.top, 12)
 
-                KIRITextField(
-                    placeholder: "가족코드 6자리",
-                    text: $familyCode
-                )
-                .textInputAutocapitalization(.characters)
-                .autocorrectionDisabled()
-                .padding(.top, 50)
-                .onChange(of: familyCode) { _, newValue in
-                    familyCode = sanitize(newValue)
+                HStack {
+                    Spacer()
+
+                    KIRICodeInput(
+                        text: $familyCode
+                    )
+
+                    Spacer()
                 }
+                .padding(.top, 50)
 
                 Text("영문과 숫자로 구성된 6자리 코드를 입력해주세요.")
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.textSecondary)
-                    .padding(.leading, 24)
+                    .font(KIRITypography.captionMedium)
+                    .tracking(-0.48)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
                     .padding(.top, 10)
 
                 Spacer()
@@ -62,33 +70,37 @@ struct FamilyCodeInputView: View {
                 KIRIPrimaryButton(
                     title: "가족공간 확인하기",
                     isEnabled: isValid,
-                    action: onNext
+                    action: {
+                        familyCode = normalizedCode
+                        onNext()
+                    }
                 )
             }
-            .padding(.horizontal, KIRISpacing.horizontal)
+            .padding(
+                .horizontal,
+                KIRISpacing.horizontal
+            )
             .padding(.bottom, 10)
         }
-        .background(KIRIColor.background)
+        .background(KIRIColor.Background.base)
     }
+
+    // MARK: - Header
 
     private var header: some View {
         HStack {
-            KIRIBackButton(action: onBack)
+            KIRIBackButton(
+                action: onBack
+            )
 
             Spacer()
         }
         .padding(.horizontal, 4)
         .frame(height: 70)
     }
-
-    private func sanitize(_ value: String) -> String {
-        let filtered = value
-            .uppercased()
-            .filter { $0.isLetter || $0.isNumber }
-
-        return String(filtered.prefix(6))
-    }
 }
+
+// MARK: - Preview
 
 #Preview {
     @Previewable @State var familyCode = ""
@@ -98,5 +110,5 @@ struct FamilyCodeInputView: View {
         onBack: {},
         onNext: {}
     )
-    .background(KIRIColor.background)
+    .background(KIRIColor.Background.base)
 }
