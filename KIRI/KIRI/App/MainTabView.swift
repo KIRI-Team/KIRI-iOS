@@ -28,7 +28,7 @@ struct MainTabView: View {
             KIRITabBar(
                 selectedTab: $selectedTab
             )
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 18)
             .padding(.bottom, 8)
         }
         .ignoresSafeArea(
@@ -36,8 +36,6 @@ struct MainTabView: View {
             edges: .bottom
         )
     }
-
-    // MARK: - Content
 
     @ViewBuilder
     private var currentContent: some View {
@@ -60,8 +58,6 @@ struct MainTabView: View {
         }
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     MainTabView(

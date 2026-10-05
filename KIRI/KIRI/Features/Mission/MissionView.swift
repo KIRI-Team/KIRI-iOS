@@ -14,6 +14,7 @@ struct MissionView: View {
 
     private struct PlaceItem: Identifiable {
         let id = UUID()
+
         let title: String
         let placeName: String
         let district: String
@@ -21,6 +22,7 @@ struct MissionView: View {
         let tags: [String]
         let isRecommended: Bool
         let category: Category
+
         var isBookmarked: Bool
     }
 
@@ -33,7 +35,9 @@ struct MissionView: View {
             placeName: "광장시장",
             district: "종로구",
             rating: nil,
-            tags: ["혼잡도 높음"],
+            tags: [
+                "혼잡도 높음"
+            ],
             isRecommended: true,
             category: .food,
             isBookmarked: true
@@ -125,11 +129,7 @@ struct MissionView: View {
                     showsIndicators: false
                 ) {
                     VStack(spacing: 0) {
-                        KIRISearchField(
-                            text: $searchText
-                        )
-                        .padding(.horizontal, 18)
-                        .padding(.top, 6)
+                        searchSection
 
                         categorySection
                             .padding(.top, 13)
@@ -143,7 +143,7 @@ struct MissionView: View {
                             .padding(.top, 16)
 
                         Color.clear
-                            .frame(height: 110)
+                            .frame(height: 100)
                     }
                 }
             }
@@ -162,6 +162,16 @@ struct MissionView: View {
         .frame(height: 62)
     }
 
+    // MARK: - Search
+
+    private var searchSection: some View {
+        KIRISearchField(
+            text: $searchText
+        )
+        .padding(.horizontal, 18)
+        .padding(.top, 6)
+    }
+
     // MARK: - Categories
 
     private var categorySection: some View {
@@ -178,7 +188,11 @@ struct MissionView: View {
                         title: category.rawValue,
                         isSelected: selectedCategory == category
                     ) {
-                        selectedCategory = category
+                        withAnimation(
+                            .easeOut(duration: 0.15)
+                        ) {
+                            selectedCategory = category
+                        }
                     }
                 }
             }
@@ -186,10 +200,10 @@ struct MissionView: View {
         }
     }
 
-    // MARK: - Filter Header
+    // MARK: - Filter
 
     private var filterHeader: some View {
-        HStack {
+        HStack(spacing: 0) {
             Text("활동 \(filteredPlaces.count)개")
                 .font(KIRITypography.bodySmallMedium)
                 .tracking(-0.56)
@@ -207,15 +221,16 @@ struct MissionView: View {
                 )
             }
         }
+        .frame(height: 20)
     }
 
     private func filterButton(
         title: String
     ) -> some View {
         Button {
-            // TODO: 필터 정책 연결
+            // TODO: 필터 화면 연결
         } label: {
-            HStack(spacing: 5) {
+            HStack(spacing: 4) {
                 Text(title)
                     .font(KIRITypography.bodySmallMedium)
                     .tracking(-0.56)
@@ -228,13 +243,13 @@ struct MissionView: View {
                             weight: .bold
                         )
                     )
-                    .foregroundStyle(KIRIColor.Text.disabled)
+                    .foregroundStyle(KIRIColor.Icon.disabled)
             }
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Place List
+    // MARK: - Places
 
     private var placeList: some View {
         LazyVStack(spacing: 16) {
@@ -254,18 +269,24 @@ struct MissionView: View {
         }
     }
 
+    // MARK: - Bookmark
+
     private func bookmarkBinding(
         for id: UUID
     ) -> Binding<Bool> {
         Binding(
             get: {
                 places.first(
-                    where: { $0.id == id }
+                    where: {
+                        $0.id == id
+                    }
                 )?.isBookmarked ?? false
             },
             set: { newValue in
                 guard let index = places.firstIndex(
-                    where: { $0.id == id }
+                    where: {
+                        $0.id == id
+                    }
                 ) else {
                     return
                 }

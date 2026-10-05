@@ -10,6 +10,7 @@ struct RecordView: View {
             switch self {
             case .calendar:
                 return "캘린더"
+
             case .bucket:
                 return "버킷리스트"
             }
@@ -17,33 +18,49 @@ struct RecordView: View {
     }
 
     @State private var selectedTab: RecordTab = .calendar
+    @State private var selectedSchedule: RecordCalendarView.ScheduleDetailData?
 
     var body: some View {
         ZStack {
             KIRIColor.Background.base
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                KIRITopTab(
-                    items: [
-                        RecordTab.calendar,
-                        RecordTab.bucket
-                    ],
-                    selection: $selectedTab
-                ) { tab in
-                    tab.title
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 40)
-
-                Group {
-                    switch selectedTab {
-                    case .calendar:
-                        RecordCalendarView()
-
-                    case .bucket:
-                        RecordBucketListView()
+            if let schedule = selectedSchedule {
+                ScheduleDetailView(
+                    schedule: schedule,
+                    onBack: {
+                        selectedSchedule = nil
                     }
+                )
+            } else {
+                recordContent
+            }
+        }
+    }
+
+    private var recordContent: some View {
+        VStack(spacing: 0) {
+            KIRITopTab(
+                items: [
+                    RecordTab.calendar,
+                    RecordTab.bucket
+                ],
+                selection: $selectedTab
+            ) { tab in
+                tab.title
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 40)
+
+            Group {
+                switch selectedTab {
+                case .calendar:
+                    RecordCalendarView { schedule in
+                        selectedSchedule = schedule
+                    }
+
+                case .bucket:
+                    RecordBucketListView()
                 }
             }
         }

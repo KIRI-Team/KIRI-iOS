@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct MissionPlaceCard: View {
@@ -22,10 +21,10 @@ struct MissionPlaceCard: View {
             ) {
                 placeInformation
 
-                HStack(spacing: 8) {
+                HStack(spacing: 0) {
                     tagsView
 
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 8)
 
                     bookmarkButton
                 }
@@ -37,8 +36,11 @@ struct MissionPlaceCard: View {
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 18)
-        .frame(maxWidth: .infinity)
-        .background(KIRIColor.Background.secondary)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: 127
+        )
+        .background(cardBackground)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: KIRIRadius.small
@@ -46,12 +48,22 @@ struct MissionPlaceCard: View {
         )
     }
 
+    // MARK: - Background
+
+    private var cardBackground: Color {
+        isRecommended
+            ? KIRIColor.Background.tertiary
+            : KIRIColor.Background.secondary
+    }
+
     // MARK: - Thumbnail
 
     private var thumbnail: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(KIRIColor.Background.elevated)
+            RoundedRectangle(
+                cornerRadius: 10
+            )
+            .fill(KIRIColor.Background.elevated)
 
             if let rating {
                 ratingBadge(rating)
@@ -64,12 +76,19 @@ struct MissionPlaceCard: View {
         )
     }
 
+    // MARK: - Rating
+
     private func ratingBadge(
         _ rating: Double
     ) -> some View {
         HStack(spacing: 4) {
             Image(systemName: "star.fill")
-                .font(.system(size: 9))
+                .font(
+                    .system(
+                        size: 9,
+                        weight: .medium
+                    )
+                )
                 .foregroundStyle(KIRIColor.Icon.strong)
                 .frame(
                     width: 12,
@@ -86,10 +105,13 @@ struct MissionPlaceCard: View {
             .font(KIRITypography.navigation)
             .tracking(-0.4)
             .foregroundStyle(KIRIColor.Text.tertiary)
+            .frame(height: 14)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .background(KIRIColor.Background.tertiary)
+        .background(
+            KIRIColor.Background.tertiary
+        )
         .clipShape(Capsule())
     }
 
@@ -105,12 +127,22 @@ struct MissionPlaceCard: View {
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .lineLimit(1)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: 27,
+                    alignment: .leading
+                )
 
             Text("\(placeName) · \(district)")
                 .font(KIRITypography.bodySmall)
                 .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.secondary)
                 .lineLimit(1)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: 21,
+                    alignment: .leading
+                )
         }
     }
 
@@ -194,6 +226,7 @@ private struct MissionPlaceTag: View {
                     ? KIRIColor.Text.accent
                     : KIRIColor.Text.tertiary
             )
+            .lineLimit(1)
             .frame(height: 17)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -225,17 +258,32 @@ private struct MissionPlaceCardPreview: View {
             KIRIColor.Background.base
                 .ignoresSafeArea()
 
-            MissionPlaceCard(
-                title: "광장시장에서 시장음식 먹어보기",
-                placeName: "광장시장",
-                district: "종로구",
-                rating: 4.6,
-                tags: [
-                    "혼잡도 높음"
-                ],
-                isRecommended: true,
-                isBookmarked: $isBookmarked
-            )
+            VStack(spacing: 16) {
+                MissionPlaceCard(
+                    title: "광장시장에서 시장음식 먹어보기",
+                    placeName: "광장시장",
+                    district: "종로구",
+                    rating: nil,
+                    tags: [
+                        "혼잡도 높음"
+                    ],
+                    isRecommended: true,
+                    isBookmarked: $isBookmarked
+                )
+
+                MissionPlaceCard(
+                    title: "광장시장에서 시장음식 먹어보기",
+                    placeName: "광장시장",
+                    district: "종로구",
+                    rating: 4.6,
+                    tags: [
+                        "대중교통 편리",
+                        "혼잡도 높음"
+                    ],
+                    isRecommended: false,
+                    isBookmarked: $isBookmarked
+                )
+            }
             .padding(.horizontal, 18)
         }
     }

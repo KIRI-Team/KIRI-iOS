@@ -1,35 +1,40 @@
-
 import SwiftUI
 
 struct RecordCalendarView: View {
 
-    // MARK: - Domain State
+    // MARK: - Domain
 
     enum ActivityState {
-        /// 일정 생성 후 아직 최종 확정되지 않은 상태
-        /// Figma: 연한 시계
         case pendingSchedule
-
-        /// 일정 확정 후 아직 유효 리뷰가 없는 상태
-        /// Figma: 밝은 시계
         case confirmedSchedule
-
-        /// 유효 리뷰 작성 완료
-        /// Figma: 리뷰 대표사진
         case completed
+    }
+
+    struct ScheduleDetailData: Identifiable {
+        let id = UUID()
+
+        let day: Int
+        let status: ActivityState
+
+        let title: String
+        let date: String
+
+        let startTime: String
+        let location: String
+        let expectedSteps: String
+        let duration: String
     }
 
     struct CalendarActivity: Identifiable {
         let id = UUID()
+
         let day: Int
         let state: ActivityState
 
-        /// 리뷰 완료 상태에서 서버가 내려줄 대표사진 URL.
-        /// 최초 유효 리뷰의 첫 번째 사진이 기본 대표사진.
         let representativePhotoURL: URL?
-
-        /// 같은 날짜에 추가 완료 활동이 있을 경우 +N 표시.
         let additionalCompletedCount: Int
+
+        let schedule: ScheduleDetailData?
     }
 
     struct UpcomingSchedule: Identifiable {
@@ -40,36 +45,66 @@ struct RecordCalendarView: View {
         let isConfirmed: Bool
     }
 
+    // MARK: - Properties
+
+    let onSelectSchedule: (ScheduleDetailData) -> Void
+
     // MARK: - State
 
     @State private var displayedYear = 2023
     @State private var displayedMonth = 12
 
-    // MARK: - Mock Data
+    // MARK: - Init
 
-    /// Figma 상태 재현용 mock.
-    ///
-    /// 9일  = 미확정 일정
-    /// 11일 = 리뷰 완료
-    /// 12일 = 확정 일정
+    init(
+        onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in }
+    ) {
+        self.onSelectSchedule = onSelectSchedule
+    }
+
+    // MARK: - Data
+
     private let activities: [CalendarActivity] = [
         CalendarActivity(
             day: 9,
             state: .pendingSchedule,
             representativePhotoURL: nil,
-            additionalCompletedCount: 0
+            additionalCompletedCount: 0,
+            schedule: ScheduleDetailData(
+                day: 9,
+                status: .pendingSchedule,
+                title: "한강 뚜벅뚜벅 축제 가보기",
+                date: "2026.06.13",
+                startTime: "오후 2시 50분",
+                location: "여의도 한강 공원",
+                expectedSteps: "20000보",
+                duration: "8시간"
+            )
         ),
+
         CalendarActivity(
             day: 11,
             state: .completed,
             representativePhotoURL: nil,
-            additionalCompletedCount: 0
+            additionalCompletedCount: 0,
+            schedule: nil
         ),
+
         CalendarActivity(
             day: 12,
             state: .confirmedSchedule,
             representativePhotoURL: nil,
-            additionalCompletedCount: 0
+            additionalCompletedCount: 0,
+            schedule: ScheduleDetailData(
+                day: 12,
+                status: .confirmedSchedule,
+                title: "한강 뚜벅뚜벅 축제 가보기",
+                date: "2026.06.13",
+                startTime: "오후 2시 50분",
+                location: "여의도 한강 공원",
+                expectedSteps: "20000보",
+                duration: "8시간"
+            )
         )
     ]
 
@@ -79,11 +114,13 @@ struct RecordCalendarView: View {
             dateText: "26.06.23",
             isConfirmed: false
         ),
+
         UpcomingSchedule(
             title: "한강 뚜벅뚜벅 축제 방문",
             dateText: "26.06.23",
             isConfirmed: true
         ),
+
         UpcomingSchedule(
             title: "한강 뚜벅뚜벅 축제 방문",
             dateText: "26.06.23",
@@ -133,7 +170,7 @@ struct RecordCalendarView: View {
         }
     }
 
-    // MARK: - Month Header
+    // MARK: - Header
 
     private var monthHeader: some View {
         HStack(spacing: 0) {
@@ -149,43 +186,19 @@ struct RecordCalendarView: View {
             Spacer()
 
             HStack(spacing: 24) {
-                Button {
+                monthButton(
+                    systemName: "chevron.left",
+                    label: "이전 달"
+                ) {
                     previousMonth()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(
-                            .system(
-                                size: 15,
-                                weight: .medium
-                            )
-                        )
-                        .foregroundStyle(KIRIColor.Icon.secondary)
-                        .frame(
-                            width: 8,
-                            height: 16
-                        )
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("이전 달")
 
-                Button {
+                monthButton(
+                    systemName: "chevron.right",
+                    label: "다음 달"
+                ) {
                     nextMonth()
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(
-                            .system(
-                                size: 15,
-                                weight: .medium
-                            )
-                        )
-                        .foregroundStyle(KIRIColor.Icon.secondary)
-                        .frame(
-                            width: 8,
-                            height: 16
-                        )
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("다음 달")
             }
             .padding(.trailing, 3)
         }
@@ -212,6 +225,29 @@ struct RecordCalendarView: View {
             KIRIColor.Background.greenSoft
         )
         .clipShape(Capsule())
+    }
+
+    private func monthButton(
+        systemName: String,
+        label: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(
+                    .system(
+                        size: 15,
+                        weight: .medium
+                    )
+                )
+                .foregroundStyle(KIRIColor.Icon.secondary)
+                .frame(
+                    width: 8,
+                    height: 16
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 
     // MARK: - Calendar
@@ -257,7 +293,16 @@ struct RecordCalendarView: View {
         if let activity = activities.first(
             where: { $0.day == day }
         ) {
-            activityCell(activity)
+            if let schedule = activity.schedule {
+                Button {
+                    onSelectSchedule(schedule)
+                } label: {
+                    activityCell(activity)
+                }
+                .buttonStyle(.plain)
+            } else {
+                activityCell(activity)
+            }
         } else {
             normalCell(day)
         }
@@ -299,11 +344,8 @@ struct RecordCalendarView: View {
         }
     }
 
-    // MARK: - Pending Schedule
+    // MARK: - Pending
 
-    /// Figma의 연한 시계.
-    ///
-    /// 일정은 생성됐지만 아직 확정되지 않은 상태.
     private func pendingScheduleCell() -> some View {
         ZStack {
             RoundedRectangle(
@@ -327,12 +369,8 @@ struct RecordCalendarView: View {
         .accessibilityLabel("확정 대기 중인 일정")
     }
 
-    // MARK: - Confirmed Schedule
+    // MARK: - Confirmed
 
-    /// Figma의 밝은 시계.
-    ///
-    /// 일정 확정 완료.
-    /// 아직 유효 리뷰가 작성되지 않았으므로 사진으로 전환되지 않는다.
     private func confirmedScheduleCell() -> some View {
         ZStack {
             RoundedRectangle(
@@ -356,12 +394,8 @@ struct RecordCalendarView: View {
         .accessibilityLabel("확정된 일정")
     }
 
-    // MARK: - Completed Activity
+    // MARK: - Completed
 
-    /// 유효 리뷰가 등록된 활동.
-    ///
-    /// 실제 서비스에서는 representativePhotoURL에
-    /// 리뷰 대표사진 URL이 들어온다.
     private func completedActivityCell(
         _ activity: CalendarActivity
     ) -> some View {
@@ -489,7 +523,7 @@ struct RecordCalendarView: View {
             Spacer()
 
             Button {
-                // TODO: 일정 상세 연결
+                // TODO: 일정 메뉴
             } label: {
                 Image(systemName: "ellipsis")
                     .font(
