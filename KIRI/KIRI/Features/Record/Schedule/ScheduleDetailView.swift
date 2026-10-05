@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 struct ScheduleDetailView: View {
@@ -41,17 +40,11 @@ struct ScheduleDetailView: View {
                     contentSelector
                         .padding(.top, 53)
 
-                    aiActivitySection
-                        .padding(.top, 48)
-
-                    essentialItemSection
-                        .padding(.top, 48)
-
-                    nearbySection
+                    selectedContent
                         .padding(.top, 48)
 
                     Color.clear
-                        .frame(height: 80)
+                        .frame(height: 110)
                 }
                 .padding(.horizontal, 18)
             }
@@ -66,7 +59,7 @@ struct ScheduleDetailView: View {
 
     private var navigationBar: some View {
         ZStack {
-            Text("\(schedule.day)월 \(schedule.day)일")
+            Text("\(schedule.month)월 \(schedule.day)일")
                 .font(KIRITypography.bodySmallMedium)
                 .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.tertiary)
@@ -254,12 +247,20 @@ struct ScheduleDetailView: View {
         tab: ContentTab
     ) -> some View {
         Button {
-            selectedContentTab = tab
+            withAnimation(
+                .easeOut(duration: 0.18)
+            ) {
+                selectedContentTab = tab
+            }
         } label: {
             Text(title)
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
-                .foregroundStyle(KIRIColor.Text.strong)
+                .foregroundStyle(
+                    selectedContentTab == tab
+                        ? KIRIColor.Text.strong
+                        : KIRIColor.Text.disabled
+                )
                 .padding(.horizontal, 20)
                 .frame(height: 44)
                 .background(
@@ -270,6 +271,58 @@ struct ScheduleDetailView: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Selected Content
+
+    @ViewBuilder
+    private var selectedContent: some View {
+        switch selectedContentTab {
+        case .aiActivity:
+            VStack(
+                alignment: .leading,
+                spacing: 48
+            ) {
+                aiActivitySection
+
+                essentialItemSection
+
+                nearbySection
+            }
+
+        case .familyMemory:
+            familyMemorySection
+        }
+    }
+
+    // MARK: - Family Memory
+
+    private var familyMemorySection: some View {
+        VStack(
+            alignment: .leading,
+            spacing: 18
+        ) {
+            Text("가족 추억")
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(
+                    KIRIColor.Text.strong
+                )
+
+            FamilyReviewCard(
+                nickname: "엄마",
+                review: "오랜만에 가족이랑 같이 걸어서 좋았다. 날씨도 좋고 한강 풍경도 예뻐서 기억에 오래 남을 것 같다.",
+                likeCount: 10,
+                isLiked: false
+            )
+
+            FamilyReviewCard(
+                nickname: "아빠",
+                review: "평소에는 각자 바빠서 이렇게 같이 나올 일이 많지 않았는데 오랜만에 가족끼리 시간을 보내서 좋았다.",
+                likeCount: 7,
+                isLiked: false
+            )
+        }
     }
 
     // MARK: - AI Activities
@@ -357,6 +410,7 @@ struct ScheduleDetailView: View {
 
             HStack(spacing: 12) {
                 essentialItemCard
+
                 essentialItemCard
             }
         }
@@ -378,14 +432,16 @@ struct ScheduleDetailView: View {
                     .foregroundStyle(KIRIColor.Text.strong)
             }
 
-            Text("오늘 자외선 농도가 많이 높아요! 피부 조심하세요~")
-                .font(KIRITypography.bodySmall)
-                .tracking(-0.56)
-                .foregroundStyle(KIRIColor.Text.secondary)
-                .fixedSize(
-                    horizontal: false,
-                    vertical: true
-                )
+            Text(
+                "오늘 자외선 농도가 많이 높아요! 피부 조심하세요~"
+            )
+            .font(KIRITypography.bodySmall)
+            .tracking(-0.56)
+            .foregroundStyle(KIRIColor.Text.secondary)
+            .fixedSize(
+                horizontal: false,
+                vertical: true
+            )
         }
         .padding(18)
         .frame(
@@ -417,10 +473,14 @@ struct ScheduleDetailView: View {
 
             HStack(spacing: 0) {
                 Text("끼리네 가족")
-                    .foregroundStyle(KIRIColor.Text.accent)
+                    .foregroundStyle(
+                        KIRIColor.Text.accent
+                    )
 
                 Text("한테 맞는 놀거리를 추천해드려요!")
-                    .foregroundStyle(KIRIColor.Text.disabled)
+                    .foregroundStyle(
+                        KIRIColor.Text.disabled
+                    )
             }
             .font(KIRITypography.bodySmall)
             .tracking(-0.56)
@@ -458,7 +518,9 @@ struct ScheduleDetailView: View {
 
                 Image(systemName: "photo")
                     .font(.system(size: 24))
-                    .foregroundStyle(KIRIColor.Icon.secondary)
+                    .foregroundStyle(
+                        KIRIColor.Icon.secondary
+                    )
             }
             .frame(
                 width: 251,
@@ -472,13 +534,17 @@ struct ScheduleDetailView: View {
                 Text(title)
                     .font(KIRITypography.headingSmall)
                     .tracking(-0.72)
-                    .foregroundStyle(KIRIColor.Text.strong)
+                    .foregroundStyle(
+                        KIRIColor.Text.strong
+                    )
                     .lineLimit(1)
 
                 Text(location)
                     .font(KIRITypography.bodySmallMedium)
                     .tracking(-0.56)
-                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .foregroundStyle(
+                        KIRIColor.Text.secondary
+                    )
             }
             .padding(.horizontal, 19)
             .padding(.top, 20)
@@ -508,13 +574,19 @@ struct ScheduleDetailView: View {
     ) -> some View {
         HStack(spacing: 0) {
             Text(prefix)
-                .foregroundStyle(KIRIColor.Text.strong)
+                .foregroundStyle(
+                    KIRIColor.Text.strong
+                )
 
             Text(accent)
-                .foregroundStyle(KIRIColor.Text.accent)
+                .foregroundStyle(
+                    KIRIColor.Text.accent
+                )
 
             Text(suffix)
-                .foregroundStyle(KIRIColor.Text.primary)
+                .foregroundStyle(
+                    KIRIColor.Text.primary
+                )
         }
         .font(KIRITypography.headingSmall)
         .tracking(-0.72)
@@ -551,6 +623,7 @@ struct ScheduleDetailView: View {
     ScheduleDetailView(
         schedule: .init(
             day: 3,
+            month: 12,
             status: .pendingSchedule,
             title: "한강 뚜벅뚜벅 축제 가보기",
             date: "2026.06.13",

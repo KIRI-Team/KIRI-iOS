@@ -14,6 +14,7 @@ struct RecordCalendarView: View {
         let id = UUID()
 
         let day: Int
+        let month: Int
         let status: ActivityState
 
         let title: String
@@ -23,6 +24,22 @@ struct RecordCalendarView: View {
         let location: String
         let expectedSteps: String
         let duration: String
+    }
+
+    struct ReviewDetailData: Identifiable {
+        let id = UUID()
+
+        let title: String
+        let date: String
+
+        let familyName: String
+        let authorName: String
+        let isCurrentUser: Bool
+
+        let review: String
+        let writtenDate: String
+
+        let representativePhotoURL: URL?
     }
 
     struct CalendarActivity: Identifiable {
@@ -35,6 +52,7 @@ struct RecordCalendarView: View {
         let additionalCompletedCount: Int
 
         let schedule: ScheduleDetailData?
+        let review: ReviewDetailData?
     }
 
     struct UpcomingSchedule: Identifiable {
@@ -48,6 +66,7 @@ struct RecordCalendarView: View {
     // MARK: - Properties
 
     let onSelectSchedule: (ScheduleDetailData) -> Void
+    let onSelectReview: (ReviewDetailData) -> Void
 
     // MARK: - State
 
@@ -57,9 +76,11 @@ struct RecordCalendarView: View {
     // MARK: - Init
 
     init(
-        onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in }
+        onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in },
+        onSelectReview: @escaping (ReviewDetailData) -> Void = { _ in }
     ) {
         self.onSelectSchedule = onSelectSchedule
+        self.onSelectReview = onSelectReview
     }
 
     // MARK: - Data
@@ -72,6 +93,7 @@ struct RecordCalendarView: View {
             additionalCompletedCount: 0,
             schedule: ScheduleDetailData(
                 day: 9,
+                month: 12,
                 status: .pendingSchedule,
                 title: "한강 뚜벅뚜벅 축제 가보기",
                 date: "2026.06.13",
@@ -79,7 +101,8 @@ struct RecordCalendarView: View {
                 location: "여의도 한강 공원",
                 expectedSteps: "20000보",
                 duration: "8시간"
-            )
+            ),
+            review: nil
         ),
 
         CalendarActivity(
@@ -87,7 +110,17 @@ struct RecordCalendarView: View {
             state: .completed,
             representativePhotoURL: nil,
             additionalCompletedCount: 0,
-            schedule: nil
+            schedule: nil,
+            review: ReviewDetailData(
+                title: "한강 뚜벅뚜벅 축제 방문",
+                date: "2026.06.13",
+                familyName: "끼리네가족",
+                authorName: "김주연",
+                isCurrentUser: true,
+                review: "아빠가 자주 가는 식당에 처음 가봤다. 좋아하는 메뉴를 같이 먹으니 아빠를 조금 더 알게 된 기분이었다.",
+                writtenDate: "12월 3일",
+                representativePhotoURL: nil
+            )
         ),
 
         CalendarActivity(
@@ -97,6 +130,7 @@ struct RecordCalendarView: View {
             additionalCompletedCount: 0,
             schedule: ScheduleDetailData(
                 day: 12,
+                month: 12,
                 status: .confirmedSchedule,
                 title: "한강 뚜벅뚜벅 축제 가보기",
                 date: "2026.06.13",
@@ -104,7 +138,8 @@ struct RecordCalendarView: View {
                 location: "여의도 한강 공원",
                 expectedSteps: "20000보",
                 duration: "8시간"
-            )
+            ),
+            review: nil
         )
     ]
 
@@ -221,9 +256,7 @@ struct RecordCalendarView: View {
         }
         .padding(.horizontal, 6)
         .frame(height: 22)
-        .background(
-            KIRIColor.Background.greenSoft
-        )
+        .background(KIRIColor.Background.greenSoft)
         .clipShape(Capsule())
     }
 
@@ -300,6 +333,15 @@ struct RecordCalendarView: View {
                     activityCell(activity)
                 }
                 .buttonStyle(.plain)
+
+            } else if let review = activity.review {
+                Button {
+                    onSelectReview(review)
+                } label: {
+                    activityCell(activity)
+                }
+                .buttonStyle(.plain)
+
             } else {
                 activityCell(activity)
             }
@@ -547,9 +589,7 @@ struct RecordCalendarView: View {
             minHeight: 110,
             alignment: .leading
         )
-        .background(
-            KIRIColor.Background.tertiary
-        )
+        .background(KIRIColor.Background.tertiary)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: 8

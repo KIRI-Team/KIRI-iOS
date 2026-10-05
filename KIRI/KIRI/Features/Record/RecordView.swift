@@ -18,20 +18,41 @@ struct RecordView: View {
     }
 
     @State private var selectedTab: RecordTab = .calendar
-    @State private var selectedSchedule: RecordCalendarView.ScheduleDetailData?
+
+    @State private var selectedSchedule:
+        RecordCalendarView.ScheduleDetailData?
+
+    @State private var selectedReview:
+        RecordCalendarView.ReviewDetailData?
 
     var body: some View {
         ZStack {
             KIRIColor.Background.base
                 .ignoresSafeArea()
 
-            if let schedule = selectedSchedule {
+            if let review = selectedReview {
+                ReviewDetailView(
+                    review: review,
+                    onBack: {
+                        selectedReview = nil
+                    },
+                    onEdit: {
+                        // TODO: 리뷰 수정 화면 연결
+                    },
+                    onDelete: {
+                        // TODO: 리뷰 삭제 API 연결
+                        selectedReview = nil
+                    }
+                )
+
+            } else if let schedule = selectedSchedule {
                 ScheduleDetailView(
                     schedule: schedule,
                     onBack: {
                         selectedSchedule = nil
                     }
                 )
+
             } else {
                 recordContent
             }
@@ -55,9 +76,14 @@ struct RecordView: View {
             Group {
                 switch selectedTab {
                 case .calendar:
-                    RecordCalendarView { schedule in
-                        selectedSchedule = schedule
-                    }
+                    RecordCalendarView(
+                        onSelectSchedule: { schedule in
+                            selectedSchedule = schedule
+                        },
+                        onSelectReview: { review in
+                            selectedReview = review
+                        }
+                    )
 
                 case .bucket:
                     RecordBucketListView()
