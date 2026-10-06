@@ -25,12 +25,34 @@ struct RecordView: View {
     @State private var selectedReview:
         RecordCalendarView.ReviewDetailData?
 
+    @State private var selectedInvitation:
+        RecordBucketListView.InvitationData?
+
+    @State private var showsInvitationSentBanner = false
+
     var body: some View {
         ZStack {
             KIRIColor.Background.base
                 .ignoresSafeArea()
 
-            if let review = selectedReview {
+            if let invitation = selectedInvitation {
+                InvitationView(
+                    invitation: invitation,
+                    onBack: {
+                        selectedInvitation = nil
+                    },
+                    onCancel: {
+                        selectedInvitation = nil
+                    },
+                    onSendInApp: {
+                        handleInAppInvitationSent()
+                    },
+                    onSendKakao: {
+                        handleKakaoInvitation()
+                    }
+                )
+
+            } else if let review = selectedReview {
                 ReviewDetailView(
                     review: review,
                     onBack: {
@@ -59,6 +81,8 @@ struct RecordView: View {
         }
     }
 
+    // MARK: - Record Content
+
     private var recordContent: some View {
         VStack(spacing: 0) {
             KIRITopTab(
@@ -86,10 +110,51 @@ struct RecordView: View {
                     )
 
                 case .bucket:
-                    RecordBucketListView()
+                    RecordBucketListView(
+                        showsInvitationSentBanner:
+                            showsInvitationSentBanner,
+                        onSelectInvitation: { invitation in
+                            showsInvitationSentBanner = false
+                            selectedInvitation = invitation
+                        }
+                    )
                 }
             }
         }
+    }
+
+    // MARK: - Invitation
+
+    private func handleInAppInvitationSent() {
+        selectedInvitation = nil
+        selectedTab = .bucket
+
+        withAnimation(
+            .easeOut(duration: 0.2)
+        ) {
+            showsInvitationSentBanner = true
+        }
+
+        Task {
+            try? await Task.sleep(
+                for: .seconds(2.5)
+            )
+
+            await MainActor.run {
+                withAnimation(
+                    .easeOut(duration: 0.2)
+                ) {
+                    showsInvitationSentBanner = false
+                }
+            }
+        }
+    }
+
+    private func handleKakaoInvitation() {
+        // TODO:
+        // 카카오 공유 SDK 또는 공유 링크 정책 확정 후 연결
+        selectedInvitation = nil
+        selectedTab = .bucket
     }
 }
 

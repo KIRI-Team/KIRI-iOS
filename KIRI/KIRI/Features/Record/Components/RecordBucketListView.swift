@@ -1,7 +1,16 @@
-
 import SwiftUI
 
 struct RecordBucketListView: View {
+
+    struct InvitationData: Identifiable, Equatable {
+        let id = UUID()
+
+        let title: String
+        let dateTime: String
+        let participants: String
+        let description: String
+        let familyMessage: String
+    }
 
     private enum FamilyFilter: String, CaseIterable, Hashable {
         case all = "전체"
@@ -17,28 +26,59 @@ struct RecordBucketListView: View {
         let savedBy: String
         let owner: FamilyFilter
         let isCompleted: Bool
+        let invitation: InvitationData?
     }
 
+    let showsInvitationSentBanner: Bool
+    let onSelectInvitation: (InvitationData) -> Void
+
     @State private var selectedFilter: FamilyFilter = .all
+
+    init(
+        showsInvitationSentBanner: Bool = false,
+        onSelectInvitation: @escaping (InvitationData) -> Void = { _ in }
+    ) {
+        self.showsInvitationSentBanner = showsInvitationSentBanner
+        self.onSelectInvitation = onSelectInvitation
+    }
 
     private let items: [BucketItem] = [
         BucketItem(
             title: "광장시장에서 시장음식 먹어보기",
             savedBy: "아빠가 저장했어요!",
             owner: .dad,
-            isCompleted: true
+            isCompleted: true,
+            invitation: nil
         ),
         BucketItem(
-            title: "광장시장에서 시장음식 먹어보기",
+            title: "실리카겔 콘서트 관람하기",
             savedBy: "아빠가 저장했어요!",
             owner: .dad,
-            isCompleted: false
+            isCompleted: false,
+            invitation: InvitationData(
+                title: "한강 뚜벅뚜벅 축제",
+                dateTime: "26.10.07·16:30분",
+                participants: "엄마, 아빠, 나",
+                description: """
+                2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
+                """,
+                familyMessage: "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??"
+            )
         ),
         BucketItem(
-            title: "광장시장에서 시장음식 먹어보기",
+            title: "실리카겔 콘서트 관람하기",
             savedBy: "아빠가 저장했어요!",
             owner: .dad,
-            isCompleted: false
+            isCompleted: false,
+            invitation: InvitationData(
+                title: "한강 뚜벅뚜벅 축제",
+                dateTime: "26.10.07·16:30분",
+                participants: "엄마, 아빠, 나",
+                description: """
+                2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
+                """,
+                familyMessage: "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??"
+            )
         )
     ]
 
@@ -53,21 +93,60 @@ struct RecordBucketListView: View {
     }
 
     var body: some View {
-        ScrollView(
-            .vertical,
-            showsIndicators: false
-        ) {
-            VStack(spacing: 0) {
-                filterSection
-                    .padding(.top, 32)
+        ZStack(alignment: .top) {
+            ScrollView(
+                .vertical,
+                showsIndicators: false
+            ) {
+                VStack(spacing: 0) {
+                    filterSection
+                        .padding(.top, 32)
 
-                bucketList
-                    .padding(.top, 29)
+                    bucketList
+                        .padding(.top, 29)
 
-                Color.clear
-                    .frame(height: 110)
+                    Color.clear
+                        .frame(height: 110)
+                }
+            }
+
+            if showsInvitationSentBanner {
+                invitationSentBanner
+                    .padding(.horizontal, 18)
+                    .padding(.top, 21)
+                    .transition(
+                        .move(edge: .top)
+                            .combined(with: .opacity)
+                    )
+                    .zIndex(10)
             }
         }
+    }
+
+    // MARK: - Invitation Sent Banner
+
+    private var invitationSentBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "paperplane.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(KIRIColor.Icon.primary)
+                .frame(width: 24, height: 24)
+
+            Text("초대를 발송했습니다!")
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(KIRIColor.Text.strong)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 59)
+        .background(KIRIColor.Background.tertiary)
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: 12
+            )
+        )
     }
 
     // MARK: - Filter
@@ -115,7 +194,15 @@ struct RecordBucketListView: View {
         _ item: BucketItem
     ) -> some View {
         Button {
-            // TODO: 버킷 상세 / 일정 잡기 연결
+            guard !item.isCompleted else {
+                return
+            }
+
+            guard let invitation = item.invitation else {
+                return
+            }
+
+            onSelectInvitation(invitation)
         } label: {
             VStack(
                 alignment: .leading,
@@ -197,6 +284,8 @@ struct RecordBucketListView: View {
         KIRIColor.Background.base
             .ignoresSafeArea()
 
-        RecordBucketListView()
+        RecordBucketListView(
+            showsInvitationSentBanner: true
+        )
     }
 }

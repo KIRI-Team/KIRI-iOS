@@ -16,9 +16,8 @@ struct OnboardingFlowView: View {
         case familyJoinLoading
         case familyJoinConfirm
     }
-
+        // 입력 허용, 밑에 유효성 검사 빨간 글씨 사용하기
     @State private var step: Step = .nickname
-
     @State private var nickname: String = ""
     @State private var selectedRole: FamilyRole?
     @State private var familyName: String = ""
