@@ -1,90 +1,73 @@
 import SwiftUI
-
 struct RecordCalendarView: View {
-
     // MARK: - Domain
-
     enum ActivityState {
         case pendingSchedule
         case confirmedSchedule
         case completed
     }
-
     struct ScheduleDetailData: Identifiable {
         let id = UUID()
-
         let day: Int
         let month: Int
         let status: ActivityState
-
         let title: String
         let date: String
-
         let startTime: String
         let location: String
         let expectedSteps: String
         let duration: String
     }
-
     struct ReviewDetailData: Identifiable {
         let id = UUID()
-
         let title: String
         let date: String
-
         let familyName: String
         let authorName: String
         let isCurrentUser: Bool
-
         let review: String
         let writtenDate: String
-
         let representativePhotoURL: URL?
     }
-
     struct CalendarActivity: Identifiable {
         let id = UUID()
-
         let day: Int
         let state: ActivityState
-
         let representativePhotoURL: URL?
         let additionalCompletedCount: Int
-
         let schedule: ScheduleDetailData?
         let review: ReviewDetailData?
     }
-
     struct UpcomingSchedule: Identifiable {
         let id = UUID()
-
         let title: String
         let dateText: String
         let isConfirmed: Bool
     }
-
     // MARK: - Properties
-
     let onSelectSchedule: (ScheduleDetailData) -> Void
     let onSelectReview: (ReviewDetailData) -> Void
-
+    var demoTodaySchedule: ScheduleDetailData? = nil
+    var savedReviewSchedules: [ScheduleDetailData] = []
+    var onSelectSavedReview: (ScheduleDetailData) -> Void = { _ in }
     // MARK: - State
-
     @State private var displayedYear = 2023
     @State private var displayedMonth = 12
-
     // MARK: - Init
-
     init(
         onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in },
-        onSelectReview: @escaping (ReviewDetailData) -> Void = { _ in }
+        onSelectReview: @escaping (ReviewDetailData) -> Void = { _ in },
+        demoTodaySchedule: ScheduleDetailData? = nil,
+        savedReviewSchedules: [ScheduleDetailData] = [],
+        onSelectSavedReview: @escaping (ScheduleDetailData) -> Void = { _ in }
     ) {
         self.onSelectSchedule = onSelectSchedule
         self.onSelectReview = onSelectReview
+        self.demoTodaySchedule = demoTodaySchedule
+        self.savedReviewSchedules = savedReviewSchedules
+        self.onSelectSavedReview = onSelectSavedReview
     }
-
     // MARK: - Data
-
     private let activities: [CalendarActivity] = [
         CalendarActivity(
             day: 9,
@@ -104,7 +87,6 @@ struct RecordCalendarView: View {
             ),
             review: nil
         ),
-
         CalendarActivity(
             day: 11,
             state: .completed,
@@ -122,7 +104,6 @@ struct RecordCalendarView: View {
                 representativePhotoURL: nil
             )
         ),
-
         CalendarActivity(
             day: 12,
             state: .confirmedSchedule,
@@ -142,27 +123,23 @@ struct RecordCalendarView: View {
             review: nil
         )
     ]
-
     private let upcomingSchedules: [UpcomingSchedule] = [
         UpcomingSchedule(
             title: "한강 뚜벅뚜벅 축제 방문",
             dateText: "26.06.23",
             isConfirmed: false
         ),
-
         UpcomingSchedule(
             title: "한강 뚜벅뚜벅 축제 방문",
             dateText: "26.06.23",
             isConfirmed: true
         ),
-
         UpcomingSchedule(
             title: "한강 뚜벅뚜벅 축제 방문",
             dateText: "26.06.23",
             isConfirmed: true
         )
     ]
-
     private let weekDays = [
         "월",
         "화",
@@ -172,7 +149,6 @@ struct RecordCalendarView: View {
         "토",
         "일"
     ]
-
     private let columns = Array(
         repeating: GridItem(
             .fixed(45),
@@ -180,9 +156,7 @@ struct RecordCalendarView: View {
         ),
         count: 7
     )
-
     // MARK: - Body
-
     var body: some View {
         ScrollView(
             .vertical,
@@ -191,22 +165,65 @@ struct RecordCalendarView: View {
             VStack(spacing: 0) {
                 monthHeader
                     .padding(.top, 28)
-
                 calendar
                     .padding(.top, 18)
-
+                demoSection
+                    .padding(.top, 30)
                 upcomingSection
                     .padding(.top, 36)
-
                 Color.clear
                     .frame(height: 110)
             }
             .padding(.horizontal, 18)
         }
     }
+    private var demoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("화면 테스트 · MOCK")
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.secondary)
+            if let demoTodaySchedule {
+                Button {
+                    onSelectSchedule(demoTodaySchedule)
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("오늘의 약속 화면")
+                                .font(KIRITypography.headingSmall)
+                            Text(demoTodaySchedule.title)
+                                .font(KIRITypography.bodySmall)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .padding(18)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            }
+            ForEach(savedReviewSchedules) { item in
+                Button {
+                    onSelectSavedReview(item)
+                } label: {
+                    HStack {
+                        Text("작성한 기록 보기")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.Primary.default)
+                    .padding(18)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
 
     // MARK: - Header
-
     private var monthHeader: some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -214,12 +231,9 @@ struct RecordCalendarView: View {
                     .font(KIRITypography.headingSmall)
                     .tracking(-0.72)
                     .foregroundStyle(KIRIColor.Text.strong)
-
                 notificationBadge
             }
-
             Spacer()
-
             HStack(spacing: 24) {
                 monthButton(
                     systemName: "chevron.left",
@@ -227,7 +241,6 @@ struct RecordCalendarView: View {
                 ) {
                     previousMonth()
                 }
-
                 monthButton(
                     systemName: "chevron.right",
                     label: "다음 달"
@@ -239,14 +252,12 @@ struct RecordCalendarView: View {
         }
         .frame(height: 22)
     }
-
     private var notificationBadge: some View {
         HStack(spacing: 6) {
             Text("알림")
                 .font(KIRITypography.navigation)
                 .tracking(-0.4)
                 .foregroundStyle(KIRIColor.Text.accent)
-
             Circle()
                 .fill(KIRIColor.Primary.default)
                 .frame(
@@ -259,7 +270,6 @@ struct RecordCalendarView: View {
         .background(KIRIColor.Background.greenSoft)
         .clipShape(Capsule())
     }
-
     private func monthButton(
         systemName: String,
         label: String,
@@ -282,13 +292,10 @@ struct RecordCalendarView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
-
     // MARK: - Calendar
-
     private var calendar: some View {
         VStack(spacing: 16) {
             weekHeader
-
             LazyVGrid(
                 columns: columns,
                 alignment: .center,
@@ -301,7 +308,6 @@ struct RecordCalendarView: View {
         }
         .frame(maxWidth: .infinity)
     }
-
     private var weekHeader: some View {
         HStack(spacing: 6) {
             ForEach(weekDays, id: \.self) { day in
@@ -316,9 +322,7 @@ struct RecordCalendarView: View {
             }
         }
     }
-
     // MARK: - Calendar Cell
-
     @ViewBuilder
     private func calendarCell(
         _ day: Int
@@ -333,7 +337,6 @@ struct RecordCalendarView: View {
                     activityCell(activity)
                 }
                 .buttonStyle(.plain)
-
             } else if let review = activity.review {
                 Button {
                     onSelectReview(review)
@@ -341,7 +344,6 @@ struct RecordCalendarView: View {
                     activityCell(activity)
                 }
                 .buttonStyle(.plain)
-
             } else {
                 activityCell(activity)
             }
@@ -349,7 +351,6 @@ struct RecordCalendarView: View {
             normalCell(day)
         }
     }
-
     private func normalCell(
         _ day: Int
     ) -> some View {
@@ -358,7 +359,6 @@ struct RecordCalendarView: View {
                 cornerRadius: 12
             )
             .fill(KIRIColor.Background.tertiary)
-
             Text("\(day)")
                 .font(KIRITypography.body)
                 .tracking(-0.64)
@@ -369,7 +369,6 @@ struct RecordCalendarView: View {
             height: 45
         )
     }
-
     @ViewBuilder
     private func activityCell(
         _ activity: CalendarActivity
@@ -377,24 +376,19 @@ struct RecordCalendarView: View {
         switch activity.state {
         case .pendingSchedule:
             pendingScheduleCell()
-
         case .confirmedSchedule:
             confirmedScheduleCell()
-
         case .completed:
             completedActivityCell(activity)
         }
     }
-
     // MARK: - Pending
-
     private func pendingScheduleCell() -> some View {
         ZStack {
             RoundedRectangle(
                 cornerRadius: 12
             )
             .fill(KIRIColor.Background.elevated)
-
             Image(systemName: "clock")
                 .font(
                     .system(
@@ -410,16 +404,13 @@ struct RecordCalendarView: View {
         )
         .accessibilityLabel("확정 대기 중인 일정")
     }
-
     // MARK: - Confirmed
-
     private func confirmedScheduleCell() -> some View {
         ZStack {
             RoundedRectangle(
                 cornerRadius: 12
             )
             .fill(KIRIColor.Background.elevated)
-
             Image(systemName: "clock")
                 .font(
                     .system(
@@ -435,9 +426,7 @@ struct RecordCalendarView: View {
         )
         .accessibilityLabel("확정된 일정")
     }
-
     // MARK: - Completed
-
     private func completedActivityCell(
         _ activity: CalendarActivity
     ) -> some View {
@@ -449,13 +438,10 @@ struct RecordCalendarView: View {
                         image
                             .resizable()
                             .scaledToFill()
-
                     case .empty:
                         completedPhotoPlaceholder
-
                     case .failure:
                         completedPhotoPlaceholder
-
                     @unknown default:
                         completedPhotoPlaceholder
                     }
@@ -463,17 +449,13 @@ struct RecordCalendarView: View {
             } else {
                 completedPhotoPlaceholder
             }
-
             Color.black
                 .opacity(0.56)
-
             if activity.additionalCompletedCount > 0 {
                 VStack {
                     Spacer()
-
                     HStack {
                         Spacer()
-
                         Text(
                             "+\(activity.additionalCompletedCount)"
                         )
@@ -495,11 +477,9 @@ struct RecordCalendarView: View {
         )
         .accessibilityLabel("완료한 활동")
     }
-
     private var completedPhotoPlaceholder: some View {
         ZStack {
             KIRIColor.Background.elevated
-
             Image(systemName: "photo")
                 .font(
                     .system(
@@ -510,9 +490,7 @@ struct RecordCalendarView: View {
                 .foregroundStyle(KIRIColor.Icon.secondary)
         }
     }
-
     // MARK: - Upcoming
-
     private var upcomingSection: some View {
         VStack(
             alignment: .leading,
@@ -523,7 +501,6 @@ struct RecordCalendarView: View {
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .frame(height: 22)
-
             LazyVStack(spacing: 18) {
                 ForEach(upcomingSchedules) { schedule in
                     upcomingScheduleCard(schedule)
@@ -531,7 +508,6 @@ struct RecordCalendarView: View {
             }
         }
     }
-
     private func upcomingScheduleCard(
         _ schedule: UpcomingSchedule
     ) -> some View {
@@ -544,7 +520,6 @@ struct RecordCalendarView: View {
                 spacing: 8
             ) {
                 scheduleBadge(schedule)
-
                 VStack(
                     alignment: .leading,
                     spacing: 0
@@ -554,16 +529,13 @@ struct RecordCalendarView: View {
                         .tracking(-0.72)
                         .foregroundStyle(KIRIColor.Text.strong)
                         .lineLimit(1)
-
                     Text("일시 I \(schedule.dateText)")
                         .font(KIRITypography.bodySmall)
                         .tracking(-0.56)
                         .foregroundStyle(KIRIColor.Text.secondary)
                 }
             }
-
             Spacer()
-
             Button {
                 // TODO: 일정 메뉴
             } label: {
@@ -596,7 +568,6 @@ struct RecordCalendarView: View {
             )
         )
     }
-
     private func scheduleBadge(
         _ schedule: UpcomingSchedule
     ) -> some View {
@@ -625,9 +596,7 @@ struct RecordCalendarView: View {
             )
         )
     }
-
     // MARK: - Month
-
     private func previousMonth() {
         if displayedMonth == 1 {
             displayedMonth = 12
@@ -636,7 +605,6 @@ struct RecordCalendarView: View {
             displayedMonth -= 1
         }
     }
-
     private func nextMonth() {
         if displayedMonth == 12 {
             displayedMonth = 1
@@ -646,12 +614,10 @@ struct RecordCalendarView: View {
         }
     }
 }
-
 #Preview {
     ZStack {
         KIRIColor.Background.base
             .ignoresSafeArea()
-
         RecordCalendarView()
     }
 }

@@ -1,8 +1,8 @@
 
-
 import SwiftUI
 
 struct ConditionAdjustmentSheet: View {
+
     enum Condition: String, CaseIterable, Hashable {
         case lessWalking
         case moreRest
@@ -12,26 +12,13 @@ struct ConditionAdjustmentSheet: View {
         var title: String {
             switch self {
             case .lessWalking:
-                return "걸음 수 낮추기"
+                return "걸음수를\n낮춰주세요"
             case .moreRest:
-                return "휴식 시간 늘리기"
+                return "휴식 시간을\n늘려주세요"
             case .lowerBudget:
-                return "예산 낮추기"
+                return "예산을\n낮춰주세요"
             case .avoidCrowds:
-                return "사람 많은 곳 피하기"
-            }
-        }
-
-        var description: String {
-            switch self {
-            case .lessWalking:
-                return "가까운 장소를 우선 추천해요."
-            case .moreRest:
-                return "카페나 공원처럼 쉴 수 있는 장소를 우선해요."
-            case .lowerBudget:
-                return "무료 또는 저비용 장소를 우선해요."
-            case .avoidCrowds:
-                return "혼잡 정보가 확인된 장소만 비교해요."
+                return "사람 많은 곳은\n피해주세요"
             }
         }
 
@@ -44,7 +31,7 @@ struct ConditionAdjustmentSheet: View {
             case .lowerBudget:
                 return "wallet.pass"
             case .avoidCrowds:
-                return "person.2.slash"
+                return "person.2"
             }
         }
     }
@@ -54,55 +41,127 @@ struct ConditionAdjustmentSheet: View {
     let selectedConditions: Set<Condition>
     let onApply: (Set<Condition>) -> Void
 
+    var activityTitle: String = "한강 뚜벅뚜벅 축제 방문"
+    var expectedSteps: String = "8000보"
+    var activityDuration: String = "8시간"
+
     @State private var selection: Set<Condition> = []
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("오늘의 컨디션 조정")
-                .font(KIRITypography.headingLarge)
-                .foregroundStyle(KIRIColor.Text.strong)
-                .padding(.top, 32)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                navigationBar
 
-            Text("우리 가족에게 맞게 근처 놀거리 추천을 조정해요.")
-                .font(KIRITypography.bodySmall)
-                .foregroundStyle(KIRIColor.Text.secondary)
-                .padding(.top, 8)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        titleSection
+                            .padding(.top, 28)
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 12) {
-                    ForEach(Condition.allCases, id: \.self) { condition in
-                        conditionCard(condition)
+                        conditionSection
+                            .padding(.top, 57)
                     }
-                }
-                .padding(.top, 26)
-            }
-
-            Button {
-                onApply(selection)
-                dismiss()
-            } label: {
-                Text("적용하기")
-                    .font(KIRITypography.button)
-                    .foregroundStyle(KIRIColor.Text.onGreen)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(KIRIColor.Primary.default)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                applyButton
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 24)
             }
-            .buttonStyle(.plain)
-            .padding(.top, 12)
-            .padding(.bottom, 24)
+            .frame(
+                width: geometry.size.width,
+                height: geometry.size.height
+            )
+            .background(KIRIColor.Background.base)
         }
-        .padding(.horizontal, 18)
-        .background(
-            KIRIColor.Background.base.ignoresSafeArea()
-        )
         .onAppear {
             selection = selectedConditions
         }
     }
 
-    private func conditionCard(
+    // MARK: - Navigation
+
+    private var navigationBar: some View {
+        ZStack {
+            Text("컨디션 커스텀")
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(KIRIColor.Text.strong)
+
+            HStack {
+                KIRIBackButton {
+                    dismiss()
+                }
+
+                Spacer()
+            }
+        }
+        .frame(height: 62)
+    }
+
+    // MARK: - Title
+
+    private var titleSection: some View {
+        VStack(spacing: 5) {
+            Text("컨디션 조정이 필요하신가요?")
+                .font(KIRITypography.body)
+                .tracking(-0.64)
+                .foregroundStyle(KIRIColor.Text.secondary)
+
+            Text(activityTitle)
+                .font(KIRITypography.title)
+                .tracking(-0.56)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 30)
+    }
+
+    // MARK: - Conditions
+
+    private var conditionSection: some View {
+        VStack(spacing: 21) {
+            activityInformation
+
+            LazyVGrid(
+                columns: columns,
+                spacing: 16
+            ) {
+                ForEach(Condition.allCases, id: \.self) { condition in
+                    selectionCard(condition)
+                }
+            }
+        }
+        .padding(.horizontal, 36)
+    }
+
+    private var activityInformation: some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 4) {
+                Text("예상 걸음수")
+                Text(expectedSteps)
+            }
+
+            Text("·")
+
+            HStack(spacing: 4) {
+                Text("활동시간")
+                Text(activityDuration)
+            }
+        }
+        .font(KIRITypography.body)
+        .tracking(-0.64)
+        .foregroundStyle(KIRIColor.Text.primary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+    }
+
+    private func selectionCard(
         _ condition: Condition
     ) -> some View {
         let isSelected = selection.contains(condition)
@@ -114,47 +173,43 @@ struct ConditionAdjustmentSheet: View {
                 selection.insert(condition)
             }
         } label: {
-            HStack(spacing: 14) {
+            VStack(spacing: 8) {
                 Image(systemName: condition.icon)
-                    .font(.system(size: 21))
+                    .font(.system(size: 29, weight: .light))
                     .foregroundStyle(
                         isSelected
                             ? KIRIColor.Primary.default
                             : KIRIColor.Text.secondary
                     )
-                    .frame(width: 30)
+                    .frame(width: 44, height: 44)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(condition.title)
-                        .font(KIRITypography.bodyMedium)
-                        .foregroundStyle(KIRIColor.Text.strong)
-
-                    Text(condition.description)
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                        .multilineTextAlignment(.leading)
-                }
-
-                Spacer(minLength: 4)
-
-                Image(
-                    systemName: isSelected
-                        ? "checkmark.circle.fill"
-                        : "circle"
-                )
-                .font(.system(size: 22))
-                .foregroundStyle(
-                    isSelected
-                        ? KIRIColor.Primary.default
-                        : KIRIColor.Icon.secondary
-                )
+                Text(condition.title)
+                    .font(KIRITypography.bodyMedium)
+                    .tracking(-0.64)
+                    .foregroundStyle(
+                        isSelected
+                            ? KIRIColor.Text.strong
+                            : KIRIColor.Text.primary
+                    )
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+                    .fixedSize(
+                        horizontal: false,
+                        vertical: true
+                    )
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .frame(maxWidth: .infinity)
+            .frame(height: 149.5)
+            .background(
+                isSelected
+                    ? KIRIColor.Background.tertiary
+                    : KIRIColor.Background.secondary
+            )
+            .clipShape(
+                RoundedRectangle(cornerRadius: 8)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         isSelected
                             ? KIRIColor.Primary.default
@@ -164,5 +219,37 @@ struct ConditionAdjustmentSheet: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(
+            isSelected ? .isSelected : []
+        )
     }
+
+    // MARK: - Apply
+
+    private var applyButton: some View {
+        Button {
+            onApply(selection)
+            dismiss()
+        } label: {
+            Text("커스텀 적용하기")
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .frame(maxWidth: .infinity)
+                .frame(height: 58)
+                .background(
+                    KIRIColor.Background.secondary
+                )
+                .clipShape(
+                    RoundedRectangle(cornerRadius: 8)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+#Preview("컨디션 커스텀") {
+    ConditionAdjustmentSheet(
+        selectedConditions: []
+    ) { _ in }
 }
