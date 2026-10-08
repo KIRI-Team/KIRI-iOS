@@ -242,10 +242,7 @@ struct RecordCalendarView: View {
     private var monthHeader: some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
-                Text("\(displayedYear)년 \(displayedMonth)월")
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
-                    .foregroundStyle(KIRIColor.Text.strong)
+                Text("\(String(displayedYear))년 \(String(displayedMonth))월")
             }
 
             Spacer()
