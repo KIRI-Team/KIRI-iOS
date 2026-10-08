@@ -1,16 +1,23 @@
+
 import SwiftUI
+
 struct RecordCalendarView: View {
+
     // MARK: - Domain
+
     enum ActivityState {
         case pendingSchedule
         case confirmedSchedule
         case completed
     }
+
     struct ScheduleDetailData: Identifiable {
         let id = UUID()
+
         let day: Int
         let month: Int
         let status: ActivityState
+
         let title: String
         let date: String
         let startTime: String
@@ -18,8 +25,10 @@ struct RecordCalendarView: View {
         let expectedSteps: String
         let duration: String
     }
+
     struct ReviewDetailData: Identifiable {
         let id = UUID()
+
         let title: String
         let date: String
         let familyName: String
@@ -29,8 +38,10 @@ struct RecordCalendarView: View {
         let writtenDate: String
         let representativePhotoURL: URL?
     }
+
     struct CalendarActivity: Identifiable {
         let id = UUID()
+
         let day: Int
         let state: ActivityState
         let representativePhotoURL: URL?
@@ -38,22 +49,35 @@ struct RecordCalendarView: View {
         let schedule: ScheduleDetailData?
         let review: ReviewDetailData?
     }
+
     struct UpcomingSchedule: Identifiable {
         let id = UUID()
+
         let title: String
         let dateText: String
         let isConfirmed: Bool
     }
+
     // MARK: - Properties
+
     let onSelectSchedule: (ScheduleDetailData) -> Void
     let onSelectReview: (ReviewDetailData) -> Void
+
     var demoTodaySchedule: ScheduleDetailData? = nil
     var savedReviewSchedules: [ScheduleDetailData] = []
     var onSelectSavedReview: (ScheduleDetailData) -> Void = { _ in }
+
     // MARK: - State
-    @State private var displayedYear = 2023
-    @State private var displayedMonth = 12
+
+    @State private var displayedMonthDate = Calendar.current.date(
+        from: Calendar.current.dateComponents(
+            [.year, .month],
+            from: Date()
+        )
+    ) ?? Date()
+
     // MARK: - Init
+
     init(
         onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in },
         onSelectReview: @escaping (ReviewDetailData) -> Void = { _ in },
@@ -67,163 +91,154 @@ struct RecordCalendarView: View {
         self.savedReviewSchedules = savedReviewSchedules
         self.onSelectSavedReview = onSelectSavedReview
     }
-    // MARK: - Data
-    private let activities: [CalendarActivity] = [
-        CalendarActivity(
-            day: 9,
-            state: .pendingSchedule,
-            representativePhotoURL: nil,
-            additionalCompletedCount: 0,
-            schedule: ScheduleDetailData(
-                day: 9,
-                month: 12,
-                status: .pendingSchedule,
-                title: "한강 뚜벅뚜벅 축제 가보기",
-                date: "2026.06.13",
-                startTime: "오후 2시 50분",
-                location: "여의도 한강 공원",
-                expectedSteps: "20000보",
-                duration: "8시간"
-            ),
-            review: nil
-        ),
-        CalendarActivity(
-            day: 11,
-            state: .completed,
-            representativePhotoURL: nil,
-            additionalCompletedCount: 0,
-            schedule: nil,
-            review: ReviewDetailData(
-                title: "한강 뚜벅뚜벅 축제 방문",
-                date: "2026.06.13",
-                familyName: "끼리네가족",
-                authorName: "김주연",
-                isCurrentUser: true,
-                review: "아빠가 자주 가는 식당에 처음 가봤다. 좋아하는 메뉴를 같이 먹으니 아빠를 조금 더 알게 된 기분이었다.",
-                writtenDate: "12월 3일",
-                representativePhotoURL: nil
-            )
-        ),
-        CalendarActivity(
-            day: 12,
-            state: .confirmedSchedule,
-            representativePhotoURL: nil,
-            additionalCompletedCount: 0,
-            schedule: ScheduleDetailData(
-                day: 12,
-                month: 12,
-                status: .confirmedSchedule,
-                title: "한강 뚜벅뚜벅 축제 가보기",
-                date: "2026.06.13",
-                startTime: "오후 2시 50분",
-                location: "여의도 한강 공원",
-                expectedSteps: "20000보",
-                duration: "8시간"
-            ),
-            review: nil
+
+    // MARK: - Calendar Data
+
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "ko_KR")
+        calendar.firstWeekday = 2
+        return calendar
+    }
+
+    private var displayedYear: Int {
+        calendar.component(.year, from: displayedMonthDate)
+    }
+
+    private var displayedMonth: Int {
+        calendar.component(.month, from: displayedMonthDate)
+    }
+
+    private var numberOfDays: Int {
+        calendar.range(
+            of: .day,
+            in: .month,
+            for: displayedMonthDate
+        )?.count ?? 30
+    }
+
+    private var leadingEmptyDays: Int {
+        let weekday = calendar.component(
+            .weekday,
+            from: displayedMonthDate
         )
-    ]
-    private let upcomingSchedules: [UpcomingSchedule] = [
-        UpcomingSchedule(
-            title: "한강 뚜벅뚜벅 축제 방문",
-            dateText: "26.06.23",
-            isConfirmed: false
-        ),
-        UpcomingSchedule(
-            title: "한강 뚜벅뚜벅 축제 방문",
-            dateText: "26.06.23",
-            isConfirmed: true
-        ),
-        UpcomingSchedule(
-            title: "한강 뚜벅뚜벅 축제 방문",
-            dateText: "26.06.23",
-            isConfirmed: true
-        )
-    ]
-    private let weekDays = [
-        "월",
-        "화",
-        "수",
-        "목",
-        "금",
-        "토",
-        "일"
-    ]
+
+        return (weekday + 5) % 7
+    }
+
+    private var weekDays: [String] {
+        ["월", "화", "수", "목", "금", "토", "일"]
+    }
+
     private let columns = Array(
-        repeating: GridItem(
-            .fixed(45),
-            spacing: 6
-        ),
+        repeating: GridItem(.flexible(), spacing: 6),
         count: 7
     )
+
+    private var todayDay: Int? {
+        guard calendar.isDate(
+            displayedMonthDate,
+            equalTo: Date(),
+            toGranularity: .month
+        ) else {
+            return nil
+        }
+
+        return calendar.component(.day, from: Date())
+    }
+
+    // MARK: - Mock Data
+
+    // 실제 서버 일정이 아닌 화면 확인용 데이터.
+    // 기존 샘플의 날짜와 표시 월이 일치하지 않아
+    // 잘못된 완료 상태가 표시되는 문제를 방지한다.
+
+    private var mockActivities: [CalendarActivity] {
+        []
+    }
+
+    private var currentMonthSavedReviews: [ScheduleDetailData] {
+        savedReviewSchedules.filter { schedule in
+            guard let date = parseDate(schedule.date) else {
+                return false
+            }
+
+            return calendar.isDate(
+                date,
+                equalTo: displayedMonthDate,
+                toGranularity: .month
+            )
+        }
+    }
+
+    private var currentMonthDemoSchedule: ScheduleDetailData? {
+        guard let demoTodaySchedule,
+              let date = parseDate(demoTodaySchedule.date),
+              calendar.isDate(
+                date,
+                equalTo: displayedMonthDate,
+                toGranularity: .month
+              ) else {
+            return nil
+        }
+
+        return demoTodaySchedule
+    }
+
+    private func parseDate(_ value: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.calendar = calendar
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy.MM.dd"
+        formatter.isLenient = false
+
+        return formatter.date(from: value)
+    }
+
+    private func dayOfMonth(_ schedule: ScheduleDetailData) -> Int? {
+        guard let date = parseDate(schedule.date) else {
+            return nil
+        }
+
+        return calendar.component(.day, from: date)
+    }
+
+    private func savedReview(for day: Int) -> ScheduleDetailData? {
+        currentMonthSavedReviews.first {
+            dayOfMonth($0) == day
+        }
+    }
+
+    private func mockActivity(for day: Int) -> CalendarActivity? {
+        mockActivities.first { $0.day == day }
+    }
+
     // MARK: - Body
+
     var body: some View {
-        ScrollView(
-            .vertical,
-            showsIndicators: false
-        ) {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(spacing: 0) {
                 monthHeader
                     .padding(.top, 28)
-                calendar
+
+                calendarGrid
                     .padding(.top, 18)
+
                 demoSection
                     .padding(.top, 30)
+
                 upcomingSection
                     .padding(.top, 36)
-                Color.clear
-                    .frame(height: 110)
+
+                Color.clear.frame(height: 110)
             }
             .padding(.horizontal, 18)
         }
     }
-    private var demoSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("화면 테스트 · MOCK")
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.secondary)
-            if let demoTodaySchedule {
-                Button {
-                    onSelectSchedule(demoTodaySchedule)
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("오늘의 약속 화면")
-                                .font(KIRITypography.headingSmall)
-                            Text(demoTodaySchedule.title)
-                                .font(KIRITypography.bodySmall)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                    .foregroundStyle(KIRIColor.Text.strong)
-                    .padding(18)
-                    .background(KIRIColor.Background.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-            }
-            ForEach(savedReviewSchedules) { item in
-                Button {
-                    onSelectSavedReview(item)
-                } label: {
-                    HStack {
-                        Text("작성한 기록 보기")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                    }
-                    .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.Primary.default)
-                    .padding(18)
-                    .background(KIRIColor.Background.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
 
-    // MARK: - Header
+    // MARK: - Month Header
+
     private var monthHeader: some View {
         HStack(spacing: 0) {
             HStack(spacing: 8) {
@@ -231,45 +246,30 @@ struct RecordCalendarView: View {
                     .font(KIRITypography.headingSmall)
                     .tracking(-0.72)
                     .foregroundStyle(KIRIColor.Text.strong)
-                notificationBadge
             }
+
             Spacer()
+
             HStack(spacing: 24) {
                 monthButton(
                     systemName: "chevron.left",
                     label: "이전 달"
                 ) {
-                    previousMonth()
+                    moveMonth(by: -1)
                 }
+
                 monthButton(
                     systemName: "chevron.right",
                     label: "다음 달"
                 ) {
-                    nextMonth()
+                    moveMonth(by: 1)
                 }
             }
             .padding(.trailing, 3)
         }
         .frame(height: 22)
     }
-    private var notificationBadge: some View {
-        HStack(spacing: 6) {
-            Text("알림")
-                .font(KIRITypography.navigation)
-                .tracking(-0.4)
-                .foregroundStyle(KIRIColor.Text.accent)
-            Circle()
-                .fill(KIRIColor.Primary.default)
-                .frame(
-                    width: 6,
-                    height: 6
-                )
-        }
-        .padding(.horizontal, 6)
-        .frame(height: 22)
-        .background(KIRIColor.Background.greenSoft)
-        .clipShape(Capsule())
-    }
+
     private func monthButton(
         systemName: String,
         label: String,
@@ -277,59 +277,74 @@ struct RecordCalendarView: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(
-                    .system(
-                        size: 15,
-                        weight: .medium
-                    )
-                )
+                .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(KIRIColor.Icon.secondary)
-                .frame(
-                    width: 8,
-                    height: 16
-                )
+                .frame(width: 20, height: 24)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
-    // MARK: - Calendar
-    private var calendar: some View {
+
+    // MARK: - Calendar Grid
+
+    private var calendarGrid: some View {
         VStack(spacing: 16) {
             weekHeader
+
             LazyVGrid(
                 columns: columns,
-                alignment: .center,
                 spacing: 8
             ) {
-                ForEach(1...28, id: \.self) { day in
+                ForEach(0..<leadingEmptyDays, id: \.self) { _ in
+                    Color.clear
+                        .frame(height: 45)
+                }
+
+                ForEach(1...numberOfDays, id: \.self) { day in
                     calendarCell(day)
                 }
             }
         }
         .frame(maxWidth: .infinity)
     }
+
     private var weekHeader: some View {
-        HStack(spacing: 6) {
+        LazyVGrid(
+            columns: columns,
+            spacing: 6
+        ) {
             ForEach(weekDays, id: \.self) { day in
                 Text(day)
                     .font(KIRITypography.navigation)
                     .tracking(-0.4)
                     .foregroundStyle(KIRIColor.Text.tertiary)
-                    .frame(
-                        width: 45,
-                        height: 14
-                    )
+                    .frame(height: 14)
             }
         }
     }
+
     // MARK: - Calendar Cell
+
     @ViewBuilder
-    private func calendarCell(
-        _ day: Int
-    ) -> some View {
-        if let activity = activities.first(
-            where: { $0.day == day }
-        ) {
+    private func calendarCell(_ day: Int) -> some View {
+        if let saved = savedReview(for: day) {
+            Button {
+                onSelectSavedReview(saved)
+            } label: {
+                completedCell()
+            }
+            .buttonStyle(.plain)
+
+        } else if let demo = currentMonthDemoSchedule,
+                  dayOfMonth(demo) == day {
+            Button {
+                onSelectSchedule(demo)
+            } label: {
+                confirmedScheduleCell()
+            }
+            .buttonStyle(.plain)
+
+        } else if let activity = mockActivity(for: day) {
             if let schedule = activity.schedule {
                 Button {
                     onSelectSchedule(schedule)
@@ -337,6 +352,7 @@ struct RecordCalendarView: View {
                     activityCell(activity)
                 }
                 .buttonStyle(.plain)
+
             } else if let review = activity.review {
                 Button {
                     onSelectReview(review)
@@ -344,31 +360,43 @@ struct RecordCalendarView: View {
                     activityCell(activity)
                 }
                 .buttonStyle(.plain)
+
             } else {
                 activityCell(activity)
             }
+
         } else {
             normalCell(day)
         }
     }
-    private func normalCell(
-        _ day: Int
-    ) -> some View {
+
+    private func normalCell(_ day: Int) -> some View {
         ZStack {
-            RoundedRectangle(
-                cornerRadius: 12
-            )
-            .fill(KIRIColor.Background.tertiary)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(KIRIColor.Background.tertiary)
+
             Text("\(day)")
                 .font(KIRITypography.body)
                 .tracking(-0.64)
-                .foregroundStyle(KIRIColor.Text.primary)
+                .foregroundStyle(
+                    todayDay == day
+                        ? KIRIColor.Text.accent
+                        : KIRIColor.Text.primary
+                )
         }
-        .frame(
-            width: 45,
-            height: 45
-        )
+        .frame(height: 45)
+        .overlay {
+            if todayDay == day {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        KIRIColor.Primary.default,
+                        lineWidth: 1.5
+                    )
+            }
+        }
+        .accessibilityLabel("\(day)일")
     }
+
     @ViewBuilder
     private func activityCell(
         _ activity: CalendarActivity
@@ -376,248 +404,140 @@ struct RecordCalendarView: View {
         switch activity.state {
         case .pendingSchedule:
             pendingScheduleCell()
+
         case .confirmedSchedule:
             confirmedScheduleCell()
+
         case .completed:
-            completedActivityCell(activity)
+            completedCell()
         }
     }
-    // MARK: - Pending
+
     private func pendingScheduleCell() -> some View {
         ZStack {
-            RoundedRectangle(
-                cornerRadius: 12
-            )
-            .fill(KIRIColor.Background.elevated)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(KIRIColor.Background.elevated)
+
             Image(systemName: "clock")
-                .font(
-                    .system(
-                        size: 25,
-                        weight: .regular
-                    )
-                )
-                .foregroundStyle(KIRIColor.Icon.disabled)
+                .font(.system(size: 24))
+                .foregroundStyle(KIRIColor.Text.tertiary)
         }
-        .frame(
-            width: 45,
-            height: 45
-        )
+        .frame(height: 45)
         .accessibilityLabel("확정 대기 중인 일정")
     }
-    // MARK: - Confirmed
+
     private func confirmedScheduleCell() -> some View {
         ZStack {
-            RoundedRectangle(
-                cornerRadius: 12
-            )
-            .fill(KIRIColor.Background.elevated)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(KIRIColor.Background.elevated)
+
             Image(systemName: "clock")
-                .font(
-                    .system(
-                        size: 27,
-                        weight: .medium
-                    )
-                )
+                .font(.system(size: 25, weight: .medium))
                 .foregroundStyle(KIRIColor.Text.primary)
         }
-        .frame(
-            width: 45,
-            height: 45
-        )
+        .frame(height: 45)
         .accessibilityLabel("확정된 일정")
     }
-    // MARK: - Completed
-    private func completedActivityCell(
-        _ activity: CalendarActivity
-    ) -> some View {
+
+    private func completedCell() -> some View {
         ZStack {
-            if let url = activity.representativePhotoURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .empty:
-                        completedPhotoPlaceholder
-                    case .failure:
-                        completedPhotoPlaceholder
-                    @unknown default:
-                        completedPhotoPlaceholder
-                    }
-                }
-            } else {
-                completedPhotoPlaceholder
-            }
-            Color.black
-                .opacity(0.56)
-            if activity.additionalCompletedCount > 0 {
-                VStack {
-                    Spacer()
-                    HStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(KIRIColor.Background.elevated)
+
+            Image(systemName: "photo.fill")
+                .font(.system(size: 19))
+                .foregroundStyle(KIRIColor.Primary.default)
+        }
+        .frame(height: 45)
+        .accessibilityLabel("기록을 작성한 활동")
+    }
+
+    // MARK: - Demo Section
+
+    private var demoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let demoTodaySchedule {
+                Text("화면 테스트 · MOCK")
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+
+                Button {
+                    onSelectSchedule(demoTodaySchedule)
+                } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("오늘의 약속 화면")
+                                .font(KIRITypography.headingSmall)
+
+                            Text(demoTodaySchedule.title)
+                                .font(KIRITypography.bodySmall)
+                                .foregroundStyle(
+                                    KIRIColor.Text.secondary
+                                )
+                        }
+
                         Spacer()
-                        Text(
-                            "+\(activity.additionalCompletedCount)"
-                        )
-                        .font(KIRITypography.captionMedium)
-                        .foregroundStyle(KIRIColor.Text.strong)
-                        .padding(5)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14))
                     }
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .padding(18)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(
+                        RoundedRectangle(cornerRadius: 8)
+                    )
                 }
+                .buttonStyle(.plain)
             }
         }
-        .frame(
-            width: 45,
-            height: 45
-        )
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 12
-            )
-        )
-        .accessibilityLabel("완료한 활동")
     }
-    private var completedPhotoPlaceholder: some View {
-        ZStack {
-            KIRIColor.Background.elevated
-            Image(systemName: "photo")
-                .font(
-                    .system(
-                        size: 17,
-                        weight: .medium
-                    )
-                )
-                .foregroundStyle(KIRIColor.Icon.secondary)
-        }
-    }
+
     // MARK: - Upcoming
+
     private var upcomingSection: some View {
-        VStack(
-            alignment: .leading,
-            spacing: 16
-        ) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("다가오는 약속")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
-                .frame(height: 22)
-            LazyVStack(spacing: 18) {
-                ForEach(upcomingSchedules) { schedule in
-                    upcomingScheduleCard(schedule)
-                }
-            }
+
+            Text("예정된 약속이 없어요.")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: 110
+                )
+                .background(KIRIColor.Background.tertiary)
+                .clipShape(
+                    RoundedRectangle(cornerRadius: 8)
+                )
         }
     }
-    private func upcomingScheduleCard(
-        _ schedule: UpcomingSchedule
-    ) -> some View {
-        HStack(
-            alignment: .top,
-            spacing: 0
-        ) {
-            VStack(
-                alignment: .leading,
-                spacing: 8
-            ) {
-                scheduleBadge(schedule)
-                VStack(
-                    alignment: .leading,
-                    spacing: 0
-                ) {
-                    Text(schedule.title)
-                        .font(KIRITypography.headingSmall)
-                        .tracking(-0.72)
-                        .foregroundStyle(KIRIColor.Text.strong)
-                        .lineLimit(1)
-                    Text("일시 I \(schedule.dateText)")
-                        .font(KIRITypography.bodySmall)
-                        .tracking(-0.56)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                }
-            }
-            Spacer()
-            Button {
-                // TODO: 일정 메뉴
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(
-                        .system(
-                            size: 13,
-                            weight: .medium
-                        )
-                    )
-                    .foregroundStyle(KIRIColor.Icon.disabled)
-                    .frame(
-                        width: 24,
-                        height: 24
-                    )
-            }
-            .buttonStyle(.plain)
+
+    // MARK: - Month Navigation
+
+    private func moveMonth(by amount: Int) {
+        guard let nextMonth = calendar.date(
+            byAdding: .month,
+            value: amount,
+            to: displayedMonthDate
+        ) else {
+            return
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .frame(
-            maxWidth: .infinity,
-            minHeight: 110,
-            alignment: .leading
-        )
-        .background(KIRIColor.Background.tertiary)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 8
-            )
-        )
-    }
-    private func scheduleBadge(
-        _ schedule: UpcomingSchedule
-    ) -> some View {
-        Text(
-            schedule.isConfirmed
-                ? "약속 확정"
-                : "약속 예정"
-        )
-        .font(KIRITypography.bodySmallMedium)
-        .tracking(-0.56)
-        .foregroundStyle(
-            schedule.isConfirmed
-                ? KIRIColor.Text.accent
-                : KIRIColor.Text.secondary
-        )
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            schedule.isConfirmed
-                ? KIRIColor.Background.greenSoft
-                : KIRIColor.Background.elevated
-        )
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 5
-            )
-        )
-    }
-    // MARK: - Month
-    private func previousMonth() {
-        if displayedMonth == 1 {
-            displayedMonth = 12
-            displayedYear -= 1
-        } else {
-            displayedMonth -= 1
-        }
-    }
-    private func nextMonth() {
-        if displayedMonth == 12 {
-            displayedMonth = 1
-            displayedYear += 1
-        } else {
-            displayedMonth += 1
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            displayedMonthDate = nextMonth
         }
     }
 }
+
 #Preview {
     ZStack {
         KIRIColor.Background.base
             .ignoresSafeArea()
+
         RecordCalendarView()
     }
 }
