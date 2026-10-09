@@ -1,7 +1,5 @@
 import SwiftUI
-
 struct MissionView: View {
-
     private enum Category: String, CaseIterable, Hashable {
         case all = "전체"
         case exhibition = "전시·문화"
@@ -11,10 +9,8 @@ struct MissionView: View {
         case performance = "공연"
         case food = "맛집·카페"
     }
-
     private struct PlaceItem: Identifiable {
         let id = UUID()
-
         let title: String
         let placeName: String
         let district: String
@@ -22,13 +18,13 @@ struct MissionView: View {
         let tags: [String]
         let isRecommended: Bool
         let category: Category
-
         var isBookmarked: Bool
     }
+    @StateObject private var bucketStore = MissionBucketStore.shared
+    @State private var selectedPlace: PlaceItem?
 
     @State private var searchText = ""
     @State private var selectedCategory: Category = .all
-
     @State private var places: [PlaceItem] = [
         PlaceItem(
             title: "광장시장에서 시장음식 먹어보기",
@@ -95,63 +91,63 @@ struct MissionView: View {
             isBookmarked: false
         )
     ]
-
     private var filteredPlaces: [PlaceItem] {
         places.filter { place in
             let matchesCategory =
                 selectedCategory == .all ||
                 place.category == selectedCategory
-
             let keyword = searchText.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
-
             let matchesSearch =
                 keyword.isEmpty ||
                 place.title.localizedCaseInsensitiveContains(keyword) ||
                 place.placeName.localizedCaseInsensitiveContains(keyword) ||
                 place.district.localizedCaseInsensitiveContains(keyword)
-
             return matchesCategory && matchesSearch
         }
     }
-
     var body: some View {
         ZStack {
             KIRIColor.Background.base
                 .ignoresSafeArea()
-
             VStack(spacing: 0) {
                 appBar
-
                 ScrollView(
                     .vertical,
                     showsIndicators: false
                 ) {
                     VStack(spacing: 0) {
                         searchSection
-
                         categorySection
                             .padding(.top, 13)
-
                         filterHeader
                             .padding(.horizontal, 18)
                             .padding(.top, 24)
-
                         placeList
                             .padding(.horizontal, 18)
                             .padding(.top, 16)
-
                         Color.clear
                             .frame(height: 100)
                     }
                 }
             }
         }
+        .fullScreenCover(item: $selectedPlace) { place in
+            MissionActivityDetailView(
+                title: place.title,
+                placeName: place.placeName,
+                district: place.district,
+                rating: place.rating,
+                tags: place.tags,
+                isRecommended: place.isRecommended,
+                isBookmarked: bookmarkBinding(for: place.id),
+                onBack: { selectedPlace = nil }
+            )
+        }
     }
 
     // MARK: - App Bar
-
     private var appBar: some View {
         ZStack {
             Text("미션")
@@ -161,9 +157,7 @@ struct MissionView: View {
         }
         .frame(height: 62)
     }
-
     // MARK: - Search
-
     private var searchSection: some View {
         KIRISearchField(
             text: $searchText
@@ -171,9 +165,7 @@ struct MissionView: View {
         .padding(.horizontal, 18)
         .padding(.top, 6)
     }
-
     // MARK: - Categories
-
     private var categorySection: some View {
         ScrollView(
             .horizontal,
@@ -199,23 +191,18 @@ struct MissionView: View {
             .padding(.horizontal, 18)
         }
     }
-
     // MARK: - Filter
-
     private var filterHeader: some View {
         HStack(spacing: 0) {
             Text("활동 \(filteredPlaces.count)개")
                 .font(KIRITypography.bodySmallMedium)
                 .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.secondary)
-
             Spacer()
-
             HStack(spacing: 12) {
                 filterButton(
                     title: "날짜·시간"
                 )
-
                 filterButton(
                     title: "지역·거리"
                 )
@@ -223,7 +210,6 @@ struct MissionView: View {
         }
         .frame(height: 20)
     }
-
     private func filterButton(
         title: String
     ) -> some View {
@@ -235,7 +221,6 @@ struct MissionView: View {
                     .font(KIRITypography.bodySmallMedium)
                     .tracking(-0.56)
                     .foregroundStyle(KIRIColor.Text.secondary)
-
                 Image(systemName: "chevron.down")
                     .font(
                         .system(
@@ -248,9 +233,7 @@ struct MissionView: View {
         }
         .buttonStyle(.plain)
     }
-
     // MARK: - Places
-
     private var placeList: some View {
         LazyVStack(spacing: 16) {
             ForEach(filteredPlaces) { place in
@@ -265,40 +248,28 @@ struct MissionView: View {
                         for: place.id
                     )
                 )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedPlace = place
+                }
             }
         }
     }
-
     // MARK: - Bookmark
-
-    private func bookmarkBinding(
-        for id: UUID
-    ) -> Binding<Bool> {
+    private func bookmarkBinding(for id: UUID) -> Binding<Bool> {
         Binding(
             get: {
-                places.first(
-                    where: {
-                        $0.id == id
-                    }
-                )?.isBookmarked ?? false
+                guard let place = places.first(where: { $0.id == id }) else { return false }
+                return bucketStore.contains(title: place.title, placeName: place.placeName)
             },
-            set: { newValue in
-                guard let index = places.firstIndex(
-                    where: {
-                        $0.id == id
-                    }
-                ) else {
-                    return
-                }
-
-                places[index].isBookmarked = newValue
+            set: { isSaved in
+                guard let place = places.first(where: { $0.id == id }) else { return }
+                bucketStore.setSaved(isSaved, title: place.title, placeName: place.placeName)
             }
         )
     }
 }
-
 // MARK: - Preview
-
 #Preview {
     MissionView()
 }
