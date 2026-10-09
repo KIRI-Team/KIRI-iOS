@@ -1,218 +1,334 @@
-# KIRI iOS 구현 현황
+# KIRI iOS 구현 현황 — 최신 기능명세서 기준
 
-검증일: 2026-10-10 (Asia/Seoul)  
-기준 브랜치: `develop`  
-기준 커밋: `81620ed46e28c28d804affc6cd926edcd7fbceb2` — `[Feat] : 미션 북마크와 기록 버킷 연동`
+검증일: 2026-10-10 (Asia/Seoul)
+기준 브랜치: `develop`
+기준 HEAD: `24025222e1fb591d22dbba2df75a852b0b4765c2` — `[Docs] : KIRI iOS 구현 현황 및 기능명세서 분석`
+기준 명세: [KIRI_FEATURE_SPEC_LATEST.csv](specs/KIRI_FEATURE_SPEC_LATEST.csv)
 
-## 1. 검증 범위와 판정 기준
+## 1. 검증 범위·결론
 
-- 저장소 내 Swift **70개 파일, 13,079줄**을 대상으로 파일 목록, 타입·상태·액션, 호출 지점, 화면 전환, 저장 경로를 조사했다. 주요 화면은 본문과 콜백 구현까지 추적했다.
-- 시작 시 `develop...origin/develop`, 작업 트리 clean. 로컬에 기록된 원격 추적 브랜치와 일치한다. 이번 분석에서 fetch/pull은 하지 않았으므로 GitHub 최신 커밋과의 일치를 보장하지 않는다.
-- 기존 `docs/IMPLEMENTATION_STATUS.md`와 저장소 내부 `AGENTS.md`는 없었다. README를 참고하되 현재 코드로 재검증했다.
-- [Figma 끼리 UI 페이지](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-11018)의 전체 메타데이터를 조회했다. 페이지 바로 아래 폭 390·높이 600 이상인 화면 프레임은 **100개**이며, 동일 화면의 상태·이전 시안이 포함된다. 하위 화면설계서 사본도 확인했으며 별도 신규 화면으로 중복 집계하지 않는다.
-- Figma 페이지 목록, `끼리 화면설계서`(`7926:1508`, 조회 결과 빈 canvas), `KIRI / Foundations`(`8438:5291`)도 확인했다. 과거 HALO·와이어프레임·발표자료 페이지를 현재 구현 요구사항에 합산하지 않았다.
-- 시각 참조는 질문 입력(`8187:14904`), 일정 등록(`8264:21250`), 설정(`8213:3062`), 세부미션(`8451:22353`)의 스크린샷을 직접 확인했다. 나머지 화면은 레이어 구조·텍스트와 코드 기준 비교다. **100개 화면 모두에 대한 픽셀 QA를 완료한 것은 아니다.**
-- `xcodebuild` Debug / iOS Simulator 빌드 성공. 이번 작업에서는 시뮬레이터 터치 조작, 사진 선택, 공유 시트, Apple 인증, 키보드·기기별 렌더링을 실행 검증하지 않았다. 아래 동작 판정은 코드 경로 검증이며 런타임 QA와 구분한다.
+**최신 CSV의 107개 기능 ID(P0 84개, P1 23개)를 전수 대조했다. 기존 화면 목록 중심 분석을 기능 ID·정책·예외 처리 중심으로 갱신했으며, 개발 순서는 5절을 확정 기준으로 사용한다.**
 
-| 판정 | 의미 |
+- CSV는 UTF-8 BOM 및 따옴표 내부 줄바꿈을 처리하는 CSV 파서로 읽었다. 10개 열, 107개 고유 ID이며 중복·누락 ID는 없다. 이름이 비슷해도 ID를 합치거나 빠진 번호를 임의 생성하지 않았다.
+- CSV SHA-256: `e723d48d8045da24943437ba5066ec76cc71acedcf68eb31a3939d108c54887a`.
+- Swift는 70개 파일·13,079줄. `git diff 81620ed HEAD -- KIRI` 결과가 비어 있어 이전 코드 분석 이후 앱 코드 변경이 없음을 확인했고, 최신 정책과 관련된 상태·콜백·모델·가드·API 호출 지점을 재검증했다.
+- 시작 시 추적 파일 변경은 없고 `docs/specs/`가 사용자 제공 미추적 디렉터리였다. 이를 수정·스테이징하지 않았다. 로컬 `develop`과 기록된 `origin/develop`은 일치하며 fetch/pull은 하지 않았다.
+- 이번 작업에서 Figma 지정 [끼리 UI 페이지](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-11018)의 전체 메타데이터를 다시 조회했다. 직속 화면 프레임 100개 및 하위 시안/설명과 대조했다. 각 행에 직접 시안, 연관 시안, 정책 차이, 전용 시안 미확인, 비화면을 구분했다.
+- 이전 분석에서 질문 입력·일정 등록·설정·세부미션 스크린샷 4개를 확인했다. 이번에는 Figma 구조/텍스트와 코드 경로를 재대조했으며 전체 픽셀 QA나 시뮬레이터 터치 검증을 새로 수행한 것은 아니다.
+- 분석 범위는 **이 iOS 저장소**다. 서버 소스·운영 서버를 검증하지 않았으므로 비화면 기능은 ‘iOS 연동 미구현 / 서버 구현 미검증’으로 기록한다. 서버에 기능이 없다고 단정하지 않는다.
+- 최신 명세의 기능·정책·P0/P1이 기존 Figma 문구와 이전 문서의 제안보다 우선한다. 기존 디자인 시스템과 일치하는 화면 구성은 재사용한다.
+
+### 상태 판정
+
+| 구분 | 정의 |
 | --- | --- |
-| 구현 완료 | 표에 명시한 좁은 UI 범위의 표시·입력·전환·로컬 콜백이 코드상 연결됨. 서버 연동 완료나 픽셀 일치를 의미하지 않음 |
-| 부분 구현 | 화면 또는 재사용 가능한 구성요소는 있으나 필요한 상태·진입점·콜백·화면 간 데이터 반영이 빠짐 |
-| 미구현 | 대응 UI/액션이 없거나 표시만 있고 해당 흐름을 수행할 수 없음 |
+| UI 구현 완료(로컬) | 해당 입력/조작의 로컬 경로가 연결됨. 실제 서버 저장·전체 정책·픽셀 QA 완료를 뜻하지 않음 |
+| UI 부분 구현 | 기존 화면/컴포넌트는 있으나 상태·진입·오류·결과 반영 일부 누락 |
+| UI 미구현 | 해당 동작을 수행할 UI가 없음. 화면 이름이나 Preview만으로 완료 판정하지 않음 |
+| UI 비화면 | 수집·집계·추천·권한/이벤트처럼 전용 화면을 만들 필요가 없는 기능. 관련 UI 상태는 따로 표시 |
+| 기능 부분 구현 | UI/로컬 처리 일부는 있지만 기능 ID 전체의 정책·데이터·예외 처리 미충족 |
+| 기능 미구현 | 해당 흐름 없음. 관련 재사용 코드는 근거 열에 기록 |
+| 기능 연동 미구현 | 비화면 기능의 iOS 계약/호출 경로 미연결. 서버 상태는 미검증 |
 
-백엔드 미연동만을 이유로 모든 UI를 미구현으로 분류하지 않았다. 기존 화면과 미구현 하위 흐름을 분리했으며, Figma의 오래된 문구·중복 시안은 확정 요구사항과 구분했다.
+| 범위 | 구현 완료 | 부분 구현 | 미구현 | 비화면/연동 미구현 |
+| --- | ---: | ---: | ---: | ---: |
+| UI·로컬 범위 (107개 ID) | 5 | 53 | 30 | 19 |
+| 기능 ID 전체 요건 (107개 ID) | 0 | 58 | 30 | 19 |
 
-## 2. 프로젝트·Git 분석
+기능 전체 완료 0은 화면이 전혀 없다는 뜻이 아니다. 약관 체크, 별점·재참여 입력, 로컬 로그아웃, 모두 읽음의 기존 UI는 재작성할 필요가 없다. 반대로 화면이 있어도 저장자/참여자·마감·권한 등의 정책을 누락하면 기능 전체 완료로 올리지 않는다. 수치는 화면 수나 개발 공수 비율이 아닌 **ID별 분류 수**다.
 
-| 항목 | 현재 상태 |
-| --- | --- |
-| 원격 | `https://github.com/KIRI-Team/KIRI-iOS.git` |
-| 실제 빌드 프로젝트 | `KIRI/KIRI.xcodeproj`, scheme/target `KIRI` |
-| 루트 `KIRI.xcodeproj` | workspace 참조 파일만 있음. `project.pbxproj`가 없으므로 실제 빌드 경로와 혼동 금지 |
-| 타깃 | iOS 26.2, iPhone/iPad, Swift language mode 5.0, default actor isolation MainActor |
-| 소스 등록 | `PBXFileSystemSynchronizedRootGroup`로 `KIRI/KIRI` 폴더 동기화 |
-| 구조 | App → Core / Features / Models. 별도 서비스·ViewModel 분리는 거의 없고 View 내 로컬 상태 중심 |
-| 상태 관리 | AppRouter/AppSessionStore는 Observation, MissionBucketStore는 Combine ObservableObject |
-| 의존성 | 프로젝트의 packageProductDependencies 비어 있음. Apple 시스템 프레임워크 사용 |
-| 테스트 | 별도 테스트 소스·테스트 타깃 없음 |
-| 중복 | 같은 파일명을 가진 Swift 파일 없음. 주석의 `NicknameView 2.swift` 등은 실제 중복 파일이 아님 |
-| 비활성 파일 | ContentView는 Hello world 템플릿으로 앱 진입점 아님. AppleSignInButton.swift는 0줄. 실제 Apple 버튼은 LoginView 안에 있음 |
-| 기존 문서 차이 | README의 Home/Mission/Record/MyPage를 ‘다음 작업’으로 둔 설명은 오래됨. API 계층도 이미 존재함. AuthEntryView/SignUpView는 현재 파일 목록에 없음 |
+## 2. 코드 근거와 기존 화면 재사용
 
-### 앱 진입과 실제 연결
+아래 C 번호는 4절 기능별 표의 코드 근거다. 모든 경로는 현재 저장소에서 확인했다. 세부 파일 70개 인벤토리는 부록 B에 유지했다.
 
-```text
-KIRIApp → RootView → AppRouter의 저장된 세션 상태
-  authentication → AuthFlowView → LoginView → TermsAgreementView
-  onboarding → NicknameView → RoleSelectionView → FamilyEntryView
-    생성 → FamilyNameView → FamilyCodeLoadingView → FamilyCodeView → family
-    참여 → FamilyCodeInputView → FamilyJoinLoadingView → FamilyJoinConfirmView → family
-    둘러보기 → browse
-  main → MainTabView
-    홈 → HomeView → FamilyHomeView 또는 BrowseHomeView
-      FamilyHome → NotificationView → InvitationRequestView → AddScheduleSheet
-    미션 → MissionView → MissionActivityDetailView
-    기록 → RecordView
-      캘린더 → ScheduleDetailView → TodayActivityView → 기록 작성/완료·컨디션 조정
-      저장한 기록 → ReviewDetailView → 기록 수정/삭제 확인
-      버킷의 일부 고정 샘플 → InvitationView → InvitationSendMethodSheet
-    마이페이지 → MyPageView → FamilySettingsView → 이름 수정 화면
-      로그아웃 → AppRouter.logout → 인증 화면
-```
-
-- `MainTabView`는 `TabView`가 아닌 switch로 탭 콘텐츠를 교체한다. View 내부 `@State`는 탭 재진입 시 유지된다고 가정하면 안 된다. 기록·편집 상태의 탭 왕복 QA가 필요하다.
-- `userMode`는 Home에만 전달한다. 미션·기록·마이페이지에는 둘러보기 제한이 연결되지 않았다.
-- `AppRouter.receiveInvitation`과 pendingInvitation 분기는 있지만 호출부, `onOpenURL`, Universal Link 처리가 없다. 외부 초대 수신 완료로 분류하지 않는다.
-
-## 3. 화면별 구현 상태
-
-경로는 `KIRI/KIRI/` 기준이다. Figma 링크는 대표 노드이며 동일 화면의 상태별 노드는 부록에 함께 나열한다.
-
-### 인증·온보딩
-
-| 화면 / 범위 | 판정 | 코드·진입 경로와 확인 사항 | Figma |
-| --- | --- | --- | --- |
-| 브랜드 스플래시 | 미구현 | KIRIApp은 RootView로 바로 진입. 자동 생성 LaunchScreen 설정만 있고 브랜드 스플래시 화면 없음 | [8095:62668](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8095-62668) |
-| 로그인/회원가입 진입 | 부분 구현 | Auth/LoginView·AuthFlowView. Kakao/Google은 SDK 없이 약관으로 이동. Apple 시스템 인증 성공 후 약관으로 이동하나 서버 세션 생성 없음. 실패는 print뿐이며 최초 뒤로가기 콜백은 비어 있음 | [8095:62717](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8095-62717) |
-| 약관 체크·전체동의·본문 시트 | 구현 완료 | TermsAgreementView. 필수 3개 충족 시 다음, 위치 동의는 선택, 항목별 본문 시트/닫기 연결. 내용·동의는 로컬, 최신 정책 문서와 서버 저장은 별도 | [8296:13599](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8296-13599) |
-| 닉네임 입력 | 부분 구현 | Onboarding/NicknameView. 2~10자 검증·허용문자 정제·다음 연결. 첫 단계 뒤로가기는 무동작. 입력 오류를 표시하는 대신 정제하며 입력값은 온보딩 밖으로 전달되지 않음 | [8098:14575](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-14575) |
-| 가족 역할 선택 UI | 구현 완료 | RoleSelectionView. 4개 역할 선택, 선택 전 다음 비활성, 이전/다음 연결. 선택한 역할의 프로필 반영은 미구현 | [7883:23313](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23313) |
-| 가족공간 생성/참여/둘러보기 선택 | 구현 완료 | FamilyEntryView의 3개 콜백 모두 OnboardingFlowView에서 연결 | [7883:23399](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23399) |
-| 가족명 입력·코드 생성 중·코드 표시 | 부분 구현 | FamilyNameView/FamilyCodeLoadingView/FamilyCodeView. 입력→1.2초 로딩→고정 KIRI24 표시. 복사·시스템 공유·나중에 하기 연결. 문구/구성은 디자인과 차이, 발급 실패·재시도 상태 없음 | [8098:72650](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-72650), [8098:72709](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-72709), [8098:72786](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-72786) |
-| 가족코드 입력·조회 중·참여 확인 | 부분 구현 | FamilyCodeInputView/FamilyJoinLoadingView/FamilyJoinConfirmView. 6자리 영숫자 검증 후 모든 유효 형식에 고정 가족을 반환. 없는 코드·만료·재시도 UI 없음. 참여는 userMode 전환만 수행 | [8159:12141](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12141), 설계서 사본 `8267:34617` |
-| 관심사·물리적 거리·가족 수·맞춤 질문 | 미구현 | OnboardingFlowView.Step와 대응 View 없음. 이름과 내용이 어긋나는 초기 시안이므로 현행 온보딩에 넣을지 먼저 디자인 기준 확정 필요 | `7883:23342`, `7883:23383`, `8040:11123`, `7883:23436` |
-
-### 홈·질문·알림
-
-| 화면 / 범위 | 판정 | 코드·진입 경로와 확인 사항 | Figma |
-| --- | --- | --- | --- |
-| 가족 홈 기본 화면 | 부분 구현 | Home/FamilyHomeView. 배너·답변 아바타·완료 질문·추천 카드·알림 진입 존재. 이름/답변 고정. 배너·아바타·질문·추천 카드는 해당 액션이 없고 가족 초대는 TODO | [8153:9957](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8153-9957), `8347:7411` |
-| 둘러보기 홈 / 가족 미참여 상태 | 부분 구현 | BrowseHomeView는 별도 설명 카드 화면. ‘가족공간 시작하기’는 Text/HStack일 뿐 진입 액션 없음. Figma의 질문·추천 중심 초기 화면과 구조 다름 | `8450:19981`, `8451:22900`, 설계서 사본 `8266:30765` |
-| 오늘 질문 입력·입력 후·팝업 | 미구현 | QuestionCard는 답변완료 표시 전용. 작성 화면·작성 상태·제출·재진입 없음. 기존 KIRITextField/KIRIPrimaryButton 재사용 가능 | [8187:14904](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8187-14904), `8187:15072`, `8187:15113` |
-| 가족 답변 확인·미응답·콕 찌르기 | 미구현 | FamilyMemberItem은 정적 이미지/이름/테두리. 선택·답변 보기·콕 보내기·상태 변경 없음 | `8070:11636`, `8159:12976` |
-| 주간 미션 카드·플립·이미 완료 상태 | 미구현 | FamilyHomeView에 주간 미션 데이터·플립·완료 상태 분기 없음 | `8347:7734`, `8012:9925`, `8460:8451`, `8460:8707` |
-| 약속 당일 홈 배너 | 미구현 | TodayActivityView는 기록에서만 진입. 홈 일정 배너 및 해당 라우트 없음 | `8012:10311` |
-| 홈에서 가족 초대 | 부분 구현 | FamilyHomeView:188 TODO. 코드 복사/공유 가능한 FamilyCodeView는 온보딩에 이미 있음. 별도 복제보다 현재 가족 데이터로 재사용 | `8286:76347` |
-| 알림함·필터·읽음·초대 상세 | 부분 구현 | NotificationView. 카테고리/모두읽음/개별읽음 로컬 구현. opensInvitation만 상세 이동, 질문·콕·미션·기록 알림은 읽음 표시만 변경. 읽음 상태 영속화 없음 | [8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) |
-
-### 미션·버킷·일정·기록
-
-| 화면 / 범위 | 판정 | 코드·진입 경로와 확인 사항 | Figma |
-| --- | --- | --- | --- |
-| 미션 목록·검색·카테고리 | 부분 구현 | MissionView/MissionPlaceCard. 로컬 5개 항목 검색·카테고리 필터·상세 이동 존재. 사진은 placeholder. 날짜·시간/지역·거리 버튼 TODO, 검색 결과 없음 안내 없음 | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685), `8495:9657`, `8451:22069` |
-| 날짜·시간 / 지역·거리 필터 | 미구현 | MissionView.filterButton 액션 비어 있음. 목록에 제어는 있으나 펼침 상세 시안·최종 항목은 추가 확인 필요 | `7948:1685`, `8495:9657` |
-| 북마크 저장·기록 버킷 반영 | 부분 구현 | MissionBucketStore.shared의 UserDefaults 저장/삭제 및 두 화면 갱신 연결. Figma 저장 확인 팝업 없이 즉시 토글. 동일 title/placeName의 샘플 3개가 동일 키 사용 | [8451:22229](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22229) |
-| 활동 상세·추천 활동/리뷰집 | 부분 구현 | MissionActivityDetailView가 실제 목록에 연결됨. 현재 표지 placeholder·장소/지역·태그·북마크만 표시. Figma의 참여상태·시간/걸음수·추천 활동/맞춤템·주변 사진 카드·리뷰집 없음. TodayActivityView의 유사 섹션을 검토하여 확장 | [8451:22353](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22353), `8079:13084`, `8534:8734` |
-| 버킷 목록·가족별 필터 | 부분 구현 | RecordBucketListView. 로컬 저장 항목+고정 샘플, 가족 필터 존재. 새 저장 항목은 invitation=nil이라 탭해도 무동작. 고정 콘서트 샘플은 한강 축제 초대장을 열어 데이터도 불일치 | `8103:73442`, `8103:74308` |
-| 버킷 항목 액션 시트(일정 잡기/삭제) | 미구현 | bucketCard는 일부 샘플의 InvitationView로 바로 연결. Figma의 액션 시트 없음. 북마크 해제 기능은 미션에서만 제공 | [8103:74308](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-74308) |
-| 일정 등록·가족에게 한 줄 | 미구현 | 날짜·구성원·100자 메시지를 입력하는 화면 없음. **AddScheduleSheet는 수락 확인용이므로 일정 작성 화면이 아님** | [8264:21250](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21250) |
-| 일정 날짜/시간 선택 시트 | 미구현 | Calendar는 조회/이동 UI이며 예약 시간 선택 기능 없음. DatePicker 및 해당 라우트 없음 | `8286:68142` |
-| 가족 구성원 선택(4/6명 상태) | 미구현 | 선택 가능한 참여자 시트 없음. ScheduleParticipantTooltip은 표시 전용이고 앱 호출도 없음 | `8286:67882`, `8347:5904`, `8347:6216` |
-| 초대장 미리보기·발송 방식 선택 | 부분 구현 | InvitationView/InvitationSendMethodSheet 존재·샘플에서 진입. 자세히 보러가기 TODO. 앱 발송은 배너만, Kakao는 복귀만 수행. 일정 작성 결과로 생성되는 초대장은 없음 | `8103:74562`, `8286:69073`, `8286:75889` |
-| 받은 요청·캘린더 추가 확인 | 부분 구현 | 홈 알림→InvitationRequestView→AddScheduleSheet 표시/닫기/확인 연결. 상세 버튼 TODO. 확인은 home 복귀뿐, 일정 상태·캘린더 갱신 없음. 거절도 화면 복귀만 | `7883:23898`, `8103:74725` |
-| 기록 캘린더·다가오는 약속 | 부분 구현 | RecordCalendarView 월 이동·날짜 선택·예정/확정/완료 표시 분기 있음. 실제 루트 데이터는 오늘 날짜의 데모 일정과 그 기록뿐. calendarActivities는 빈 배열. 디자인의 요청 배너·완료 사진 썸네일/복수 기록 표시 없음 | `7883:25337`, `8105:76303` |
-| 예정/다른 날 일정 상세 | 부분 구현 | ScheduleDetailView 날짜 상태 분기 구현. 예정일의 AI/추억은 안내 placeholder. 메인 캘린더에는 미래 샘플 공급이 없어 일반 진입으로 예정 상태를 재현하기 어려움 | `8286:69561`, `8495:10372` |
-| 약속 당일 상세 | 부분 구현 | 오늘 데모→ScheduleDetailView→TodayActivityView 도달 가능. 참여자 표시·작성·컨디션 이동 있음. 실제 진입 데이터는 참여자 나 1명·추천/준비물 빈 배열. 풍부한 mock은 ScheduleScreenPreview에만 있음 | `8264:21631`, `8448:17769`, `8448:18068`, `8450:21636` |
-| 컨디션 조정 선택·적용 UI | 구현 완료 | TodayActivityView→ConditionAdjustmentSheet. 4종 복수선택·적용·복귀·로컬 추천 정렬 연결. 메인 mock에 추천이 없어 적용 결과를 시각 비교할 수 없음. AI 서버 재추천은 아님 | `7905:10295` |
-| 일정 변경 | 미구현 | Figma 일정변경 상태에 대응하는 편집/재확정 경로 없음. 컨디션 조정과 별개 | `8495:10210` |
-| 활동 기록 작성·수정 폼 | 구현 완료 | ActivityReviewWriteView. PhotosPicker(최대 10장)·사진 삭제·500자 제한·별점·재참여·필수 검증·초기 Draft 반영·콜백 연결. 사진 로딩 실패 안내 및 실제 피커 QA는 남음 | [8012:10942](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10942) |
-| 기록 완료·가족 리뷰 목록 | 부분 구현 | ActivityReviewCompleteView가 작성 결과·사진·수정 진입 표시. 다른 가족은 빈 상태만. FamilyReviewCard(좋아요 포함)는 Preview 이외 호출 없음 | `8079:12515`, `8079:13084` |
-| 기록 상세·수정·삭제 | 부분 구현 | RecordView.savedReviews→ReviewDetailView. 내 로컬 Draft만 메뉴 표시, 수정폼·삭제 확인 연결. 인원확인 TODO, 독립 사진 변경 선택 화면 없음. 대표 사진은 첫 사진으로 고정 | `7903:1926`, `8763:17548`, `8763:17749`, `8763:17631` |
-
-### 마이페이지·설정
-
-| 화면 / 범위 | 판정 | 코드·진입 경로와 확인 사항 | Figma |
-| --- | --- | --- | --- |
-| 설정 메인 | 부분 구현 | MyPageView. 가족 기본 설정만 NavigationLink 연결, 프로필·취향·주소·링크·계정·건의함·약관·알림 버튼은 TODO. Figma의 내 설정/가족 설정/설정 그룹 순서와 다름 | [8213:3062](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8213-3062) — 노드명은 ‘플레이스’지만 실제 내용은 설정 |
-| 가족 기본 설정 | 부분 구현 | FamilySettingsView. 가족명/내 닉네임 수정 연결, 가족 6명 고정. 부모 View의 State에만 반영, 홈/프로필/온보딩 데이터와 공유 안 됨 | `8216:3570` |
-| 닉네임·가족명 수정 | 부분 구현 | NicknameEditView/FamilyNameEditView. 검증·Binding 갱신·dismiss 있음. 월 1회 문구만 있고 제한 상태 없음. 프로필 연필에서는 진입 불가. 가족명 생성은 공백 불허, 수정은 허용 | `8216:3462`, `8216:3638` |
-| 취향 테스트 | 미구현 | 홈 배너·MyPage TODO, 대응 입력 화면 없음. 질문 입력과 공통 폼 재사용 후보이나 질문 저장 의미는 별도 | `8596:18240` |
-| 우리집 주소 없음/있음/등록/수정 | 미구현 | 대응 View/저장 상태 없음 | `8556:9691`, `8556:9605`, `8556:9927`, `8582:18082` |
-| 주소 검색 | 미구현 | 검색·결과 선택·우편번호/상세주소 반영 화면 없음 | `8556:10046` |
-| 공용초대링크 관리·만료·리셋 | 미구현 | FamilyCodeView는 최초 코드 공유용이며 관리/만료/재발급 화면은 없음 | `8582:18039` |
-| 알림 설정·정기 알림 시각 | 미구현 | 설정 화면·토글·시간 선택·로컬 설정 없음. NotificationView는 알림함이며 별개 | `8599:18423` |
-| 건의함 작성·후속 상태 | 미구현 | 사진 첨부·500자 의견 입력·제출 화면 없음 | `8599:76071`, `8763:17857` |
-| 계정 정보·앱 버전 | 미구현 | 대응 화면 없음. 메인 계정 정보 버튼 TODO | `8599:76117` |
-| 로그아웃 | 부분 구현 | MyPage 메인의 시스템 alert→세션 초기화 연결. Figma는 계정 정보에서 커스텀 확인 팝업. 북마크 UserDefaults는 logout에서 지워지지 않음 | `8599:76698` |
-| 회원탈퇴 안내·확인 | 미구현 | 탈퇴 화면·확인·완료 상태 없음. UI mock과 실제 계정 삭제를 구분해야 함 | `8599:76808` |
-| 설정용 이용약관·오픈 라이선스 | 미구현 | 인증의 private TermDetailView는 존재하지만 설정 경로·목록·업데이트 표시는 없음. Figma AndroidX 예시를 iOS 라이선스로 그대로 복사하지 말 것 | `8599:76457`, `8599:76529` |
-
-## 4. 데이터와 동작의 실제 범위
-
-| 대상 | 현재 처리 | 개발 시 필요한 구분 |
+| 근거 | 현재 파일 / 확인 지점 | 재사용·제약 |
 | --- | --- | --- |
-| 인증 | UserDefaults에 인증 완료 Bool. Kakao/Google은 인증 없이 다음 단계 | UI 시연 상태임을 명시. 서버 로그인 성공으로 간주하지 않기 |
-| 이름/역할/가족 | 온보딩 내부 State. 홈/마이페이지는 별도 상수 | 로컬 모델로 화면 간 일관성부터 확보 가능 |
-| 가족 생성·조회 | 1.2초 지연, KIRI24/끼리가족 반환 | 실패·없는 코드·만료도 mock 상태로 재현 가능 |
-| 북마크 | title/placeName 키로 UserDefaults 영속화 | 계정별 저장 아님. 고정 샘플과 같은 항목 중복 표시 가능 |
-| 기록 | RecordView의 `[String: Draft]`, UIImage 메모리 보관 | 앱 재시작에 유지 안 됨. 탭 교체 시 유지도 보장 안 됨 |
-| 일정 | 매번 오늘 날짜로 만드는 단일 데모 일정 | 실제 확정 일정/참여자 검증 결과 아님. ‘서버에서 검증된’이라는 주석과 루트 공급값을 구분 |
-| 초대 발송 | 앱 버튼은 ‘초대를 발송했습니다!’ 배너, Kakao 버튼은 닫기 | 실제 발송 없음. 현재 문구는 성공 오인 가능성이 있어 우선 보완 대상 |
-| 초대 수락 | 화면 복귀만 수행 | 서버 없이도 공유 로컬 일정에 반영해야 UI 흐름 검증 가능 |
-| 알림 | 고정 목록 + 로컬 읽음 Set | 푸시 수신·저장·개별 대상 데이터 연결 아님 |
-| AI 추천/컨디션 | 전달된 배열을 로컬 점수로 정렬 | API 호출·생성 모델·걸음수/시간 재산출 없음 |
-| 네트워크 | APIClient/Config/Endpoint/Error 기본 구조 존재 | Features에서 사용하지 않음. Debug 주소 존재만으로 API 연동 완료가 아님 |
+| C01 | [AppRouter](../KIRI/KIRI/App/AppRouter.swift), [RootView](../KIRI/KIRI/App/RootView.swift), [MainTabView](../KIRI/KIRI/App/MainTabView.swift), [AppSessionStore](../KIRI/KIRI/Core/Storage/AppSessionStore.swift) | Bool 세션/모드 복원, pendingInvitation, 로그아웃. receiveInvitation 외부 호출 없음, userMode는 홈에만 전달. switch 탭 교체로 하위 State 유지 보장 없음 |
+| C02 | [AuthFlowView](../KIRI/KIRI/Features/Auth/AuthFlowView.swift), [LoginView](../KIRI/KIRI/Features/Auth/LoginView.swift), [TermsAgreementView](../KIRI/KIRI/Features/Auth/TermsAgreementView.swift) | 로그인→약관→온보딩. Apple 시스템 버튼은 LoginView 내 구현. 별도 AppleSignInButton.swift는 빈 파일. TermDetailView는 private |
+| C03 | [OnboardingFlowView](../KIRI/KIRI/Features/Onboarding/OnboardingFlowView.swift)와 같은 폴더의 9개 화면, [FamilyInvitation](../KIRI/KIRI/Models/FamilyInvitation.swift) | 닉네임/역할/가족명/코드/조회중/참여확인/공유 확장. KIRI24·가족명 mock, familyId/token/만료/owner 모델 없음 |
+| C04 | [FamilyHomeView](../KIRI/KIRI/Features/Home/FamilyHomeView.swift), [BrowseHomeView](../KIRI/KIRI/Features/Home/BrowseHomeView.swift), [HomeView](../KIRI/KIRI/Features/Home/HomeView.swift) | 홈/알림/고정 요청 상세만 route 존재. 배너·추천·질문 액션 없음. 일정 수락은 home 복귀만 |
+| C05 | [FamilyMemberItem](../KIRI/KIRI/Features/Home/Components/FamilyMemberItem.swift), [QuestionCard](../KIRI/KIRI/Features/Home/Components/QuestionCard.swift), [PlaceCard](../KIRI/KIRI/Features/Home/Components/PlaceCard.swift) | 표시용 아바타/완료 질문/추천 카드. 기존 타입에 상태·액션 확장 우선 |
+| C06 | [MissionView](../KIRI/KIRI/Features/Mission/MissionView.swift), [MissionPlaceCard](../KIRI/KIRI/Features/Mission/MissionPlaceCard.swift) | 검색·6종 카테고리·상세·북마크 연결. 지역/시간 TODO, 5개 상수 데이터·중복 샘플 |
+| C07 | [MissionActivityDetailView](../KIRI/KIRI/Features/Mission/MissionActivityDetailView.swift) | 목록에서 fullScreenCover 연결. 이미지 placeholder·장소/지역·태그·저장만 있어 상세 섹션 확장 대상 |
+| C08 | [MissionBucketStore](../KIRI/KIRI/Features/Mission/MissionBucketStore.swift) | UserDefaults title/placeName 키. user/mission/family ID·상태·저장일·일정 관계 없음. 서버 버킷 아님 |
+| C09 | [RecordBucketListView](../KIRI/KIRI/Features/Record/Components/RecordBucketListView.swift) | 저장자 필터/리스트 재사용. 신규 저장은 invitation=nil. bucketCard의 isCompleted guard가 완료 항목 재참여를 막음 |
+| C10 | [RecordCalendarView](../KIRI/KIRI/Features/Record/Components/RecordCalendarView.swift) | ActivityState는 pendingSchedule/confirmedSchedule/completed뿐. calendarActivities=[], 날짜 탭은 첫 항목만. 사진/추가개수 필드는 실제 렌더링 미연결 |
+| C11 | [RecordView](../KIRI/KIRI/Features/Record/RecordView.swift), [ScheduleDetailView](../KIRI/KIRI/Features/Record/Schedule/ScheduleDetailView.swift), [InvitationView](../KIRI/KIRI/Features/Record/Invitation/InvitationView.swift), [InvitationSendMethodSheet](../KIRI/KIRI/Features/Record/Invitation/InvitationSendMethodSheet.swift), [InvitationRequestView](../KIRI/KIRI/Features/Record/Request/InvitationRequestView.swift), [AddScheduleSheet](../KIRI/KIRI/Features/Record/Request/AddScheduleSheet.swift) | 초대 미리보기/방법/수락 확인은 존재. AddScheduleSheet는 일정 작성기가 아님. 보내기는 성공 배너/닫기뿐. 지난날 미작성 일정은 안내만 있어 리뷰 진입 없음 |
+| C12 | [TodayActivityView](../KIRI/KIRI/Features/Record/Schedule/TodayActivityView.swift), [ConditionAdjustmentSheet](../KIRI/KIRI/Features/Record/Schedule/ConditionAdjustmentSheet.swift), [ScheduleScreenPreview](../KIRI/KIRI/Features/Record/Schedule/ScheduleScreenPreview.swift) | 당일 3영역·조건 정렬·필수 활동 최대3/준비물 최대4. 풍부한 mock은 Preview에만 있음. 메인은 나1명/추천 빈 배열 |
+| C13 | [ActivityReviewWriteView](../KIRI/KIRI/Features/Record/Review/ActivityReviewWriteView.swift), [ActivityReviewCompleteView](../KIRI/KIRI/Features/Record/Review/ActivityReviewCompleteView.swift), [RecordView](../KIRI/KIRI/Features/Record/RecordView.swift) | 사진1장+글+별점+예/아니오 가드, 수정/삭제 경로 존재. Draft는 메모리, key는 날짜+제목. 사용자/활동 ID 없음 |
+| C14 | [ReviewDetailView](../KIRI/KIRI/Features/Record/Review/ReviewDetailView.swift), [FamilyReviewCard](../KIRI/KIRI/Features/Record/Components/FamilyReviewCard.swift), [ScheduleParticipantTooltip](../KIRI/KIRI/Features/Record/Components/ScheduleParticipantTooltip.swift) | 인원확인 TODO. FamilyReviewCard와 Tooltip은 Preview 외 호출 없음. 대표사진/날짜별 갤러리 구성 시 기존 컴포넌트 재사용 |
+| C15 | [NotificationView](../KIRI/KIRI/Features/Home/Notification/NotificationView.swift) | 고정 목록·로컬 읽음 Set. opensInvitation만 이동, 진입 자동읽음은 없음. API 로딩/오류·대상 ID 없음 |
+| C16 | [MyPageView](../KIRI/KIRI/Features/MyPage/MyPageView.swift), [FamilySettingsView](../KIRI/KIRI/Features/MyPage/FamilySettingsView.swift), [NicknameEditView](../KIRI/KIRI/Features/MyPage/NicknameEditView.swift), [FamilyNameEditView](../KIRI/KIRI/Features/MyPage/FamilyNameEditView.swift) | 가족 설정·이름 수정·로컬 로그아웃 연결. 나머지 TODO. 엄마2명 샘플, 권한/유일성 검증 없음 |
+| C17 | [KIRIColor](../KIRI/KIRI/Core/DesignSystem/KIRIColor.swift), [KIRITypography](../KIRI/KIRI/Core/DesignSystem/KIRITypography.swift), [공통 컴포넌트](../KIRI/KIRI/Core/Components) | 색/폰트/간격/라운드와 Back/PrimaryButton/TextField/CodeInput/SearchField/Chip/TopTab/TabBar/ShareSheet/ValidationGuidance 재사용. 폰트9종 등록 |
+| C18 | [APIClient](../KIRI/KIRI/Core/Network/APIClient.swift), [APIEndpoint](../KIRI/KIRI/Core/Network/APIEndpoint.swift), [APIConfig](../KIRI/KIRI/Core/Network/APIConfig.swift), [APIError](../KIRI/KIRI/Core/Network/APIError.swift) 및 전체 Swift 호출 검색 | 네트워크 기반만 있고 Features 호출부 없음. 도메인 서비스·추출/배정/수집/권한/날씨·알림 이벤트 계약 미연결 |
 
-## 5. 재사용해야 할 디자인 시스템과 기존 UI
+실제 빌드 프로젝트는 `KIRI/KIRI.xcodeproj`, scheme `KIRI`다. 루트 `KIRI.xcodeproj`는 workspace 참조만 있어 빌드 프로젝트와 다르다. iOS 26.2·Swift language mode 5.0·MainActor 기본 격리, 별도 테스트 타깃과 패키지 의존성은 없다. ContentView는 앱 진입점이 아닌 Hello world 템플릿이다.
 
-- 색상: `Core/DesignSystem/KIRIColor.swift`의 Primitive/Semantic/Component 토큰과 기존 호환 alias. Figma Foundations의 기본 회색/초록 팔레트와 주요 hex는 대응한다. 전체 변수 바인딩·상태별 일치는 별도 QA 대상이다.
-- 폰트: `KIRITypography`의 Pretendard Regular/Medium/SemiBold. 9개 OTF와 Debug/Release `UIAppFonts` 등록 존재. 토큰 주석의 행간·자간은 Font 자체에 포함되지 않으므로 화면에서 일관 적용 필요.
-- 레이아웃: `KIRISpacing`, `KIRIRadius`. 현재 다수 화면의 18/8/16 등 숫자·system font·white opacity가 직접 지정되어 있으므로 신규 화면에서 같은 값을 또 정의하지 않는다.
-- 공통 10종: KIRIBackButton, KIRIPrimaryButton, KIRITextField(normal/error/disabled/focus), KIRIValidationGuidance, KIRICodeInput, KIRISearchField, KIRIChip, KIRITopTab, KIRITabBar, KIRIShareSheet.
-- 홈: QuestionCard, FamilyMemberItem, PlaceCard는 표시용이다. 기존 타입에 필요한 액션/상태를 추가할지 먼저 검토한다.
-- 미션: MissionPlaceCard/MissionActivityDetailView/MissionBucketStore를 확장한다. ‘플레이스’라는 이름의 별도 목록/상세를 중복 생성하지 않는다.
-- 일정/기록: InvitationView, InvitationRequestView, 두 확인/발송 시트, TodayActivityView, ConditionAdjustmentSheet, ActivityReviewWriteView/CompleteView, ReviewDetailView가 이미 있다.
-- 미연결 재사용 후보: FamilyReviewCard, ScheduleParticipantTooltip. 둘 다 Preview 외 참조가 없으므로 새로 만들기보다 데이터 주입/액션 연결 검토가 먼저다.
-- ScheduleScreenPreview는 테스트용 구성 화면이며 실제 앱 네비게이션에 포함되지 않는다. 그 안의 풍부한 추천 mock을 실제 구현 완료 근거로 사용하지 않는다.
+## 3. 최신 명세로 바로잡은 정책·디자인 차이
 
-## 6. 개발 우선순위
+| 항목 | 최신 기준 및 분석 결정 |
+| --- | --- |
+| 우선순위 | 공용 초대/가족 관리/우리 집 위치/튜토리얼은 P0. 이전 문서의 P1/P2 또는 누락을 바로잡음. 필터·설정 일부는 명세대로 P1 유지 |
+| 가족·프로필 | 엄마/아빠는 가족당 각각1명, 아들/딸 복수. 활성 가족은 계정당1개. 닉네임은 MY-01 기준 서비스 전체 유일, 가족명도 전역 유일. 초대 전/대기 가상 구성원 금지 |
+| 고정 캐릭터 | 역할별 KIRI 기본 캐릭터 사용. 사용자 프로필 사진 업로드나 캐릭터 선택 기능을 새로 만들지 않음. 현재 두 공통 아바타는 4역할 매핑과 다름 |
+| 초대 | 공용 링크+코드 한 활성 세트, 발급 후7일, 수동 재발급. 링크는 코드 자동 적용, 기존 회원에게 약관/기본정보 반복 금지, 이미 구성원이면 홈 |
+| 둘러보기 | 질문/콕/가족 버킷·일정·기록 제한. Home만 분기하는 현 코드는 부족. 실제 서버 권한 검증은 별도이며 UI 숨김만으로 대체 불가 |
+| 내 취향 설정 | MY-02는 **활동(최대3)/공간/활동량/비용/활동시간** 선택형5항목. Figma `8596:18240` 음식 텍스트 질문과 ‘취향테스트’ 명칭을 그대로 구현하지 않음. 혼잡/분위기/거주지역/이동거리 수집 제외 |
+| 온보딩 제외 | 취향·우리 집 위치는 마이페이지 선택 기능. 과거 Figma 관심사/거리/가족 수/맞춤 질문을 필수 온보딩에 추가하지 않음. 이름 월1회 수정 문구는 최신 명세에 없어 제한 기능을 임의 확정하지 않음 |
+| 데일리 질문 | 가족 생성 첫7일 고정 순서, 이후 검수 풀. 가족별 KST 일1개, 개인별 답변1개, 텍스트만·당일 수정. 사진·선택형·사용자 진입 즉시 AI 질문 생성 금지 |
+| 콕 | 답변 완료자에게도 가능, 본인 금지, 동일 발신자→수신자 당일1회. 링/답변 상태는 변경하지 않음. 미답변만 보내는 UI는 정책 불일치 |
+| 주간 미션 | 가족 공통 주1개, 월요일00:00~일요일23:59 KST. 질문과 플립 양면으로 공존. 주중 취향 변경으로 교체하지 않으며 외부 취소/종료만 예외 |
+| 버킷 | 개인 (user_id, mission_id) 저장, 가족 통합 조회. 서로 다른 저장자 허용. 유효 리뷰 후 배지는 ‘완료’, 완료 후 새 일정 재참여 가능. 현 ‘종료된 일정’ 및 isCompleted 탭 차단을 유지하면 안 됨 |
+| 일정 생성 | 날짜/시간·제안 대상 최소1명 필수, 본인은 선택 대상이 아닌 자동 ACCEPTED. 가족에게 한 줄은 선택. 미리보기는 응답 레코드 생성 전이며 실제 전송 시 생성 |
+| 응답 상태 | 개인: PENDING=미응답 / ACCEPTED=수락 / DECLINED=거절 / RECONFIRM_REQUIRED=재확인 필요. 수락/거절 버튼만. MAYBE·고민중·대기 선택 없음 |
+| 일정 상태·마감 | 제안자 외 수락1명 이상이면 CONFIRMED, 0명은 마감 전 PENDING_RESPONSE·마감 후 NOT_CONFIRMED. 생성 시 시작까지24시간 초과면 시작24시간 전 마감, 이하이면 시작시각 마감. 미응답을 거절로 바꾸지 않음 |
+| 수정/취소 | 제안자 핵심 변경→영향받는 수락자 재확인, 메모만 변경→유지. 시작 후 핵심 수정 금지. 취소와 완료 구분, 완료 취소 금지. 다른 일정/완료 이력을 검사하여 버킷 상태 결정 |
+| 가족 조회·응답 권한 | 가족은 초대되지 않은 일정도 조회 가능. 응답은 초대 대상만, 당일 활동은 확정 최종 참여자만. 가족 전체 자동 초대 또는 비참여자 완전 조회 차단으로 만들지 않음 |
+| 당일/조건 | 주변 추천 기준은 일정 장소 좌표, 조건은 주변 후보 정렬에만 적용. 신뢰할 혼잡 정보 없으면 미적용 안내. 날씨 실패 시 날씨 준비물만 제외. 메인 미션 교체·AI 이동경로 생성 금지 |
+| 완료·재참여 | 최초 유효 리뷰(사진1장+글+별점1~5+예/아니오)로 일정/버킷/주간 완료. 시간 경과 자동 완료 금지. 다른 참여자 후속 리뷰 및 과거 활동 작성 진입 필요. 재참여는 새 일정·별도 기록 |
+| 캘린더 | CAL-04는 하루 활동 목록 필수. 첫 항목만 열기 및 기존 주석의 별도 목록 없음 판단 폐기. CAL-06 전원 답변 캐릭터 블록 추가, 활동 사진과 동시 표시는 디자인 미정 |
+| 대표사진 | 최초 유효 리뷰 첫 사진을 활동 대표로 고정, 다음 리뷰로 자동 변경 금지. 활동 전체 사진 중1장 선택, 삭제 시 대체/마커. LOG-03(P0)·LOG-09(P1)는 같은 구현 |
+| 설정·탈퇴 | 가족명은 현재 owner만 변경, 탈퇴 시 가장 먼저 참여한 잔여 구성원에게 승계. 개인정보 삭제와 과거 공동 기록 보존/익명화 분리. 마지막 구성원은 공동 데이터 삭제 여부 최종 확인 |
+| 알림 | 인앱 먼저·푸시 별도, 푸시 실패/권한OFF가 핵심 상태를 롤백하지 않음. 조회만으로 모두읽음 아님. 삭제 기능 없음. Figma 정기 알림 시각 선택은 최신 MY-06에 없어 보류 |
+| 건의함 | 필수 자유글·선택 사진, 실패 초안 유지. 질문별 신고는 만들지 않고 통합. 리뷰 사진 필수 검증을 그대로 재사용하지 않음 |
+| 추천/출처 | KIRI Pick·가족 피드·가족 주간 배정 구분. 명시 취향/실제 행동 우선, 지정된 질문만 약한 신호. 없는 운영정보/가격/혼잡도 생성 금지, 허용 이미지와 출처만 사용 |
 
-API 구현 대신 mock임이 명확한 로컬 데이터로 화면 입력→전환→결과 반영을 완성한다. 아래는 실행 순서 제안이며 이번 분석에서 앱 코드는 수정하지 않았다.
+### 확정되지 않은 사항의 처리
 
-| 순서 | 우선순위 | 작업 | 재사용 / 완료 기준 |
-| --- | --- | --- | --- |
-| 1 | P0 | 질문 답변 입력·저장·완료 카드·재진입, 가족 답변/미응답/콕 UI | 기존 QuestionCard·FamilyMemberItem + 공통 입력/버튼 확장. 홈에서 실제 진입하고 로컬 답변이 반영되며 mock 콕 상태 확인 |
-| 2 | P0 | 버킷 액션 → 일정 등록 → 날짜/시간 → 참여자 → 초대장 | MissionBucketStore/RecordBucketListView/InvitationView 재사용. 새로 저장한 항목도 전 구간 이동, 선택값·100자 메시지가 같은 초대장에 유지 |
-| 3 | P0 | 받은 요청 수락/거절·일정 갱신·발송 표시 정리 | 기존 InvitationRequestView/AddScheduleSheet/RecordCalendarView 연결. 실제 서버 없이도 로컬 일정 변화 확인, 발송 성공 오인 문구 제거 |
-| 4 | P1 | 세부미션 추천 활동·리뷰집, 날짜/지역 필터, 북마크 확인 | 기존 MissionActivityDetailView에 Figma 섹션 추가, TodayActivityView/FamilyReviewCard 재사용 검토. 사진·빈 상태·필터 적용/초기화 확인 |
-| 5 | P1 | 홈의 주간 미션·플립·완료·약속 당일 배너, 추천 상세·가족 초대, 둘러보기 진입 | FamilyHomeView/HomeView/AppRouter/FamilyCodeView 확장. 상태별 도달 경로와 browse 제한 일관성 확인 |
-| 6 | P1 | 설정 그룹 정렬·프로필 편집 연결·취향 테스트·알림 설정 | MyPageView/기존 이름 편집 재사용. 질문 폼 공유 가능성 검토. 설정값은 mock 로컬 상태로 유지 |
-| 7 | P1 | 주소 검색/등록/수정·공용초대링크 관리 | 공통 검색/입력/코드/공유 재사용. 주소 미등록/등록 상태, 만료·리셋 상태를 mock으로 확인 |
-| 8 | P1 | 계정 정보·약관/라이선스·건의함·탈퇴 안내 UI | Terms 본문 UI와 리뷰 사진 입력의 재사용 검토. mock 제출/탈퇴를 실제 처리로 표시하지 않기 |
-| 9 | P1 | 기록 사진 변경·가족 리뷰·참여자 확인·일정 변경·캘린더 요청/사진 상태 | 기존 리뷰/툴팁/캘린더 확장. 오늘/예정/지난날, 내 기록/다른 가족, 사진 1/여러 장 상태 확인 |
-| 10 | P2 | 브랜드 스플래시·온보딩 오류·입력 정책·기기별 디자인 QA | 기존 온보딩 확장. 초기 관심사/거리/가족 수 시안의 채택 여부는 현행 디자인과 확인 후 결정 |
+- CAL-06은 대표사진과 전원 답변 캐릭터가 같은 날짜에 있을 때 최종 표현을 디자인과 검토하도록 명세에 명시되어 있다. 순서는 U1에 배치하되 이 조합의 시각 완료 판정은 보류한다.
+- MY-02 최신5문항 배치, FAM-06 튜토리얼, FAM-D 상세/취향 요약, CAL-04 하루 목록, MIS-05/06 필터 상세의 현행 전용 디자인은 지정 페이지에서 확인하지 못했다. 공통 컴포넌트 기반으로 명세 UI를 작성하되 과거 시안을 정책 근거로 삼지 않는다.
+- 기존 코드/Figma의 사진 최대10장, 글500자, 가족 메시지100자 및 월1회 이름 수정은 CSV에서 확정된 제약이 아니다. 기존 UI/Figma 제약의 출처로 별도 기록하며 서버 제한으로 단정하지 않는다.
+- 금칙어 목록·이름 형식 최종 허용 범위, 최소 예약 간격/과거 날짜 허용, NOTI-05 정확한 발송 시각·횟수, 집 위치 변경 권한 상세 역할, 튜토리얼 최초 재진입 방식은 계약/디자인 확인 대상이다. 독립 UI 개발 순서 전체를 막지는 않는다.
+- LOG-03은 P0에서 이미 대표사진 선택 변경을 요구하고 LOG-09는 같은 정책을 P1로 상세화한다. 우선순위를 변경하지 않고 **P0 요구를 충족하는 한 구현**에 연결한다. HOME-04(P1) 상세도 Q-03/Q-04(P0)의 진입·조작과 함께 구현한다.
 
-P0는 핵심 사용자 흐름을 막는 누락이다. 신규 미구현 UI를 우선 만들되 그 UI를 실제로 검증하는 데 필요한 기존 연결 보완은 같은 작업에 포함한다. 이미 구현된 기록 작성·북마크·가족 이름 편집을 처음부터 다시 만들지 않는다.
+## 4. 기능 ID별 전수 매핑
 
-## 7. 빌드·검증 결과 및 남은 QA
+CSV 원본 ID·명칭·우선순위를 사용한다. C 번호는 2절 코드 근거, U/B 번호는 5절 개발 단계다. Figma ‘연관’은 출력/인접 화면만 존재하며 정책 구현 증거가 아니다. ‘없음’은 지정 페이지에서 전용 프레임 미확인, ‘비화면’은 전용 UI 비대상이다.
+
+
+### 4.1. 진입·인증·온보딩·가족
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| ENT-01 · 세션 확인 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C01 — AppRouter가 로컬 인증/온보딩 Bool과 userMode로 분기한다. | [8095:62668](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8095-62668) | 브랜드 스플래시, 세션 만료·복구 실패, 미완료 단계 복원 및 초대 컨텍스트 유지가 필요. 실제 세션 검증은 미연동. |
+| AUTH-01 · 소셜 로그인/가입 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C02 — 소셜 버튼 존재. Kakao/Google은 즉시 약관, Apple은 시스템 인증 성공 후 약관으로 이동한다. | [8095:62717](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8095-62717) | 신규/기존 회원 분기, 취소·실패 안내/재시도와 소셜 식별값 중복 방지 연동 필요. 기존 UI 재사용. |
+| AUTH-02 · 필수 약관 동의 | P0 / U0 | UI 구현 완료(로컬) / 기능 부분 구현 | C02 — 필수 체크 가드·전체동의·본문 시트·다음 동작은 구현되어 있다. | [8296:13599](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8296-13599) | 개인별 약관 버전/시각 저장, 실패 시 유지·재시도, 초대 흐름 복귀 미연동. 체크 UI 완료와 기능 전체 완료는 다름. |
+| ONB-01 · 가족 역할/닉네임 설정 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C03 — 4종 역할과 2~10자 닉네임 입력·전환은 있다. 프로필은 온보딩 내부 State뿐이다. | [7883:23313](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23313),[8098:14575](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-14575) | 엄마/아빠 각 1명 제한·역할 충돌 복귀, 닉네임 중복/금칙어 오류, 프로필 전달 필요. MY-01의 서비스 전체 닉네임 유일성 적용. |
+| ONB-04 · 역할별 KIRI 캐릭터 매핑 | P0 / U0 | UI 미구현 / 기능 미구현 | C03,C05 — FamilyMemberItem은 나/다른 가족의 두 이미지뿐이고 역할별 매핑은 없다. | [7883:23313](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23313) | 4종 고정 KIRI 캐릭터와 역할 누락 안내 필요. 프로필 사진 업로드/자유 캐릭터 변경은 만들지 않음. 역할별 최종 에셋 매핑 확인 필요. |
+| ONB-02 · 가족 연결 방식 선택 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C03,C01 — 생성/코드/둘러보기 3개 경로와 invitation 있을 때 선택 단계 생략 분기는 있다. | [7883:23399](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23399) | 외부 초대 진입 미연결, 둘러보기에서 가족 공동 기능 실행 시 연결 유도 누락. |
+| ONB-03 · 둘러보기 모드 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C01,C04 — BrowseHomeView 분기와 공개 미션 탐색은 있다. 가족공간 시작 문구는 무동작이다. | [8450:19981](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8450-19981),[8451:22900](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22900) | 가족 버킷·일정·기록 접근 차단/연결 CTA 필요. userMode가 홈에만 전달되므로 다른 탭은 제한되지 않음. |
+| ONB-05 · 홈 진입 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C01,C03 — 모드 저장 후 홈 진입한다. 닉네임/역할/가족 실제 데이터는 저장·검증하지 않는다. | [8347:7411](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7411) | 필수 정보 누락 단계 복귀, 가족 생성/참여 재시도 상태, 중복 방지 결과 처리 필요. |
+| FAM-01 · 가족명 설정 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C03 — 가족명 형식 검사 후 고정 코드 생성으로 진행한다. | [8098:72650](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-72650) | 서비스 전체 가족명 중복 오류, 생성자 역할/닉네임 연결, 로딩 실패·재시도 필요. |
+| FAM-02 · 공용 초대 링크 생성 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C03 — 고정 KIRI24의 복사와 텍스트 시스템 공유가 있다. URL·token·familyId는 없다. | [8098:72786](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8098-72786),[8286:76347](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-76347) | 링크+코드 동시 제공, 7일 만료 표시, 공유 진입 연결 필요. 링크에 역할을 고정하지 않음. |
+| FAM-03 · 공용 초대 링크 만료/재발급 | P0 / U0 | UI 미구현 / 기능 미구현 | C03,C16 — 재발급 화면/데이터/액션 없음. | [8582:18039](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8582-18039) | 만료/유효/수동 재발급/실패 상태 필요. 자동 재발급 금지, 새 1세트 활성화와 기존 링크·코드 즉시 폐기. |
+| FAM-04 · 공용 초대 링크 진입 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C01,C03 — receiveInvitation 및 pendingInvitation 분기만 있고 실제 외부 호출부가 없다. | [8159:12141](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12141),[8286:76347](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-76347) | 딥링크 수신→인증 보존→확인, 기존회원 단계 생략·이미 구성원 홈·만료 안내 필요. 코드 재입력 및 가상 대기 구성원 생성 금지. |
+| FAM-05 · 초대코드/공용 링크 가족 참여 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C03 — 가족 확인 화면과 참여→family 전환 존재. member 생성·최종 역할 검증 없음. | [8267:34617](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8267-34617) | 엄마/아빠 동시 점유 시 역할 재선택, 다른 가족 소속 계정 차단, 이미 참여 처리 필요. 계정당 활성 가족 1개. |
+| FAM-07 · 초대코드 직접 입력 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C03 — 6자리 형식 검증→고정 가족 조회→참여 확인이 연결되어 있다. | [8159:12141](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12141) | 없는/만료/폐기 코드 오류·재입력, 이미 구성원 홈, 실제 대상 확인 필요. 코드 입력만으로 참여 확정하지 않음. |
+| FAM-06 · 간단 튜토리얼 | P0 / U0 | UI 미구현 / 기능 미구현 | C03,C04 — 튜토리얼 및 이력 저장·재진입 경로 없음. | 없음 | 답변 모아보기·질문카드·추천 중심 단계 안내, 캘린더 설명, 건너뛰기/최초 재진입 UI 필요. 전용 Figma 프레임 미확인. |
+| FAM-D-01 · 구성원/최근 활동/다가오는 일정 | P1 / U6 | UI 미구현 / 기능 미구현 | C04,C10,C16 — 구성원·캘린더는 별도 화면에 있으나 가족공간 상세 통합 화면/진입 없음. | 연관:[8347:7411](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7411),[8216:3570](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8216-3570) | 활성 구성원·최근 완료·다가오는 일정과 영역별 빈 상태를 기존 구성요소로 조합. 전용 상세 디자인 미확인. |
+| FAM-D-02 · 가족 취향 요약 | P1 / U6 | UI 미구현 / 기능 미구현 | C04,C16 — 가족 취향 요약 모델·태그·진입 없음. | 없음 | 누적 신호 요약 카드와 아직 알아가는 중 상태 필요. 원본 답변으로 취향을 단정하지 않음. |
+
+### 4.2. 홈·질문
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| HOME-01 · 스토리형 가족 상태 바 | P0 / U1 | UI 부분 구현 / 기능 부분 구현 | C04,C05 — 아바타/링 표시가 있으나 모두 고정 답변 완료. 본인 링은 hasAnswered와 무관하다. | [8347:7411](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7411),[8153:9957](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8153-9957) | 가족별 실제 답변 여부·질문 미생성 기본 상태 반영. 본인/타인 모두 답변 상태 기준으로 갱신. |
+| HOME-02 · 질문 상태 전환 | P0 / U1 | UI 부분 구현 / 기능 부분 구현 | C04,C05 — hasAnswered 표시 파라미터만 있고 답변 저장 이벤트/상태 모델 없음. | [8070:11636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8070-11636),[8159:12976](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12976) | 구성원별 UNANSWERED/ANSWERED 즉시 갱신·중복 이벤트 처리. 콕 발송 상태는 별도로 유지. |
+| HOME-03 · 오늘/다가오는 일정 상태 | P1 / U6 | UI 미구현 / 기능 미구현 | C04,C11 — 홈 일정 배너·일정 선택 라우트가 없다. | [8012:10311](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10311) | 응답/재확인 필요 우선, D-7~D-1 확정 1개·당일 1개, 시작시각 우선 선택. 취소/미확정/완료 제외. |
+| HOME-04 · 가족 질문 상태 상세 | P1 / U1 | UI 미구현 / 기능 미구현 | C05 — 스토리 프로필에 탭/상세 액션 없음. | [8070:11636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8070-11636),[8159:12976](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12976) | 답변 있음/없음 상세, 본인 콕 숨김·당일 콕 보냄·권한 없음 필요. Q-03/Q-04와 같은 화면으로 구현. |
+| HOME-05 · 앞뒤 플립 카드 | P0 / U1 | UI 미구현 / 기능 미구현 | C04,C05 — QuestionCard는 답변완료 텍스트 전용이다. | [8012:9925](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-9925),[8460:8451](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8451) | 앞면 오늘 질문+뒷면 주간 미션 공존 플립, 미션 비노출 시 탐색 CTA 필요. 플립이 답변·완료 데이터를 바꾸면 안 됨. |
+| HOME-REC-01 · 주간 미션 배정 | P0 / U1 | UI 미구현 / 기능 미구현 | C04 — 주간 미션 카드/배정 모델 없음. | [8347:7734](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7734),[8012:9925](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-9925) | 가족 공통 주 1개·월요일 KST 00:00 시작, 후보 없음/데이터 부족 UI 필요. 배정 서버 로직은 별도 계약. |
+| HOME-REC-02 · 주간 미션 유지/갱신 | P0 / U1 | UI 미구현 / 기능 미구현 | C04 — 주간 식별자·유지/갱신/취소 대체 처리 없음. | [8460:8451](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8451),[8460:8707](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8707) | 같은 주 카드 유지, 취향 변경은 다음 주 반영, 취소/종료 때만 대체. 후보 없으면 탐색 유도. |
+| HOME-REC-03 · 주간 미션 완료 상태 | P1 / U6 | UI 미구현 / 기능 미구현 | C04,C13 — 리뷰→주간 미션 연결 없음. | [8460:8707](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8707) | 연결 일정의 최초 유효 리뷰로 완료 표시. 시간 경과/단독 완료 버튼으로 처리하지 않음. |
+| Q-01 · 질문 배정 | P0 / U1 | UI 미구현 / 기능 미구현 | C04,C05 — 질문/답변 고정 문자열만 있다. | [8347:7411](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7411) | 가족 생성일 기준 첫 7일 고정 질문, 8일차 검수 풀, familyId+KST 날짜당 1개. 신규 참여자는 같은 질문, browse 배정 금지. 배정 대기/실패 상태 필요. |
+| Q-02 · 텍스트 답변 작성/수정 | P0 / U1 | UI 미구현 / 기능 미구현 | C05 — 질문 입력/저장/수정 화면 없음. | [8187:14904](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8187-14904),[8187:15072](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8187-15072),[8187:15113](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8187-15113) | 텍스트만, 공백 금지, 개인당 질문별 1답변 갱신, 당일 작성/수정·지난날 읽기 전용, 저장 실패 시 기존값 유지. |
+| Q-03 · 가족 답변 열람 | P0 / U1 | UI 미구현 / 기능 미구현 | C05,C10 — 가족 질문 상세·날짜별 과거 답변 조회 경로 없음. | [8070:11636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8070-11636),[8159:12976](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12976) | 오늘/과거 답변·미답변·탈퇴자 익명화·가족 전용 조회. 과거 신규 작성/수정 차단. |
+| Q-04 · 답변 재촉 | P0 / U1 | UI 미구현 / 기능 미구현 | C05,C15 — 알림 샘플의 콕 문구만 있고 발송 액션 없음. | [8070:11636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8070-11636),[8159:12976](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12976) | 발신자→수신자 KST 당일 1회, 답변자도 가능, 본인 금지. 애니메이션/토스트/재시도, 푸시 실패와 요청 실패 구분. |
+| Q-05 · 질문/답변 형식 | P0 / U1 | UI 부분 구현 / 기능 부분 구현 | C05 — 현재 표시 질문은 텍스트이나 작성 폼/유효 질문 검증 없음. | [8187:14904](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8187-14904) | Q-02와 동일 TEXT 폼 사용. 사진/선택형 질문 UI 추가 금지. 비어 있거나 비활성 질문 대체 상태 필요. |
+
+### 4.3. 취향 신호
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| TASTE-01 · 텍스트 질문 취향 신호 반영 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C04,C18 — 텍스트 답변 신호 추출/수정·제거 모델이나 호출부 없음. | 비화면 | tasteSignalEnabled 질문만 약한 보조 신호. 모호한 답변은 무신호, 감정·관계·성격 추론 금지. 전용 화면 추가 대상 아님. |
+| TASTE-02 · 탐색 행동 반영 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C06,C08,C18 — 상세 이동·북마크는 있으나 행동 신호 기록 없음. | 연관:[7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 행동 이벤트 계약 필요. 단일 조회/저장으로 명시 취향을 뒤집지 않음. 신규 UI 없이 기존 액션에 연결. |
+| TASTE-03 · 활동 완료 반영 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C13,C18 — 유효 로컬 Draft는 있으나 참여자·활동 속성 신호 없음. | 연관:[8079:12515](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8079-12515) | 완료/정정 이벤트 연결, 조회/저장보다 강한 실제 행동 신호. 리뷰 저장과 후처리를 분리. |
+| TASTE-05 · 재참여 의향 반영 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C13,C18 — 재참여 Bool을 Draft에만 보관한다. | 연관:[8012:10942](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10942) | 사용자/활동별 보조 신호 저장·수정. 신호 후처리 실패가 유효 리뷰 완료를 막지 않도록 처리. |
+
+### 4.4. 미션·외부 콘텐츠
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| MIS-01 · 기본 피드 진입 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C06 — 탭→로컬 5개 미션 카드 표시. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 활성 콘텐츠 피드·로딩/실패/빈 상태·Pick 없음 대체 필요. 화면은 재사용. |
+| MIS-02 · 가족 단위 기본 추천 정렬 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C06,C04 — 고정 배열 첫 카드에 추천 표시만 있음. 가족 정보·거리·정렬 없음. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 가족 단위 추천 스냅샷, 데이터 부족 대체, 전체에서 Pick 우선. 주간 배정과 탐색 정렬 구분. |
+| MIS-04 · 카테고리 필터 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C06 — 전체+명세와 같은 6개 카테고리 필터가 동작한다. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685),[8451:22069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22069) | 0건 안내·필터 완화 필요. 미선택 Pick 우선/선택 카테고리 우선 상태 검증. |
+| MIS-03 · 전체 미션/플레이스 피드 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C06 — 동일 MissionView에서 검색/전체 탐색 가능. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685),[8495:9657](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8495-9657) | 운영기간·활성/취소·가족 접근 조건, 0건/실패 표시 필요. 별도 플레이스 목록 중복 생성 금지. |
+| MIS-05 · 지역/거리 필터 | P1 / U6 | UI 미구현 / 기능 미구현 | C06,C16 — 지역·거리 버튼은 TODO. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 시군구·1/3/5/10km, 기본 가족 집 위치, 선택 지역 또는 허용된 현재 위치. 집 없음 안내와 권한 실패 필요. 상세 필터 시안 미확인. |
+| MIS-06 · 날짜/시간/가격 필터 | P1 / U6 | UI 미구현 / 기능 미구현 | C06 — 날짜·시간 버튼 TODO, 가격 필터 없음. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 기간/운영시간/가격 입력·적용/초기화·결과 없음. 정보 부족은 정보 확인 필요로 표시. 상세 시안 미확인. |
+| MIS-12 · 사용자 평균 별점 표시 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C07 — 주입받은 임의 rating 숫자 표시, nil이면 숨김. | [8451:22353](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22353) | 활동 전체 사용자 유효 별점 평균과 평가 없음 안내. 가족 평균과 구분, 0.0을 무평가 대용으로 쓰지 않음. |
+| MIS-07 · 미션/플레이스 상세 조회 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C07 — 활동 상세 진입·장소/지역·태그·북마크만 있음. | [8451:22353](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22353) | 원본 설명·기간/시간/가격·출처/위치·예상 정보·추천 근거·평균 별점 및 미제공 상태 추가. AI 문구로 사실을 보충하지 않음. |
+| MIS-08 · 추천/KIRI Pick 이유 | P1 / U6 | UI 부분 구현 / 기능 부분 구현 | C06,C07 — 끼리추천 배지만 있고 실제 Pick/가족 추천 이유는 없다. | [8451:22353](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22353) | 운영 Pick 문구와 가족 취향/거리 근거 구분, 근거 없을 때 일반 소개. 주간 미션과 같은 개념으로 취급 금지. |
+| MIS-10 · 핫한 곳 우선 노출 | P1 / U6 | UI 부분 구현 / 기능 부분 구현 | C06 — 추천 샘플이 우연히 배열 첫 항목이다. | [7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 운영값 기반 Pick 순서·유효기간/비노출 처리 필요. 종료·취소 Pick 제외. |
+| MIS-09 · 버킷리스트 저장 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C08,C09 — title+placeName 키 UserDefaults 저장·해제와 버킷 표시 연결. | [8451:22229](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22229),[8103:73442](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-73442) | (user_id, mission_id) 중복 방지·저장자별 별도 항목·완료 상태/배지·재참여 일정 필요. 현재 완료 카드 탭 차단은 정책 위반. |
+| MIS-11 · 활동 조건 커스텀 추천 | P0 / U4 | UI 부분 구현 / 기능 부분 구현 | C12 — 4조건 선택/적용 및 거리·휴식·비용·혼잡 점수 정렬 존재. | [7905:10295](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7905-10295) | 조건 미적용/근거 없는 혼잡도 안내 필요. 메인 mock은 후보가 비어 효과 확인 불가. 주변만 재정렬하고 메인 미션/경로 변경 금지. |
+| MIS-13 · 미션 자동 생성 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C06,C18 — 수동 샘플뿐, 외부 원본 자동 가공 계약 없음. | 연관:[7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 원본 정규화→미션 생성/6종 매핑, 필수 원본 누락은 검수로 격리. iOS 신규 생성 화면 필요 없음. |
+| MIS-14 · 미션명 자동 생성 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C06,C18 — 미션명은 상수이며 자동 생성 없음. | 연관:[7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 유형별 행동형 템플릿 우선·AI 문법 보정만, 원본 고유명사 보존. 클라이언트에서 임의 제목 생성 금지. |
+| EXT-01 · 수집 소스 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C18 — 외부 수집 서비스/호출부 없음. | 비화면 | 공공/제휴/공식 소스 계약. 허용 소스만 수집, 일부 소스 실패가 전체 카탈로그를 비우지 않음. |
+| EXT-03 · 일일 전체 정합성 검사 | P1 / B1 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C18 — 일일 정합성 작업/상태 계약 없음. | 비화면 | 하루 1회 기간·취소·중복/주요 필드 검증, 접근 불가 시 확인 필요 유지. iOS 화면 추가 대상 아님. |
+| EXT-02 · 주기적 증분 동기화 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C18 — 증분 동기화/커서/스케줄러 없음. | 비화면 | 6시간 주기·마지막 성공 지점 보존·재시도. 실패 소스 때문에 기존 정상 미션 삭제 금지. |
+| EXT-04 · 중복 통합 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C06,C18 — 중복 원본 통합 없음. 동일 장소/제목 샘플 3개 존재. | 비화면 | 원본 ID 우선 통합, 낮은 확신은 검토·오병합 복구. 사용자별 버킷 중복 정책과 별개. |
+| EXT-05 · 종료/취소 처리 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C06,C10,C18 — 취소 알림 샘플만 있고 외부 상태 반영 없음. | 연관:[8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | 종료/취소 신규 추천 제외·기존 스냅샷 유지·중요 변경 안내 계약. 원본 일시 누락을 취소/완료로 간주하지 않음. |
+| EXT-06 · 외부 이미지 사용 정책 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C07,C14,C18 — 카드 placeholder·리뷰 AsyncImage는 있으나 외부 이미지 출처/사용권 계약 없음. | 연관:[7948:1685](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7948-1685) | 허용된 이미지·원본 출처와 비노출/대체 상태 필요. 불명확한 외부 사진은 KIRI 기본 이미지, 임의 수집 금지. |
+
+### 4.5. 일정·당일 활동·날씨
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| PLAN-01 · 일정 작성 시작 | P0 / U3 | UI 미구현 / 기능 미구현 | C09,C11 — 버킷 신규 저장 항목은 invitation=nil로 무동작. 일정 작성 화면 없음. | [8264:21250](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21250),[8347:5904](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-5904) | 날짜/시간·본인 제외 최소 1명 초대 필수, 제안자 자동 ACCEPTED, 가족 한 줄 선택. 저장자와 제안자 구분. |
+| PLAN-02 · 일정 가능 범위 검증 | P0 / U3 | UI 미구현 / 기능 미구현 | C09,C11 — 일정 날짜/시간 입력·검증 없음. | [8286:68142](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-68142) | 이벤트 기간 밖 선택 차단, 상시 장소 자유 선택, 원본 부족 시 공식 출처 확인 경고. 과거 날짜/최소 예약시간은 별도 확정 필요. |
+| PLAN-08 · 초대장 만들기/미리보기 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C11 — InvitationView 미리보기는 고정 샘플에서 열린다. | [8103:74562](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-74562) | 작성값 전달·누락 필드 이동, 제안자/대상 구분 필요. 미리보기만으로 응답 레코드 생성 금지. |
+| PLAN-09 · 초대장 발송 방법 선택 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C11 — 발송 방법 시트 존재. 앱은 성공 배너만, Kakao는 닫기만 수행. | [8286:69073](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-69073),[8286:75889](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-75889) | 로컬 일정/인앱 알림과 외부 공유를 연결. 공유 취소/푸시 실패로 일정 삭제·수락 변경 금지. mock 발송임을 명시. |
+| PLAN-03 · 활동 제안 전송 | P0 / U3 | UI 미구현 / 기능 미구현 | C11,C15 — 일정/사용자 응답 생성 없이 배너만 표시. | 연관:[8103:74562](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-74562),[8286:75889](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-75889) | 제안자 ACCEPTED·선택 대상만 PENDING, 재전송 중복 방지, 24시간 기준 응답 마감 계산·표시 필요. |
+| PLAN-04 · 일정 초대 수락/거절 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C11 — 수락 확인 시트/거절 버튼은 있으나 복귀만 한다. | [7883:23898](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23898),[8103:74725](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-74725) | 앱 내 수락/거절 저장·마감 전 변경, 마감 이후/초대 안 된 사용자 차단. 미응답은 상태이며 선택 버튼 아님. |
+| PLAN-05 · 일정 확정 상태 계산 | P0 / U3 | UI 미구현 / 기능 미구현 | C10,C11 — 예정/확정/완료 enum만 있고 응답 집계·마감 계산 없음. | 연관:[8450:21636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8450-21636),[8495:10372](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8495-10372) | 제안자 외 1명 ACCEPTED면 즉시 확정. 0명이면 마감 전 응답 대기/마감 후 미확정, 변경 시 재계산. 모두 수락 요구 금지. |
+| PLAN-06 · 일정 수정 | P1 / U6 | UI 미구현 / 기능 미구현 | C11 — 일정 편집·재확인 UI/모델 없음. | [8495:10210](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8495-10210) | 제안자만 핵심 수정·영향받는 수락자 재확인 필요·새 마감, 메모만 변경 시 유지. 시작 후 핵심 수정 금지. |
+| PLAN-07 · 일정 취소 | P0 / U3 | UI 미구현 / 기능 미구현 | C11 — 확정/대기 일정 취소 상태·확인 액션 없음. | 연관:[8495:10210](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8495-10210),[8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | 제안자 취소 확인, CANCELLED 배지/알림·홈 제외. 완료 취소 금지, 다른 유효/완료 이력 없는 버킷만 SAVED 복귀. |
+| DAY-01 · 약속 당일 화면 | P0 / U4 | UI 부분 구현 / 기능 부분 구현 | C12,C11 — 오늘·confirmed·isCurrentUserConfirmed 가드와 3영역 화면 있음. 루트는 나 1명 확정 mock이다. | [8264:21631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21631),[8450:21636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8450-21636) | 실제/명시적 mock 최종 참여자·취소/미확정 상태와 홈 진입 연결. 현재 1인 확정 샘플은 PLAN-05 기준과 불일치. |
+| DAY-02 · 필수 활동 | P0 / U4 | UI 부분 구현 / 기능 부분 구현 | C12 — requiredActivities.prefix(3) 표시/빈 상태 있음. 메인에서는 빈 배열. | [8264:21631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21631) | 근거 있는 2~3개 데이터와 출처 계약, 근거 부족은 범용 활동. 새 미션처럼 별도 완료 흐름을 만들지 않음. |
+| DAY-03 · 필수템 추천 | P0 / U4 | UI 부분 구현 / 기능 부분 구현 | C12 — 준비물 4개까지 title/reason 표시 가능. 메인에서는 비어 있음. | [8264:21631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21631) | 공식 준비물→안전/날씨→편의 규칙·이유, 날씨 실패 시 날씨 항목 제외. 임의 준비물 생성 금지. |
+| DAY-04 · 근처 놀거리 추천 | P0 / U4 | UI 부분 구현 / 기능 부분 구현 | C12 — 추천 배열 정렬/빈 상태 UI 있음. | [8264:21631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21631),[8451:22353](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22353) | 일정 장소 좌표 기준 후보·메인 원본/장소 제외·종료/시간대/위치 검증 필요. GPS 기반으로 바꾸지 않음. |
+| DAY-05 · 예상 활동 정보 | P0 / U4 | UI 부분 구현 / 기능 부분 구현 | C12,C11 — 걸음수·시간 문자열 표시, 메인은 정보 없음이다. | [8264:21631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21631) | 공식 소요시간/거리 우선, 근거 부족 시 범위/단계 표시. 행사 운영시간을 체류시간으로 쓰지 않음. |
+| WTH-01 · 날씨 조회 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C12,C18 — 날씨 조회/캐시·위치/시간/예보범위 모델 없음. | 연관:[8264:21631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8264-21631) | 일정 장소·시간 확정+예보 범위에서만 조회. 실패해도 당일 UI 제공, 날짜 없는 버킷 날씨 추정 금지. 독립 날씨 화면 요구 아님. |
+
+### 4.6. 캘린더·기록
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| CAL-01 · 월간 조회 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C10,C01 — 월 이동·일정/버킷 탭 존재. 오늘 데모만 공급. | [7883:25337](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-25337),[8105:76303](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8105-76303) | 월별 가족 공동 데이터·browse 연결 유도 필요. 비초대 가족도 조회 가능하되 응답 UI 숨김. |
+| CAL-02 · 미래 일정 표시 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C10,C11 — 예정/확정/완료 표시만 존재. | [7883:25337](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-25337),[8495:10372](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8495-10372) | 일정 상태와 개인 미응답/수락/거절/재확인 필요를 분리, 취소 표현·비초대자 가족 일정 조회 필요. 고민중/MAYBE 금지. |
+| CAL-03 · 완료 날짜 대표사진 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C10,C14 — 완료 셀은 photo.fill 아이콘. 대표사진 URL 필드는 사용되지 않는 빈 데이터에만 있다. | [7883:25337](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-25337),[7903:1926](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7903-1926) | 날짜 대표 썸네일·같은 날 추가 활동 수·사진 없음 마커 연결. LOG-03/09와 같은 대표사진 상태 사용. |
+| CAL-04 · 하루 활동 목록 | P0 / U3 | UI 미구현 / 기능 미구현 | C10 — selectDay가 첫 일정/리뷰만 열어 하루 목록이 없다. | 연관:[7883:25337](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-25337) | 날짜별 시간순 복수 활동/빈 날짜 화면 필요. 이전 코드 주석의 별도 목록 없음 판단은 최신 명세로 폐기. |
+| CAL-05 · 가족 버킷리스트 조회 | P0 / U2 | UI 부분 구현 / 기능 부분 구현 | C09,C08 — 전체/엄마/아빠/딸 필터·고정 샘플+로컬 저장 항목 있음. | [8103:73442](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-73442),[8103:74308](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8103-74308) | member ID 기반 동적 필터·저장일/저장자/연결·완료 상태, 탈퇴자 익명화, 취소/종료 새 일정 제한. 완성된 항목도 재참여 가능. |
+| LOG-01 · 완료 처리 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13,C10,C08 — 4개 필수 입력을 검증한 Draft로 오늘 캘린더 완료 표시. | [8079:12515](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8079-12515) | 최초 유효 리뷰→일정/버킷/주간 완료 공동 반영, 다른 참여자 추가 리뷰 필요. 지난 활동 신규 작성 진입도 누락. |
+| CAL-06 · 질문 전원 답변 날짜 표시 | P0 / U1 | UI 미구현 / 기능 미구현 | C10,C05 — 캘린더에 질문/가족 전원 답변 모델·캐릭터 블록 없음. | 연관:[7883:25337](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-25337) | 해당 날짜 전원 답변 시 KIRI 블록. 활동 사진과 동시 표시 방식은 명세 자체 디자인 검토 항목으로 남김. |
+| LOG-02 · 사진 여러 장 업로드 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13 — 사진 최대 10장 로컬 선택·삭제·최소1장 검증 구현, 일부 로딩 실패는 조용히 건너뜀. | [8012:10942](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10942) | 사진별 성공/실패·재시도·기록 연결 필요. 최초 리뷰 첫 사진만 자동 대표, 후속 리뷰로 자동 교체 금지. 10장 상한은 명세 미확정. |
+| LOG-03 · 대표사진 지정 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13,C14,C10 — 각 로컬 리뷰의 첫 사진을 그려 주지만 활동별 대표사진 식별자는 없다. | [8763:17631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8763-17631) | 최초 유효 리뷰 첫 사진 기본값·선택 변경·삭제 대체·카드/캘린더 반영. LOG-09와 중복 개발하지 않음. |
+| LOG-05 · 함께한 가족/장소 연결 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13,C11 — 날짜+제목 문자열 키와 일정 표시 정보만 연결한다. | [7903:1926](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7903-1926) | activity/schedule/member/mission ID 및 당시 참여자·장소 스냅샷 보존. 외부 정보 변경/탈퇴로 공동 기록 삭제 금지. |
+| LOG-04 · 짧은 기록 작성 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13 — 500자 텍스트·공백 검증·초기 Draft 수정·임시 저장 연결. | [8012:10942](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10942) | 사용자별 활동당 1리뷰·실패 유지·다른 참여자 분리·재진입 필요. 현재 날짜+제목 키로 재참여/다중 사용자 구분 불가. |
+| LOG-06 · 그날 사진 연속 보기 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13,C14,C10 — 자기 리뷰 다중 썸네일은 있지만 날짜 내 활동별 연속 탐색 없음. | 연관:[7903:1926](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7903-1926),[8079:12515](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8079-12515) | 활동 헤더·시간/등록순 사진·활동 전환, 사진 없는 기록 표시. 사진을 날짜 단위로 무차별 합치지 않음. |
+| LOG-08 · 가족별 리뷰 모아보기 | P0 / U5 | UI 부분 구현 / 기능 부분 구현 | C13,C14 — 내 리뷰+다른 가족 빈 상태만. FamilyReviewCard는 Preview 전용이다. | [8079:13084](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8079-13084),[8079:12515](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8079-12515) | 참여자별 사진·글·별점·의향, 가족 전용/탈퇴자 익명화. 기존 카드 확장 후 연결. |
+| LOG-09 · 활동 대표사진 설정/변경 | P1 / U5 | UI 부분 구현 / 기능 부분 구현 | C13,C14,C10 — 내 리뷰 첫 사진 표시만 있고 활동 전체 사진 선택 화면 없음. | [8763:17631](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8763-17631),[8763:17548](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8763-17548) | LOG-03과 같은 활동 대표사진 1장 선택/변경, 원본 보존·삭제 fallback. P1이지만 P0 LOG-03에 포함된 선택 변경을 함께 구현. |
+| LOG-10 · 재참여 의향 입력 | P0 / U5 | UI 구현 완료(로컬) / 기능 부분 구현 | C13 — 예/아니오 필수 선택·기존 Draft 로드/수정 UI 구현. | [8012:10942](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10942) | 사용자/활동별 저장·실패 시 다른 입력 유지/재시도 미연동. 입력 UI 재작성 대신 저장 상태 보완. |
+| LOG-11 · 활동 별점 입력 | P0 / U5 | UI 구현 완료(로컬) / 기능 부분 구현 | C13 — 1~5 정수 선택·범위/필수 검증·초기값 수정 UI 구현. | [8012:10942](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10942) | 사용자별 영속 저장·유효 평가 집계 계약 연결. MIS-12 평균은 별개. |
+
+### 4.7. 추천
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| REC-01 · 활동 완료 기반 갱신 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C13,C18 — 완료 후 추천 STALE/재계산 호출부 없음. | 비화면 | 완료 신호 갱신·후처리 실패 큐, 활동 완료는 보존. 추천 실패 화면과 데이터 계약 필요. |
+| REC-04 · 외부 후보 최신화와 개인화 분리 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C06,C18 — 전체 카탈로그와 개인화 스냅샷 구분 없음. | 비화면 | 외부 최신화는 즉시 탐색 반영, 개인화는 유지하며 취소/만료 슬롯만 대체. 신규 화면 필요 없음. |
+| REC-05 · 장기 미활동 보완 갱신 | P1 / B1 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C04,C06,C18 — 추천 생성시각·7일 만료/재계산 없음. | 비화면 | 7일 이상 오래된 스냅샷은 다음 진입 시 보완, 실패 시 유효 후보 유지. 주간 미션 유지 규칙과 구분. |
+| REC-06 · 재참여 의향 기반 추천 보정 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C13,C18 — 재참여 의향 Bool을 추천에 사용하는 경로 없음. | 비화면 | 다음 추천부터 누적 신호로 보정, 단일 아니오를 절대 제외 규칙으로 사용 금지. |
+
+### 4.8. 마이페이지
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| MY-01 · 내 프로필 조회/수정 | P1 / U6 | UI 부분 구현 / 기능 부분 구현 | C16,C03 — 프로필 고정값·연필 TODO. 가족 관리에서 닉네임 수정만 임시 반영. | [8213:3062](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8213-3062),[8216:3462](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8216-3462) | 프로필 진입 연결·전역 닉네임 중복·역할 캐릭터·허용 항목 편집 필요. 사진 업로드 금지, 월1회 문구는 명세 근거 없음. |
+| MY-02 · 내 취향/활동 선호 설정 | P1 / U6 | UI 미구현 / 기능 미구현 | C16 — 취향테스트 버튼은 TODO, Figma 상세는 음식 텍스트 질문 시안이다. | 정책차이:[8596:18240](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8596-18240),[8213:3062](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8213-3062) | 내 취향 설정: 활동 최대3개/공간/활동량/비용/활동시간 5항목. 온보딩 필수 아님. 혼잡/분위기/지역/이동거리 질문 제외. |
+| MY-03 · 가족 구성원 관리 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C16 — 가족 관리 목록·이름 편집 존재. 엄마 2명 포함 고정 샘플이다. | [8216:3570](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8216-3570) | 실제 참여 완료 구성원·역할·닉네임 조회, 엄마/아빠 각1명 데이터, browse/탈퇴 제한. 초대 대기 가상 구성원 금지. |
+| MY-04 · 가족명 변경 | P1 / U6 | UI 부분 구현 / 기능 부분 구현 | C16 — 가족명 편집은 누구나 진입 가능한 Binding 갱신이다. | [8216:3638](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8216-3638) | 현재 owner만 변경·전체 중복 오류, owner 탈퇴 시 가장 이른 참여자 승계·마지막 구성원 종료. 월1회 제한은 미명세. |
+| MY-05 · 공용 초대 링크/초대코드 관리 | P0 / U0 | UI 부분 구현 / 기능 부분 구현 | C16,C03 — 설정 관리 진입은 TODO. 온보딩 코드 복사/공유 UI는 재사용 가능. | [8582:18039](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8582-18039),[8286:76347](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8286-76347) | 현재 링크+코드·7일 만료·수동 재발급 화면, 기존 폐기 및 인증 후 초대 복귀 필요. FAM-02/03과 한 구현으로 묶기. |
+| MY-06 · 알림 설정 | P1 / U6 | UI 미구현 / 기능 미구현 | C16 — 알림 설정 버튼 TODO, OS 권한 조회 없음. | [8599:18423](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-18423) | 앱 푸시 on/off·OS 권한 꺼짐/설정 이동 안내. 푸시 OFF여도 인앱/핵심 상태 유지. 시각 선택은 최신 명세에 없어 보류. |
+| MY-07 · 로그아웃 | P1 / U6 | UI 구현 완료(로컬) / 기능 부분 구현 | C16,C01 — 시스템 확인 alert→로컬 세션 제거→로그인 복귀 연결. | [8599:76698](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-76698) | 실제 기기 세션 종료 연동은 미구현. 가족/계정 삭제 금지, 계정별 로컬 캐시 분리 필요. Figma 커스텀 팝업은 시각 QA 잔여. |
+| MY-09 · 건의함 | P1 / U6 | UI 미구현 / 기능 미구현 | C16,C13 — 건의함 버튼 TODO. 리뷰 사진 선택은 재사용 후보다. | [8599:76071](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-76071),[8763:17857](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8763-17857) | 필수 자유글+선택 이미지/대상 식별값, 빈 내용 차단·실패 초안 유지. 리뷰의 사진 필수 조건을 복사하면 안 됨. |
+| MY-08 · 회원 탈퇴 | P1 / U6 | UI 미구현 / 기능 미구현 | C16 — 탈퇴 안내/확인/결과·owner/일정 후처리 없음. | [8599:76808](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-76808) | 개인정보 삭제·가족 관계 해제·미래 일정 참여 제거, 유일 참여 일정 취소, 마지막 구성원 공동 데이터 삭제 최종 확인, 과거 기록 익명화. |
+| MY-10 · 우리 집 위치 설정 | P0 / U0 | UI 미구현 / 기능 미구현 | C16 — 주소 설정 버튼 TODO. 주소/좌표 데이터 없음. | [8556:9691](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8556-9691),[8556:10046](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8556-10046),[8556:9605](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8556-9605),[8582:18082](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8582-18082) | 가족 공통 위치 1개·권한별 등록/수정·검색/좌표 실패·미등록 안내. 온보딩에 넣지 않고 미등록도 서비스 허용. |
+| MY-11 · 약관/개인정보/버전 정보 | P1 / U6 | UI 부분 구현 / 기능 부분 구현 | C16,C02 — 설정 버튼 TODO. 가입 약관 본문 시트만 존재한다. | [8599:76117](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-76117),[8599:76457](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-76457),[8599:76529](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8599-76529) | 설정용 정책 목록·본문/버전·라이선스·재시도 연결. AndroidX 예시를 iOS 실제 의존성처럼 복사 금지. |
+
+### 4.9. 알림·시스템
+
+| 기능 ID · 기능명 | 원본 우선순위 / 단계 | UI / 기능 상태 | 코드 근거 · 현재 동작 | Figma 대조 | 미구현 UI·정책·예외 처리 |
+| --- | --- | --- | --- | --- | --- |
+| NOTI-01 · 알림함 조회 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C15 — 고정 목록/필터/읽음 수 표시. 수신자 ID·생성시각 정렬·조회 상태 없음. | [8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | 최신순·로딩·0건·조회 실패/다시 시도·권한 소멸 대상 안내. 알림 삭제 기능 추가 금지. |
+| NOTI-02 · 읽음/딥링크 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C15,C04 — 선택 시 읽음, opensInvitation=true만 고정 요청으로 이동한다. | [8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | type+targetId 기반 질문/일정/기록/가족 라우팅, 삭제/권한 없음 안내. 알림함 진입만으로 자동 모두읽음 금지. |
+| NOTI-03 · 모두 읽음 | P1 / U6 | UI 구현 완료(로컬) / 기능 부분 구현 | C15 — 모두읽음은 로컬 ID Set 변경, 알림 원본은 삭제하지 않는다. | [8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | 사용자별 읽음 저장·부분 실패 처리/재시도 필요. 로컬 UI는 재사용. |
+| NOTI-04 · 일정 알림 | P0 / U3 | UI 부분 구현 / 기능 부분 구현 | C15,C11 — 일정 알림 샘플과 요청 상세만 있고 상태 이벤트 발생 없음. | [8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069),[7883:23898](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=7883-23898) | 초대/마감전 PENDING 1회/최초확정/재확인/취소/D-1/당일 알림 계약·각 상태 라우트. 수락/거절자 미응답 재촉 금지. |
+| NOTI-05 · 콘텐츠 리마인드 | P1 / U6 | UI 부분 구현 / 기능 부분 구현 | C15,C04 — 미션/질문 관련 표시 샘플뿐 배정/리마인드 처리 없음. | [8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | 정의된 목적별 횟수 제한, 푸시 OFF에서도 인앱 유지. 정확한 발송 시각/횟수는 명세 미확정. |
+| SYS-01 · 가족 데이터 권한 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C01,C18 — APIClient는 토큰 헤더만 처리, 활성 가족 권한 모델 없음. browse도 기록 진입 가능. | 연관:[8451:22900](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8451-22900) | 서버 활성 memberId/familyId 검증 계약과 클라이언트 접근 거부/연결 유도 필요. UI 가드만으로 서버 권한 완료 주장 금지. |
+| SYS-02 · 알림 이벤트 생성 | P0 / B0 | UI 비화면 / 기능 연동 미구현·서버 미검증 | C15,C18 — 고정 알림 데이터만 존재, 이벤트 키/수신자/targetId·푸시 없음. | 연관:[8459:8069](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8459-8069) | 인앱 이벤트 먼저 저장·멱등 키·푸시 독립 실패. 기능 상태/인앱 기록을 푸시 실패로 롤백하지 않음. |
+
+
+## 5. 확정 개발 순서
+
+UI 개발은 **U0 → U1 → U2 → U3 → U4 → U5 → U6** 순서로 진행한다. 원본 P0/P1은 변경하지 않는다. P0의 정책 충족에 필요한 공유 UI인 HOME-04·LOG-09만 각각 U1·U5에서 함께 처리한다. 각 단계는 C01~C18의 기존 화면을 확장하며, 동일 목적의 새 화면/스토어를 중복 생성하지 않는다.
+
+| 단계 | 우선순위 | 구현 범위와 완료 기준 |
+| --- | --- | --- |
+| U0 가족·진입 기반 | P0 | 기존 로그인/온보딩/가족 설정에 세션 분기, 둘러보기 가드·가입 CTA, 역할/유일성/가족 생성·참여 오류를 연결. 공용 초대 링크·코드의 유효기간/재발급/복귀 문맥, 튜토리얼, 선택형 우리 집 주소 검색·좌표 저장 UI를 구성. 튜토리얼의 질문/주간 미션 안내는 U1과 연결 |
+| U1 가족 홈·질문 | P0 + 공유 P1 | 기존 QuestionCard·FamilyMemberItem에 오늘/지난 질문·텍스트 답변/수정·역할별 링·콕을 연결. 주간 미션 플립과 전원 답변 캘린더 블록 추가. 일일 제한·본인 제외·이미 답변한 상대 정책을 상태별 검증. CAL-06 사진 동시 표시는 디자인 확인 필요 |
+| U2 미션·버킷 | P0 | 기존 목록/상세/스토어 확장. 로딩·빈 결과·오류, KIRI Pick·카테고리·상세 운영정보/출처·평균/리뷰 없음 표시. ID 기반 개인 저장/가족 통합·저장자 필터·완료 재참여를 연결. 일정 작성 진입은 U3에서 완성 |
+| U3 일정 생명주기·캘린더 | P0 | 일정 작성(날짜/시간/대상) → 기존 미리보기/전송 → 수락/거절·마감·확정/미확정·취소 → 월간/하루 목록 연결. 제안자 외 수락1명, 24시간 경계, 미응답 유지, 비초대 가족 조회를 검증. 알림 대상 ID·권한·실패 상태도 연결 |
+| U4 당일 활동 | P0 | 기존 TodayActivityView·ConditionAdjustmentSheet 확장. 확정 최종 참여자에게만 노출하고 장소 좌표·필수 활동/준비물·날씨·주변 정렬을 표시. 혼잡/날씨 미제공 설명 추가. 혼자 확정된 현재 메인 mock을 정책에 맞게 교체 |
+| U5 기록·완료 | P0 + 공유 P1 | 기존 리뷰 작성/수정/상세를 activity/member ID와 연결. 지난 활동 작성 진입·사진 재시도·초안 유지, 최초 유효 리뷰에 따른 일정/버킷/주간 완료를 검증. 가족 리뷰/전체 사진·대표사진 고정/변경/삭제 대체·캘린더·새 일정 재참여 연결 |
+| U6 나머지 확장 | P1 | 일정 수정/재확인·홈 배너 → 프로필/owner 설정·최신 취향5항목 → 필터/추천 이유 → 알림 설정/모두읽음/리마인드 → 가족 상세/취향 요약·약관/건의/탈퇴·로그아웃 연동 순. 기존 로컬 완료 UI는 정책·연동만 보강 |
+
+### 비화면 기능과 UI 의존성
+
+B0는 P0 17개로, UI 우선 방침 때문에 서버 구현을 뒤로 분리했을 뿐 P1로 낮춘 것이 아니다. 관련 UI 단계 시작 시 필요한 ID·상태·권한·실패 응답 계약을 먼저 정하고, **mock임을 구분하는 로컬 데이터**로 UI를 완성한다. 실제 발급·전송·추천·저장 성공처럼 표시하는 방식은 사용하지 않는다. 운영 출시 전 서버 계약과 실제 동작 검증은 필수다.
+
+B0 내부 순서는 SYS 권한/이벤트 → 외부 수집·증분·중복/이미지·미션 생성 → 종료/무효화 전파 → 날씨 → 취향 집계/추천이다. 가족 권한은 U0, 피드/버킷은 U2, 상태 전파는 U3/U5, 날씨는 U4의 실제 연동 전제다. U1의 질문 배정·주간 미션 및 U2의 Pick처럼 사용자 화면이 있는 ID에도 서버 책임이 포함되므로, U 완료를 서버 완료로 해석하지 않는다. B1의 일일 정합성 보정과 7일 초과 취향 스냅샷 처리는 P1로 유지한다.
+
+### 단계별 ID 추적표
+
+각 ID는 아래 표에 정확히 한 번 배정했다. 세부 정책·누락은 4절을 따른다.
+
+| 단계 | 기능 수 | 원본 기능 ID |
+| --- | ---: | --- |
+| U0 | 18 | ENT-01, AUTH-01, AUTH-02, ONB-01, ONB-02, ONB-03, ONB-04, ONB-05, FAM-01, FAM-02, FAM-03, FAM-04, FAM-05, FAM-06, FAM-07, MY-03, MY-05, MY-10 |
+| U1 | 12 | HOME-01, HOME-02, HOME-05, HOME-REC-01, HOME-REC-02, Q-01, Q-02, Q-03, Q-04, Q-05, CAL-06, HOME-04 |
+| U2 | 8 | MIS-01, MIS-02, MIS-03, MIS-04, MIS-07, MIS-09, MIS-12, CAL-05 |
+| U3 | 14 | PLAN-01, PLAN-02, PLAN-03, PLAN-04, PLAN-05, PLAN-07, PLAN-08, PLAN-09, CAL-01, CAL-02, CAL-04, NOTI-01, NOTI-02, NOTI-04 |
+| U4 | 6 | DAY-01, DAY-02, DAY-03, DAY-04, DAY-05, MIS-11 |
+| U5 | 11 | LOG-01, LOG-02, LOG-03, LOG-04, LOG-05, LOG-06, LOG-08, LOG-10, LOG-11, CAL-03, LOG-09 |
+| U6 | 19 | FAM-D-01, FAM-D-02, HOME-03, HOME-REC-03, MIS-05, MIS-06, MIS-08, MIS-10, PLAN-06, MY-01, MY-02, MY-04, MY-06, MY-07, MY-08, MY-09, MY-11, NOTI-03, NOTI-05 |
+| B0 | 17 | TASTE-01, TASTE-02, TASTE-03, TASTE-05, MIS-13, MIS-14, EXT-01, EXT-02, EXT-04, EXT-05, EXT-06, WTH-01, REC-01, REC-04, REC-06, SYS-01, SYS-02 |
+| B1 | 2 | EXT-03, REC-05 |
+
+
+## 6. 검증 결과와 한계
+
+- CSV 107개 ID와 4절 표를 일대일 대조하고 원본 명칭·P0/P1을 유지했다. 단계 배정도 107개 ID에 중복/누락이 없다.
+- 코드 근거의 로컬 경로, Figma 대응 노드 존재, UI 분류 합계, CSV 원본 해시를 확인했다. Figma 노드 존재가 기능 동작이나 최신 정책 충족을 증명하지는 않는다.
+- 이번 변경은 문서뿐이므로 xcodebuild를 재실행하지 않았다. 이전 분석에서 **현재와 동일한 앱 코드**를 아래 명령으로 빌드하여 성공했다. 이는 현재 턴에서 새로 빌드/실행한 결과가 아니다.
 
 ```sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-xcodebuild -project KIRI/KIRI.xcodeproj -scheme KIRI \
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
+  -project KIRI/KIRI.xcodeproj -scheme KIRI \
   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
   -configuration Debug -derivedDataPath /tmp/KIRIImplementationAudit \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-- 결과: **BUILD SUCCEEDED**. 로그: `/tmp/kiri-implementation-audit-build.log` (로컬 임시 파일).
-- 최초 샌드박스 실행은 CoreSimulatorService 접근 문제로 asset catalog 컴파일 실패. 승인된 샌드박스 외 실행에서 성공했다. 앱 소스 오류를 수정하여 성공한 것이 아니다.
-- 남은 기존 경고: Info-Debug.plist가 Copy Bundle Resources에 포함됨. 프로젝트의 동기화 예외에는 Info.plist만 등록됨. 후속 설정 정리 대상이며 이번 문서 작업에서 변경하지 않았다.
-- AppIntents.framework 의존성이 없어 메타데이터 추출을 건너뛴다는 경고도 있음.
-- 코드 분석으로 확인: 주요 라우트, 무동작 버튼, Preview 전용 컴포넌트, mock 저장 범위, API 호출 미연결, 중복 파일 여부.
-- 미실행: 실제 터치 기반 end-to-end, Apple/Kakao/Google 인증, 네트워크, 사진·공유 시트, 앱 재시작/탭 왕복 상태 유지, 작은 화면/iPad/회전/키보드/접근성 QA, Release/실기기 빌드. 후속 구현마다 해당 동작과 xcodebuild를 확인해야 한다.
+이전 로그: `/tmp/kiri-implementation-audit-build.log`. 기존 경고는 Info-Debug.plist의 Copy Bundle Resources 포함 및 AppIntents 메타데이터 추출 생략이다. 이번에는 앱 수정이나 경고 수정 범위가 아니다. 향후 UI 구현 후에는 xcodebuild를 새로 실행하고 오류를 해결한다.
 
-## 8. 이번 변경 내역 / 커밋 전 보고
+코드상 연결 여부와 로컬 상태 전이를 검토했으나, 모든 화면의 시뮬레이터 터치·실기기·픽셀 비교·서버 인증/권한 테스트는 수행하지 않았다. 따라서 표의 ‘로컬 완료’와 과거 빌드 성공을 운영 기능 검증으로 확대 해석하지 않는다. 문서는 `git diff --check`로 형식을 검증한다.
 
-| 파일 | 변경 |
+## 7. 이번 변경 파일
+
+| 파일 | 처리 |
 | --- | --- |
-| `docs/IMPLEMENTATION_STATUS.md` | 현재 코드 기반 구현 현황, Figma 매핑, 미구현·부분 구현 구분, 우선순위, 재사용 대상, 빌드 근거 및 검증 한계 신규 기록 |
+| `docs/IMPLEMENTATION_STATUS.md` | 최신 명세 107개 ID별 상태·근거·Figma·누락·정책·개발 단계로 본문 갱신. 기존 Figma/Swift 인벤토리 보존 |
+| `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv` | 읽기 전용 기준 자료. 원본 미변경, 미스테이징 |
+| 앱 소스·프로젝트·README | 변경 없음 |
 
-Swift·프로젝트 설정·README 변경 없음. 커밋·push 없음. 향후 구현 커밋은 사용자가 지정한 `[Feat] : 설명`, `[Fix] : 설명` 형식을 사용하고 파일별 변경 내용을 먼저 보고한다.
+커밋·푸시는 수행하지 않았다. 이후 구현도 파일별 변경을 보고한 뒤 커밋하며, 커밋 메시지는 요청한 `[Feat] : 설명` / `[Fix] : 설명` 형식을 따른다.
+
 
 
 ## 부록 A. Figma 화면 프레임 인벤토리
 
-지정된 끼리 UI 페이지 바로 아래의 100개 화면 프레임을 묶어 나열했다. 같은 이름이라고 같은 구현 상태로 단정하지 않으며 위 표의 실제 콘텐츠·진입 경로 판정을 우선한다. 제목용 Frame, 논의사항, 화면설계서 사본은 신규 구현 화면 수에 포함하지 않는다. 상세 시각 QA 미완료 상태다.
+지정된 끼리 UI 페이지 바로 아래의 100개 화면 프레임을 묶어 나열했다. 같은 이름이라고 같은 구현 상태로 단정하지 않으며 4절 기능 ID별 정책·진입 경로 판정을 우선한다. 최신 CSV에 없는 과거 시안도 인벤토리에는 남기되 개발 요구사항으로 자동 채택하지 않는다. 제목용 Frame, 논의사항, 화면설계서 사본은 신규 구현 화면 수에 포함하지 않는다. 상세 시각 QA 미완료 상태다.
 
 | Figma 화면명 / 실제 내용 | 상태별 원본 노드 |
 | --- | --- |
