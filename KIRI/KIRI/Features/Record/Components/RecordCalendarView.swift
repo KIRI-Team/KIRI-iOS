@@ -63,7 +63,7 @@ struct RecordCalendarView: View {
     let onSelectSchedule: (ScheduleDetailData) -> Void
     let onSelectReview: (ReviewDetailData) -> Void
 
-    // API 연동 전, 화면 이동 확인을 위한 내부 데이터.
+    // API 연동 전 화면 연결을 위한 내부 데이터
     var demoTodaySchedule: ScheduleDetailData? = nil
     var savedReviewSchedules: [ScheduleDetailData] = []
     var onSelectSavedReview: (ScheduleDetailData) -> Void = { _ in }
@@ -73,7 +73,7 @@ struct RecordCalendarView: View {
     @State private var displayedMonthDate: Date
     @State private var selectedDate: Date
 
-    // MARK: - Init
+    // MARK: - Initializer
 
     init(
         onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in },
@@ -88,26 +88,26 @@ struct RecordCalendarView: View {
         self.savedReviewSchedules = savedReviewSchedules
         self.onSelectSavedReview = onSelectSavedReview
 
-        let calendar = Calendar.current
         let today = Date()
+        let calendar = Calendar.current
 
-        _displayedMonthDate = State(
-            initialValue: calendar.date(
-                from: calendar.dateComponents(
-                    [.year, .month],
-                    from: today
-                )
-            ) ?? today
-        )
+        let monthStart = calendar.date(
+            from: calendar.dateComponents(
+                [.year, .month],
+                from: today
+            )
+        ) ?? today
 
+        _displayedMonthDate = State(initialValue: monthStart)
         _selectedDate = State(initialValue: today)
     }
 
-    // MARK: - Calendar
+    // MARK: - Calendar Properties
 
     private var calendar: Calendar {
         var value = Calendar(identifier: .gregorian)
         value.locale = Locale(identifier: "ko_KR")
+        value.timeZone = .current
         value.firstWeekday = 2
         return value
     }
@@ -137,10 +137,6 @@ struct RecordCalendarView: View {
         return (weekday + 5) % 7
     }
 
-    private var selectedDay: Int {
-        calendar.component(.day, from: selectedDate)
-    }
-
     private let weekDays = [
         "월", "화", "수", "목", "금", "토", "일"
     ]
@@ -166,38 +162,26 @@ struct RecordCalendarView: View {
         return schedules
     }
 
-    private var selectedSchedules: [ScheduleDetailData] {
-        visibleSchedules.filter { schedule in
-            guard let date = parseDate(schedule.date) else {
-                return false
-            }
-
-            return calendar.isDate(
-                date,
-                inSameDayAs: selectedDate
-            )
-        }
-    }
-
-    private var selectedReviews: [ReviewDetailData] {
-        mockActivities.compactMap { activity in
-            guard let review = activity.review,
-                  let date = parseDate(review.date),
-                  calendar.isDate(
-                    date,
-                    inSameDayAs: selectedDate
-                  ) else {
-                return nil
-            }
-
-            return review
-        }
-    }
-
-    // 기존 샘플 일정은 표시 월과 실제 날짜가
-    // 일치하지 않아 기본값에서 제외한다.
-    private var mockActivities: [CalendarActivity] {
+    // 추후 API 연결 시 실제 가족 기록 데이터로 교체
+    private var calendarActivities: [CalendarActivity] {
         []
+    }
+
+    private var upcomingSchedules: [ScheduleDetailData] {
+        visibleSchedules
+            .filter { schedule in
+                guard let date = parseDate(schedule.date) else {
+                    return false
+                }
+
+                return calendar.startOfDay(for: date) >=
+                    calendar.startOfDay(for: Date()) &&
+                    !hasSavedReview(schedule)
+            }
+            .sorted {
+                (parseDate($0.date) ?? .distantFuture) <
+                (parseDate($1.date) ?? .distantFuture)
+            }
     }
 
     private func parseDate(_ value: String) -> Date? {
@@ -236,6 +220,25 @@ struct RecordCalendarView: View {
         }
     }
 
+    private func reviews(for day: Int) -> [ReviewDetailData] {
+        guard let date = dateForDay(day) else {
+            return []
+        }
+
+        return calendarActivities.compactMap { activity in
+            guard let review = activity.review,
+                  let reviewDate = parseDate(review.date),
+                  calendar.isDate(
+                      reviewDate,
+                      inSameDayAs: date
+                  ) else {
+                return nil
+            }
+
+            return review
+        }
+    }
+
     private func hasSavedReview(
         _ schedule: ScheduleDetailData
     ) -> Bool {
@@ -250,7 +253,8 @@ struct RecordCalendarView: View {
     ) -> ActivityState? {
         let daySchedules = schedules(for: day)
 
-        if daySchedules.contains(where: hasSavedReview) {
+        if !reviews(for: day).isEmpty ||
+            daySchedules.contains(where: hasSavedReview) {
             return .completed
         }
 
@@ -270,10 +274,7 @@ struct RecordCalendarView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView(
-            .vertical,
-            showsIndicators: false
-        ) {
+        ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 monthHeader
                     .padding(.top, 28)
@@ -281,11 +282,8 @@ struct RecordCalendarView: View {
                 calendarGrid
                     .padding(.top, 18)
 
-                selectedDateSection
-                    .padding(.top, 32)
-
                 upcomingSection
-                    .padding(.top, 36)
+                    .padding(.top, 32)
 
                 Color.clear
                     .frame(height: 110)
@@ -298,7 +296,7 @@ struct RecordCalendarView: View {
     // MARK: - Month Header
 
     private var monthHeader: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             Text(
                 "\(String(displayedYear))년 \(String(displayedMonth))월"
             )
@@ -308,7 +306,7 @@ struct RecordCalendarView: View {
 
             Spacer()
 
-            HStack(spacing: 24) {
+            HStack(spacing: 16) {
                 monthButton(
                     systemName: "chevron.left",
                     label: "이전 달"
@@ -334,31 +332,22 @@ struct RecordCalendarView: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(
-                    .system(
-                        size: 15,
-                        weight: .medium
-                    )
-                )
-                .foregroundStyle(
-                    KIRIColor.Icon.secondary
-                )
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(KIRIColor.Icon.secondary)
                 .frame(width: 24, height: 28)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
 
-    // MARK: - Calendar Grid
+    // MARK: - Calendar
 
     private var calendarGrid: some View {
         VStack(spacing: 16) {
             weekHeader
 
-            LazyVGrid(
-                columns: columns,
-                spacing: 8
-            ) {
+            LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(
                     0..<leadingEmptyDays,
                     id: \.self
@@ -378,35 +367,18 @@ struct RecordCalendarView: View {
     }
 
     private var weekHeader: some View {
-        LazyVGrid(
-            columns: columns,
-            spacing: 6
-        ) {
-            ForEach(
-                weekDays,
-                id: \.self
-            ) { day in
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(weekDays, id: \.self) { day in
                 Text(day)
-                    .font(
-                        .system(
-                            size: 12,
-                            weight: .semibold
-                        )
-                    )
+                    .font(.system(size: 12, weight: .semibold))
                     .tracking(-0.48)
-                    .foregroundStyle(
-                        KIRIColor.Text.tertiary
-                    )
+                    .foregroundStyle(KIRIColor.Text.tertiary)
                     .frame(height: 16)
             }
         }
     }
 
-    // MARK: - Date Cell
-
-    private func calendarCell(
-        _ day: Int
-    ) -> some View {
+    private func calendarCell(_ day: Int) -> some View {
         Button {
             selectDay(day)
         } label: {
@@ -418,47 +390,36 @@ struct RecordCalendarView: View {
         )
     }
 
-    private func dateCellContent(
-        _ day: Int
-    ) -> some View {
+    private func dateCellContent(_ day: Int) -> some View {
         let selected = isSelected(day)
         let state = activityState(for: day)
 
         return ZStack {
-            RoundedRectangle(
-                cornerRadius: 12
-            )
-            .fill(
-                selected
-                    ? KIRIColor.Background.greenSoft
-                    : KIRIColor.Background.tertiary
-            )
+            RoundedRectangle(cornerRadius: 12)
+                .fill(
+                    selected
+                        ? KIRIColor.Background.greenSoft
+                        : KIRIColor.Background.tertiary
+                )
 
             if let state {
-                stateContent(
-                    state,
-                    day: day
-                )
+                stateContent(state, day: day)
             } else {
                 Text(String(day))
                     .font(KIRITypography.body)
                     .tracking(-0.64)
-                    .foregroundStyle(
-                        KIRIColor.Text.primary
-                    )
+                    .foregroundStyle(KIRIColor.Text.primary)
             }
         }
         .frame(height: 45)
         .overlay {
-            RoundedRectangle(
-                cornerRadius: 12
-            )
-            .stroke(
-                selected
-                    ? KIRIColor.Primary.default
-                    : Color.clear,
-                lineWidth: 1
-            )
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(
+                    selected
+                        ? KIRIColor.Primary.default
+                        : Color.clear,
+                    lineWidth: 1
+                )
         }
     }
 
@@ -472,52 +433,38 @@ struct RecordCalendarView: View {
             VStack(spacing: 2) {
                 Image(systemName: "clock")
                     .font(.system(size: 17))
-                    .foregroundStyle(
-                        KIRIColor.Text.tertiary
-                    )
+                    .foregroundStyle(KIRIColor.Text.tertiary)
 
                 Text(String(day))
                     .font(KIRITypography.caption)
-                    .foregroundStyle(
-                        KIRIColor.Text.primary
-                    )
+                    .foregroundStyle(KIRIColor.Text.primary)
             }
 
         case .confirmedSchedule:
             VStack(spacing: 2) {
                 Image(systemName: "clock.fill")
                     .font(.system(size: 17))
-                    .foregroundStyle(
-                        KIRIColor.Text.primary
-                    )
+                    .foregroundStyle(KIRIColor.Text.primary)
 
                 Text(String(day))
                     .font(KIRITypography.caption)
-                    .foregroundStyle(
-                        KIRIColor.Text.primary
-                    )
+                    .foregroundStyle(KIRIColor.Text.primary)
             }
 
         case .completed:
             VStack(spacing: 2) {
                 Image(systemName: "photo.fill")
                     .font(.system(size: 17))
-                    .foregroundStyle(
-                        KIRIColor.Primary.default
-                    )
+                    .foregroundStyle(KIRIColor.Primary.default)
 
                 Text(String(day))
                     .font(KIRITypography.caption)
-                    .foregroundStyle(
-                        KIRIColor.Text.primary
-                    )
+                    .foregroundStyle(KIRIColor.Text.primary)
             }
         }
     }
 
-    private func isSelected(
-        _ day: Int
-    ) -> Bool {
+    private func isSelected(_ day: Int) -> Bool {
         guard let date = dateForDay(day) else {
             return false
         }
@@ -528,236 +475,162 @@ struct RecordCalendarView: View {
         )
     }
 
-    private func selectDay(
-        _ day: Int
-    ) {
+    private func selectDay(_ day: Int) {
         guard let date = dateForDay(day) else {
             return
         }
 
-        withAnimation(
-            .easeInOut(duration: 0.2)
-        ) {
-            selectedDate = date
+        // 날짜 선택에는 별도 이동 애니메이션을 적용하지 않는다.
+        selectedDate = date
+
+        // Figma에 별도 선택 날짜 목록이 없으므로
+        // 일정이나 기록이 있는 날짜는 상세 화면으로 이동한다.
+        if let review = reviews(for: day).first {
+            onSelectReview(review)
+            return
+        }
+
+        if let schedule = schedules(for: day).first {
+            openSchedule(schedule)
         }
     }
 
-    // MARK: - Selected Date
+    // MARK: - Upcoming Section
 
-    private var selectedDateSection: some View {
-        VStack(
-            alignment: .leading,
-            spacing: 16
-        ) {
-            Text(
-                "\(String(displayedMonth))월 \(String(selectedDay))일"
-            )
-            .font(KIRITypography.headingSmall)
-            .foregroundStyle(KIRIColor.Text.strong)
+    private var upcomingSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("다가오는 약속")
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(KIRIColor.Text.strong)
 
-            if selectedSchedules.isEmpty &&
-                selectedReviews.isEmpty {
-                emptyCard(
-                    "등록된 일정이나 기록이 없어요."
-                )
+            if upcomingSchedules.isEmpty {
+                emptyCard("다가오는 약속이 없어요.")
             } else {
-                ForEach(selectedSchedules) { schedule in
-                    scheduleCard(schedule)
-                }
-
-                ForEach(selectedReviews) { review in
-                    Button {
-                        onSelectReview(review)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "photo.fill")
-                                .foregroundStyle(
-                                    KIRIColor.Primary.default
-                                )
-
-                            Text(review.title)
-                                .font(KIRITypography.bodyMedium)
-                                .foregroundStyle(
-                                    KIRIColor.Text.strong
-                                )
-
-                            Spacer()
-
-                            Image(
-                                systemName: "chevron.right"
-                            )
-                            .foregroundStyle(
-                                KIRIColor.Text.tertiary
-                            )
-                        }
-                        .padding(18)
-                        .background(
-                            KIRIColor.Background.secondary
-                        )
-                        .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: 8
-                            )
-                        )
+                VStack(spacing: 18) {
+                    ForEach(upcomingSchedules) { schedule in
+                        scheduleCard(schedule)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
     }
+
+    // MARK: - Schedule Card
 
     private func scheduleCard(
         _ schedule: ScheduleDetailData
     ) -> some View {
         Button {
-            if hasSavedReview(schedule) {
-                onSelectSavedReview(schedule)
-            } else {
-                onSelectSchedule(schedule)
-            }
+            openSchedule(schedule)
         } label: {
-            HStack(spacing: 12) {
-                VStack(
-                    alignment: .leading,
-                    spacing: 8
-                ) {
-                    Text(schedule.title)
-                        .font(
-                            KIRITypography.bodyMedium
-                        )
-                        .foregroundStyle(
-                            KIRIColor.Text.strong
-                        )
-                        .multilineTextAlignment(.leading)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 8) {
+                    statusBadge(for: schedule)
 
-                    HStack(spacing: 8) {
-                        Text(
-                            statusTitle(for: schedule)
-                        )
-                        .foregroundStyle(
-                            hasSavedReview(schedule)
-                                ? KIRIColor.Primary.default
-                                : KIRIColor.Text.secondary
-                        )
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(schedule.title)
+                            .font(KIRITypography.headingSmall)
+                            .tracking(-0.72)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .lineLimit(1)
 
-                        Text(schedule.startTime)
-                            .foregroundStyle(
-                                KIRIColor.Text.tertiary
-                            )
+                        Text("일시 | \(shortDate(schedule.date))")
+                            .font(KIRITypography.bodySmall)
+                            .tracking(-0.56)
+                            .foregroundStyle(KIRIColor.Text.secondary)
                     }
-                    .font(KIRITypography.bodySmall)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 0)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(
-                        KIRIColor.Text.tertiary
-                    )
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+                    .padding(.top, 8)
             }
-            .padding(18)
-            .frame(
-                maxWidth: .infinity,
-                alignment: .leading
-            )
-            .background(
-                KIRIColor.Background.secondary
-            )
-            .clipShape(
-                RoundedRectangle(cornerRadius: 8)
-            )
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 110)
+            .background(KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }
 
-    private func statusTitle(
+    @ViewBuilder
+    private func statusBadge(
         for schedule: ScheduleDetailData
-    ) -> String {
-        if hasSavedReview(schedule) {
-            return "기록 완료"
-        }
-
-        switch schedule.status {
-        case .pendingSchedule:
-            return "약속 예정"
-
-        case .confirmedSchedule:
-            return "약속 확정"
-
-        case .completed:
-            return "기록 완료"
-        }
-    }
-
-    // MARK: - Upcoming
-
-    private var upcomingSchedules: [ScheduleDetailData] {
-        visibleSchedules.filter { schedule in
-            guard let date = parseDate(schedule.date) else {
-                return false
-            }
-
-            return calendar.startOfDay(for: date) >=
-                calendar.startOfDay(for: Date()) &&
-                !hasSavedReview(schedule)
-        }
-        .sorted {
-            (parseDate($0.date) ?? .distantFuture) <
-            (parseDate($1.date) ?? .distantFuture)
-        }
-    }
-
-    private var upcomingSection: some View {
-        VStack(
-            alignment: .leading,
-            spacing: 16
-        ) {
-            Text("다가오는 약속")
-                .font(KIRITypography.headingSmall)
-                .foregroundStyle(
-                    KIRIColor.Text.strong
-                )
-
-            if upcomingSchedules.isEmpty {
-                emptyCard(
-                    "다가오는 약속이 없어요."
-                )
-            } else {
-                ForEach(upcomingSchedules) { schedule in
-                    scheduleCard(schedule)
-                }
-            }
-        }
-    }
-
-    // MARK: - Shared
-
-    private func emptyCard(
-        _ message: String
     ) -> some View {
+        let confirmed = schedule.status == .confirmedSchedule
+        let completed = hasSavedReview(schedule) ||
+            schedule.status == .completed
+
+        let title: String = {
+            if completed {
+                return "기록 완료"
+            }
+
+            return confirmed ? "약속 확정" : "약속 예정"
+        }()
+
+        Text(title)
+            .font(KIRITypography.bodySmallMedium)
+            .tracking(-0.56)
+            .foregroundStyle(
+                confirmed || completed
+                    ? KIRIColor.Primary.default
+                    : KIRIColor.Text.secondary
+            )
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                confirmed || completed
+                    ? KIRIColor.Background.greenSoft
+                    : KIRIColor.Background.elevated
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+
+    private func shortDate(_ dateString: String) -> String {
+        guard let date = parseDate(dateString) else {
+            return dateString
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.calendar = calendar
+        formatter.dateFormat = "yy.MM.dd"
+
+        return formatter.string(from: date)
+    }
+
+    // MARK: - Empty State
+
+    private func emptyCard(_ message: String) -> some View {
         Text(message)
             .font(KIRITypography.bodySmall)
-            .foregroundStyle(
-                KIRIColor.Text.secondary
-            )
-            .frame(
-                maxWidth: .infinity,
-                minHeight: 110
-            )
-            .background(
-                KIRIColor.Background.secondary
-            )
-            .clipShape(
-                RoundedRectangle(cornerRadius: 8)
-            )
+            .foregroundStyle(KIRIColor.Text.secondary)
+            .frame(maxWidth: .infinity, minHeight: 110)
+            .background(KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: - Navigation
 
-    private func moveMonth(
-        by amount: Int
+    private func openSchedule(
+        _ schedule: ScheduleDetailData
     ) {
+        if hasSavedReview(schedule) {
+            onSelectSavedReview(schedule)
+        } else {
+            onSelectSchedule(schedule)
+        }
+    }
+
+    private func moveMonth(by amount: Int) {
         guard let nextMonth = calendar.date(
             byAdding: .month,
             value: amount,
@@ -766,12 +639,13 @@ struct RecordCalendarView: View {
             return
         }
 
-        withAnimation(
-            .easeInOut(duration: 0.2)
-        ) {
-            displayedMonthDate = nextMonth
+        // 월 전환 시 날짜 블록이 개별적으로 이동하지 않도록
+        // 해당 상태 변경에 대한 애니메이션을 비활성화한다.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
 
-            // 월을 이동하면 해당 월의 1일을 선택한다.
+        withTransaction(transaction) {
+            displayedMonthDate = nextMonth
             selectedDate = nextMonth
         }
     }
