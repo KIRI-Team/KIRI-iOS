@@ -7,12 +7,21 @@ struct FamilyHomeView: View {
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
+    @State private var mockData = HomeMockData()
+    @State private var selectedPlace: HomeMockPlace?
+    @State private var selectedMember: HomeMockMember?
+    @State private var isPlaceBookmarked = false
 
 
     private enum HomeRoute {
         case home
         case notification
         case invitationRequest
+        case placeDetail
+        case taste
+        case questionAnswer
+        case missionDetail
+        case memberDetail
     }
 
     @State private var route: HomeRoute = .home
@@ -49,6 +58,41 @@ struct FamilyHomeView: View {
                         handleScheduleConfirmed()
                     }
                 )
+
+            case .placeDetail:
+                if let selectedPlace {
+                    MissionActivityDetailView(
+                        title: selectedPlace.title,
+                        placeName: selectedPlace.title,
+                        district: selectedPlace.location,
+                        rating: selectedPlace.rating,
+                        tags: selectedPlace.tags,
+                        isRecommended: true,
+                        isBookmarked: $isPlaceBookmarked,
+                        onBack: { route = .home }
+                    )
+                }
+
+            case .taste:
+                TasteTestView()
+
+            case .questionAnswer:
+                HomeQuestionAnswerView(question: mockData.question.text, existingAnswer: mockData.question.answer, onBack: { route = .home }) { savedAnswer in
+                    mockData.question.answer = savedAnswer
+                    if let index = mockData.members.firstIndex(where: { $0.isMe }) { mockData.members[index].hasAnswered = true }
+                    route = .home
+                }
+
+            case .missionDetail:
+                HomeMissionDetailView(onBack: { route = .home }) {
+                    mockData.hasSchedule = true
+                    route = .home
+                }
+
+            case .memberDetail:
+                if let selectedMember {
+                    HomeMemberQuestionView(member: selectedMember, onBack: { route = .home })
+                }
             }
         }
         .fullScreenCover(isPresented: $isInvitePresented) {
@@ -88,6 +132,9 @@ struct FamilyHomeView: View {
 
                     questionSection
                         .padding(.top, 48)
+
+                    weeklyMissionSection
+                        .padding(.top, 36)
 
                     placeRecommendationSection
                         .padding(.top, 36)
@@ -162,34 +209,28 @@ struct FamilyHomeView: View {
     // MARK: - Preference Banner
 
     private var preferenceBanner: some View {
-        HStack {
-            VStack(
-                alignment: .leading,
-                spacing: 5
-            ) {
-                Text("주연님의")
-                Text("취향을 더 알고싶어요!")
+        Button { route = .taste } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("주연님의")
+                    Text("취향을 더 알고싶어요!")
+                }
+                .font(KIRITypography.bodyMedium)
+                .tracking(-0.64)
+                .foregroundStyle(KIRIColor.Text.primary)
+                Spacer()
+                Text("취향테스트 참여하러가기")
+                    .font(KIRITypography.caption)
+                    .tracking(-0.48)
+                    .foregroundStyle(KIRIColor.Text.secondary)
             }
-            .font(KIRITypography.bodyMedium)
-            .tracking(-0.64)
-            .foregroundStyle(KIRIColor.Text.primary)
-
-            Spacer()
-
-            Text("취향테스트 참여하러가기")
-                .font(KIRITypography.caption)
-                .tracking(-0.48)
-                .foregroundStyle(KIRIColor.Text.secondary)
+            .padding(.horizontal, 20)
+            .frame(height: 84)
+            .background(KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 18)
         }
-        .padding(.horizontal, 20)
-        .frame(height: 84)
-        .background(KIRIColor.Background.tertiary)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 16
-            )
-        )
-        .padding(.horizontal, 18)
+        .buttonStyle(.plain)
     }
 
     // MARK: - Answer Collection
@@ -247,35 +288,15 @@ struct FamilyHomeView: View {
                 showsIndicators: false
             ) {
                 HStack(spacing: 18) {
-                    FamilyMemberItem(
-                        name: "내 답변",
-                        isMe: true,
-                        hasAnswered: true
-                    )
-
-                    FamilyMemberItem(
-                        name: "엄마",
-                        isMe: false,
-                        hasAnswered: true
-                    )
-
-                    FamilyMemberItem(
-                        name: "엄마",
-                        isMe: false,
-                        hasAnswered: true
-                    )
-
-                    FamilyMemberItem(
-                        name: "엄마",
-                        isMe: false,
-                        hasAnswered: true
-                    )
-
-                    FamilyMemberItem(
-                        name: "엄마",
-                        isMe: false,
-                        hasAnswered: true
-                    )
+                    ForEach(mockData.members) { member in
+                        Button {
+                            selectedMember = member
+                            route = member.isMe ? .questionAnswer : .memberDetail
+                        } label: {
+                            FamilyMemberItem(name: member.name, isMe: member.isMe, hasAnswered: member.hasAnswered)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
@@ -303,11 +324,10 @@ struct FamilyHomeView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
 
-            QuestionCard(
-                questionNumber: 1,
-                question: "내가 가장 좋아하는 음식은?",
-                answer: "뚝배기불고기"
-            )
+            Button { route = .questionAnswer } label: {
+                QuestionCard(questionNumber: mockData.question.number, question: mockData.question.text, answer: mockData.question.answer)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 18)
     }
@@ -330,23 +350,39 @@ struct FamilyHomeView: View {
                 showsIndicators: false
             ) {
                 HStack(spacing: 24) {
-                    PlaceCard(
-                        title: "경복궁에서 사진찍기",
-                        location: "경복궁 종로구",
-                        rating: 4.6,
-                        description: "대중교통이 편리하고, 부모님이랑 가기 좋아요! 추천합니다."
-                    )
-
-                    PlaceCard(
-                        title: "남산에서 산책하기",
-                        location: "서울 중구",
-                        rating: 4.5,
-                        description: "가볍게 산책하면서 함께 시간을 보내기 좋아요."
-                    )
+                    ForEach(mockData.places) { place in
+                        Button { selectedPlace = place; route = .placeDetail } label: {
+                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal, 18)
             }
         }
+    }
+
+    private var weeklyMissionSection: some View {
+        Button { route = .missionDetail } label: {
+            HStack(spacing: 14) {
+                Image(systemName: mockData.hasSchedule ? "calendar.badge.checkmark" : "circle.dashed")
+                    .font(.system(size: 26))
+                    .foregroundStyle(mockData.hasSchedule ? KIRIColor.Primary.default : KIRIColor.Icon.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(mockData.hasSchedule ? "이번 주 미션 일정을 확인해보세요" : "이번 주 가족 미션")
+                        .font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
+                    Text(mockData.hasSchedule ? "활동 기록을 남기면 미션이 완료됩니다" : "가족과 함께 작은 추억을 만들어보세요")
+                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(KIRIColor.Icon.secondary)
+            }
+            .padding(16)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 18)
     }
 
     // MARK: - Mood Recommendation
@@ -367,19 +403,12 @@ struct FamilyHomeView: View {
                 showsIndicators: false
             ) {
                 HStack(spacing: 24) {
-                    PlaceCard(
-                        title: "경복궁에서 산책하기",
-                        location: "경복궁 종로구",
-                        rating: 4.6,
-                        description: "가족과 함께 가볍게 둘러보기 좋은 장소예요."
-                    )
-
-                    PlaceCard(
-                        title: "남산에서 야경보기",
-                        location: "서울 중구",
-                        rating: 4.7,
-                        description: "저녁에 가족과 함께 기분전환하기 좋아요."
-                    )
+                    ForEach(mockData.places.reversed()) { place in
+                        Button { selectedPlace = place; route = .placeDetail } label: {
+                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal, 18)
             }

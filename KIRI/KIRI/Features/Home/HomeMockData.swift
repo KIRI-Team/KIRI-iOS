@@ -1,0 +1,40 @@
+import Foundation
+
+struct HomeMockMember: Identifiable {
+    let id: String
+    let name: String
+    let role: String
+    var hasAnswered: Bool
+    let isMe: Bool
+}
+
+struct HomeMockQuestion {
+    let number: Int
+    let text: String
+    var answer: String?
+}
+
+struct HomeMockPlace: Identifiable {
+    let id: String
+    let title: String
+    let location: String
+    let rating: Double
+    let description: String
+    let tags: [String]
+}
+
+struct HomeMockData {
+    var members: [HomeMockMember] = [
+        HomeMockMember(id: "me", name: "내 답변", role: "딸", hasAnswered: true, isMe: true),
+        HomeMockMember(id: "dad", name: "아빠", role: "아빠", hasAnswered: true, isMe: false),
+        HomeMockMember(id: "mom", name: "엄마", role: "엄마", hasAnswered: false, isMe: false),
+        HomeMockMember(id: "son", name: "아들", role: "아들", hasAnswered: true, isMe: false)
+    ]
+    var question = HomeMockQuestion(number: 1, text: "내가 가장 좋아하는 음식은?", answer: "뚝배기불고기")
+    var places: [HomeMockPlace] = [
+        HomeMockPlace(id: "gyeongbok", title: "경복궁에서 사진찍기", location: "경복궁 종로구", rating: 4.6, description: "대중교통이 편리하고, 부모님이랑 가기 좋아요!", tags: ["문화", "가족 추천"]),
+        HomeMockPlace(id: "namsan", title: "남산에서 산책하기", location: "서울 중구", rating: 4.5, description: "가볍게 산책하면서 함께 시간을 보내기 좋아요.", tags: ["산책", "야외"])
+    ]
+    var isMissionComplete = false
+    var hasSchedule = false
+}

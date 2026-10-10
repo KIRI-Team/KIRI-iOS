@@ -4,11 +4,11 @@ import SwiftUI
 struct QuestionCard: View {
     let questionNumber: Int
     let question: String
-    let answer: String
+    let answer: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("답변완료")
+            Text(answer == nil ? "답변하기" : "답변완료")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Color.green)
 
@@ -20,7 +20,7 @@ struct QuestionCard: View {
             HStack {
                 Spacer()
 
-                Text("A. \(answer)")
+                Text(answer.map { "A. \($0)" } ?? "오늘의 질문에 답해보세요")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(KIRIColor.textSecondary)
             }
