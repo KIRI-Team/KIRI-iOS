@@ -1,141 +1,121 @@
-
 import SwiftUI
 
+/// 둘러보기 전용 홈.
+/// 가족공간에 연결되지 않은 사용자는 공개 장소 추천만 볼 수 있다.
 struct BrowseHomeView: View {
+    private let places = [
+        BrowsePlace(imageName: "browse_place_a", title: "경복궁에서 사진찍기", location: "경복궁 종로구"),
+        BrowsePlace(imageName: "browse_place_b", title: "경복궁에서 사진찍기", location: "경복궁 종로구")
+    ]
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                header
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
 
-                familyEntryCard
+            VStack(spacing: 0) {
+                navigationBar
 
-                previewSection
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        familyActionCard
+                            .padding(.top, 18)
+
+                        recommendationSection(title: "엄마와 함께라면 여기!")
+                            .padding(.top, 36)
+
+                        recommendationSection(title: "오늘 가을분위기를 느끼고 싶다면")
+                            .padding(.top, 36)
+
+                        Spacer()
+                            .frame(height: 140)
+                    }
+                    .padding(.leading, 18)
+                }
+            }
+        }
+    }
+
+    private var navigationBar: some View {
+        Text("끼리네 가족")
+            .font(KIRITypography.headingSmall)
+            .tracking(-0.72)
+            .foregroundStyle(KIRIColor.Text.strong)
+            .frame(maxWidth: .infinity)
+            .frame(height: 62)
+    }
+
+    private var familyActionCard: some View {
+        Button(action: {}) {
+            HStack(spacing: 12) {
+                ZStack {
+                    KIRIColor.Background.secondary
+
+                    Image("browse_action_icon")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
+                .frame(width: 48, height: 48)
+                .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("아직 가족 공간이 없군요!")
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+
+                    Text("가족공간 만들러 가기")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                }
 
                 Spacer()
-                    .frame(height: 40)
+
+                Image("browse_arrow")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
             }
-            .padding(.horizontal, KIRISpacing.horizontal)
-            .padding(.top, 20)
+            .padding(.horizontal, 18)
+            .frame(width: 354, height: 96)
+            .background(KIRIColor.Background.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
-        .background(KIRIColor.background)
+        .buttonStyle(.plain)
+        .accessibilityLabel("가족공간 만들러 가기")
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("KIRI를\n먼저 둘러보세요.")
-                .font(KIRITypography.title)
-                .foregroundStyle(KIRIColor.textPrimary)
-                .lineSpacing(7)
+    private func recommendationSection(title: String) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(KIRITypography.headingSmall)
+                .tracking(-0.72)
+                .foregroundStyle(KIRIColor.Text.strong)
 
-            Text("가족공간에 참여하면 함께 질문하고 기록할 수 있어요.")
-                .font(KIRITypography.subtitle)
-                .foregroundStyle(KIRIColor.textSecondary)
-        }
-    }
-
-    private var familyEntryCard: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            ZStack {
-                Circle()
-                    .fill(KIRIColor.background)
-                    .frame(width: 52, height: 52)
-
-                Image(systemName: "person.3.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(KIRIColor.textPrimary)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("가족과 함께 시작해보세요")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(KIRIColor.textPrimary)
-
-                Text("가족공간을 만들거나 초대받은 가족공간에 참여할 수 있어요.")
-                    .font(KIRITypography.subtitle)
-                    .foregroundStyle(KIRIColor.textSecondary)
-                    .lineSpacing(4)
-            }
-
-            HStack {
-                Text("가족공간 시작하기")
-                    .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.textPrimary)
-
-                Spacer()
-
-                Image(systemName: "arrow.right")
-                    .foregroundStyle(KIRIColor.textPrimary)
-            }
-        }
-        .padding(22)
-        .background(KIRIColor.surface)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: KIRIRadius.xLarge
-            )
-        )
-    }
-
-    private var previewSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("KIRI에서는")
-                .font(KIRITypography.bodyMedium)
-                .foregroundStyle(KIRIColor.textPrimary)
-
-            VStack(spacing: 12) {
-                previewRow(
-                    icon: "questionmark.bubble.fill",
-                    title: "서로를 알아가는 질문",
-                    description: "매일 하나의 질문으로 가족의 생각을 알아가요."
-                )
-
-                previewRow(
-                    icon: "sparkles",
-                    title: "함께하는 미션",
-                    description: "가족과 같이 해볼 활동을 발견해요."
-                )
-
-                previewRow(
-                    icon: "calendar",
-                    title: "우리 가족의 기록",
-                    description: "함께한 시간을 가족 캘린더에 남겨요."
-                )
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 24) {
+                    ForEach(places) { place in
+                        PlaceCard(
+                            title: place.title,
+                            location: place.location,
+                            rating: 4.6,
+                            description: "대중교통이 편리하고, 부모님이랑 가기 좋아요! 추천합니다",
+                            imageName: place.imageName
+                        )
+                    }
+                }
+                .padding(.trailing, 18)
             }
         }
     }
+}
 
-    private func previewRow(
-        icon: String,
-        title: String,
-        description: String
-    ) -> some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(
-                    cornerRadius: KIRIRadius.large
-                )
-                .fill(KIRIColor.surface)
-                .frame(width: 52, height: 52)
+private struct BrowsePlace: Identifiable {
+    let imageName: String
+    let title: String
+    let location: String
 
-                Image(systemName: icon)
-                    .font(.system(size: 19))
-                    .foregroundStyle(KIRIColor.textPrimary)
-            }
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.textPrimary)
-
-                Text(description)
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.textSecondary)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-        }
-    }
+    var id: String { imageName }
 }
 
 #Preview {

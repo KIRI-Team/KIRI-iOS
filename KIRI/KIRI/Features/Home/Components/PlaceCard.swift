@@ -5,76 +5,93 @@ struct PlaceCard: View {
     let location: String
     let rating: Double
     let description: String
+    var imageName: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             imagePlaceholder
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Text(title)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(KIRIColor.textPrimary)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(title)
+                            .font(KIRITypography.headingSmall)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .lineLimit(1)
 
-                    Spacer()
+                        Spacer()
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 10))
+                        HStack(spacing: 4) {
+                            Image("browse_rating_star")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 12, height: 12)
 
-                        Text(
-                            rating.formatted(
-                                .number.precision(
-                                    .fractionLength(1)
+                            Text(
+                                rating.formatted(
+                                    .number.precision(
+                                        .fractionLength(1)
+                                    )
                                 )
                             )
-                        )
-                        .font(.system(size: 11, weight: .medium))
+                            .font(KIRITypography.captionMedium)
+                        }
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                        .padding(.horizontal, 6)
+                        .frame(height: 25)
+                        .background(KIRIColor.Background.tertiary)
+                        .clipShape(Capsule())
                     }
-                    .foregroundStyle(KIRIColor.textPrimary)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(Capsule())
-                }
 
-                Text(location)
-                    .font(.system(size: 12))
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    Text(location)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
 
                 HStack(alignment: .top, spacing: 5) {
-                    Image(systemName: "quote.bubble.fill")
-                        .font(.system(size: 10))
+                    Image("browse_quote")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 12, height: 12)
 
                     Text(description)
-                        .font(.system(size: 11))
-                        .lineSpacing(3)
+                        .font(KIRITypography.caption)
+                        .lineSpacing(2)
                         .lineLimit(2)
                 }
-                .foregroundStyle(KIRIColor.textSecondary)
+                .foregroundStyle(KIRIColor.Text.tertiary)
             }
-            .padding(16)
+            .padding(.horizontal, 19)
+            .padding(.top, 18)
+            .padding(.bottom, 16)
         }
-        .frame(width: 250)
-        .background(KIRIColor.surface)
+        .frame(width: 251, height: 284)
+        .background(KIRIColor.Background.secondary)
         .clipShape(
             RoundedRectangle(
-                cornerRadius: 14
+                cornerRadius: 16
             )
         )
     }
 
     private var imagePlaceholder: some View {
         ZStack {
-            Rectangle()
-                .fill(Color.white.opacity(0.08))
+            if let imageName {
+                Image(imageName)
+                    .resizable()
+                    .scaledToFill()
+                    .opacity(0.8)
+            } else {
+                Rectangle()
+                    .fill(KIRIColor.Background.tertiary)
 
-            Image(systemName: "photo")
-                .font(.system(size: 30))
-                .foregroundStyle(KIRIColor.textSecondary)
+                Image(systemName: "photo")
+                    .font(.system(size: 30))
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
         }
-        .frame(height: 160)
+        .frame(height: 144)
+        .clipped()
     }
 }
 

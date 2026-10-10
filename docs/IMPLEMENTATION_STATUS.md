@@ -283,6 +283,12 @@ P0/P1은 구현 순서를 결정하지 않는다. 모든 기능 ID를 구현 대
 
 Figma 기준 프레임에는 카카오·Google 두 버튼만 있지만 최신 기능명세서는 Apple 로그인을 필수로 요구한다. Apple 버튼은 삭제하거나 임의로 Figma 안에 재배치하지 않고 세 번째 로컬 버튼으로 유지했으며, 이 부분은 디자인 일치 미완료로 남긴다. Figma의 로그인 프레임에는 실패/취소 상태가 별도 표시되지 않아 현재 코드의 로컬 상태 연결 범위와 서버 오류 처리는 후속 계약 대상이다.
 
+### 이번 화면 구현 기록: 둘러보기 홈
+
+기준 프레임은 [홈/초기 `8450:19981`](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8450-19981)이다. 기존 `BrowseHomeView`의 소개 문구·설명형 카드·SF Symbol 목록을 제거하고, Figma의 `끼리네 가족` 상단 제목, `가족공간 만들러 가기` 액션 카드, `엄마와 함께라면 여기!` 및 `오늘 가을분위기를 느끼고 싶다면` 가로 장소 카드 섹션으로 교체했다. `PlaceCard`는 기존 컴포넌트를 유지한 채 Figma 카드 크기(251×284), 이미지 영역(144), 별점·인용 아이콘·텍스트 토큰을 지원하도록 확장했다.
+
+둘러보기에서는 질문 답변, 콕, 가족 답변 모아보기, 가족 미션 완료, 가족 버킷·일정·기록을 생성하거나 저장하지 않는다. CTA의 실제 가족 생성/참여 전환은 현재 앱 라우터에 전용 진입 경로가 없어 후속 연결 대상이며, 화면에는 Figma에 없는 안내 모달을 임의로 추가하지 않았다. 공개 장소 추천은 로컬 샘플이며 서버 데이터로 표시하지 않는다.
+
 ### 비화면 기능과 UI 의존성
 
 B0는 비화면 기능 17개로, UI 우선 방침 때문에 서버 구현을 뒤로 분리한 것이다. 관련 Figma 플로우 시작 시 필요한 ID·상태·권한·실패 응답 계약을 먼저 정하고, **mock임을 구분하는 로컬 데이터**로 UI를 완성한다. 실제 발급·전송·추천·저장 성공처럼 표시하는 방식은 사용하지 않는다. 운영 출시 전 서버 계약과 실제 동작 검증은 필수다.
@@ -332,6 +338,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 | `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv` | 읽기 전용 기준 자료. 원본 미변경, 미스테이징 |
 | `KIRI/KIRI/Features/Auth/LoginView.swift` | Figma 로그인 프레임 레이아웃·로고/캐릭터·버튼 스타일과 로컬 로그인 동작 수정 |
 | `KIRI/KIRI/Assets.xcassets/kiri_logo.imageset`, `kiri_character.imageset` | Figma에서 제공된 로그인 정적 자산을 로컬 번들에 추가 |
+| `KIRI/KIRI/Features/Home/BrowseHomeView.swift` | Figma `8450:19981` 둘러보기 홈 레이아웃·공개 추천 UI로 교체 |
+| `KIRI/KIRI/Features/Home/Components/PlaceCard.swift` | 기존 장소 카드에 Figma 이미지·별점·인용 아이콘과 카드 규격 지원 추가 |
+| `KIRI/KIRI/Assets.xcassets/browse_*` | 둘러보기 장소 이미지 및 Figma 아이콘을 로컬 번들에 추가 |
 
 커밋·푸시는 수행하지 않았다. 이후 구현도 파일별 변경을 보고한 뒤 커밋하며, 커밋 메시지는 요청한 `[Feat] : 설명` / `[Fix] : 설명` 형식을 따른다.
 
