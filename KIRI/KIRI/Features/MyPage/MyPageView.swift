@@ -1,408 +1,92 @@
 import SwiftUI
 
+/// Figma 8213:3062. API 연결 전에는 화면 로컬 상태를 사용한다.
 struct MyPageView: View {
     let onLogout: () -> Void
-
+    @State private var nickname = "쥬123"
+    @State private var familyName = "끼리네 가족"
     @State private var isLogoutAlertPresented = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                KIRIColor.background
-                    .ignoresSafeArea()
-
+                KIRIColor.Background.base.ignoresSafeArea()
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        header
-
-                        profileSection
-                            .padding(.top, 26)
-
-                        tasteTestButton
-                            .padding(.top, 28)
-
-                        familyManagementSection
-                            .padding(.top, 36)
-
-                        settingsSection
-                            .padding(.top, 46)
-
-                        logoutButton
-                            .padding(.top, 20)
-
-                        Color.clear
-                            .frame(height: 120)
-                    }
-                    .padding(.horizontal, 18)
+                        Text("설정")
+                            .font(KIRITypography.headingSmall)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 62)
+                        profileSection.padding(.top, 10)
+                        menuSection(title: "내 설정") {
+                            NavigationLink { TasteTestView() } label: { menuRow("내 취향 설정") }
+                            NavigationLink { PushNotificationView() } label: { menuRow("알림 설정") }
+                        }.padding(.top, 72)
+                        menuSection(title: "가족 설정") {
+                            NavigationLink { FamilySettingsView() } label: { menuRow("가족 기본 설정") }
+                            NavigationLink { AddressSettingsView() } label: { menuRow("우리집 주소 설정") }
+                            NavigationLink { InviteLinkView() } label: { menuRow("공용초대링크 관리") }
+                        }.padding(.top, 36)
+                        menuSection(title: "설정") {
+                            NavigationLink { AccountInfoView() } label: { menuRow("계정 정보") }
+                            NavigationLink { SuggestionView() } label: { menuRow("건의함") }
+                            NavigationLink { TermsView() } label: { menuRow("약관정보") }
+                            NavigationLink { PushNotificationView() } label: { menuRow("알림 설정") }
+                        }.padding(.top, 36)
+                        Button {
+                            isLogoutAlertPresented = true
+                        } label: {
+                            HStack {
+                                Text("로그아웃").font(KIRITypography.bodySmall)
+                                    .foregroundStyle(KIRIColor.Text.secondary)
+                                Spacer()
+                            }.padding(.horizontal, 16).frame(height: 52)
+                        }.buttonStyle(.plain).padding(.top, 20)
+                        Color.clear.frame(height: 110)
+                    }.padding(.horizontal, 18)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .alert(
-                "로그아웃할까요?",
-                isPresented: $isLogoutAlertPresented
-            ) {
-                Button(
-                    "취소",
-                    role: .cancel
-                ) {}
-
-                Button(
-                    "로그아웃",
-                    role: .destructive
-                ) {
-                    onLogout()
-                }
-            } message: {
-                Text("현재 계정에서 로그아웃합니다.")
-            }
+            .alert("로그아웃할까요?", isPresented: $isLogoutAlertPresented) {
+                Button("취소", role: .cancel) {}
+                Button("로그아웃", role: .destructive, action: onLogout)
+            } message: { Text("현재 계정에서 로그아웃합니다.") }
         }
     }
-
-    // MARK: - Header
-
-    private var header: some View {
-        Text("설정")
-            .font(
-                .system(
-                    size: 18,
-                    weight: .semibold
-                )
-            )
-            .foregroundStyle(
-                KIRIColor.textPrimary
-            )
-            .frame(maxWidth: .infinity)
-            .padding(.top, 14)
-    }
-
-    // MARK: - Profile
 
     private var profileSection: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(
-                        Color.white.opacity(0.14)
-                    )
-                    .frame(
-                        width: 48,
-                        height: 48
-                    )
-
-                Image(
-                    systemName: "person.2.fill"
-                )
-                .font(
-                    .system(
-                        size: 20,
-                        weight: .medium
-                    )
-                )
-                .foregroundStyle(
-                    Color.white.opacity(0.32)
-                )
+        HStack(spacing: 12) {
+            Circle().fill(KIRIColor.Background.tertiary).frame(width: 44, height: 44)
+                .overlay(Image(systemName: "person.2.fill").foregroundStyle(KIRIColor.Icon.secondary))
+            VStack(alignment: .leading, spacing: 4) {
+                Text(nickname).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
+                Text("\(familyName) I 딸").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
             }
-
-            VStack(
-                alignment: .leading,
-                spacing: 5
-            ) {
-                Text("쥬123")
-                    .font(
-                        .system(
-                            size: 17,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(
-                        KIRIColor.textPrimary
-                    )
-
-                Text("끼리네가족 | 딸")
-                    .font(
-                        .system(
-                            size: 13,
-                            weight: .regular
-                        )
-                    )
-                    .foregroundStyle(
-                        KIRIColor.textSecondary
-                    )
-            }
-
             Spacer()
+            NavigationLink { NicknameEditView(nickname: $nickname) } label: {
+                Image(systemName: "pencil").font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(KIRIColor.Icon.secondary).frame(width: 36, height: 36)
+            }.buttonStyle(.plain)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            Button {
-                // TODO: 프로필 수정
-            } label: {
-                Image(systemName: "pencil")
-                    .font(
-                        .system(
-                            size: 17,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(
-                        Color.white.opacity(0.55)
-                    )
-                    .frame(
-                        width: 40,
-                        height: 40
-                    )
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("프로필 수정")
+    private func menuSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
+            VStack(spacing: 0, content: content).background(KIRIColor.Background.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
     }
 
-    // MARK: - Taste Test
-
-    private var tasteTestButton: some View {
-        Button {
-            // TODO: 취향 테스트
-        } label: {
-            HStack {
-                Text("취향테스트 하기")
-                    .font(
-                        .system(
-                            size: 16,
-                            weight: .regular
-                        )
-                    )
-                    .foregroundStyle(
-                        KIRIColor.textPrimary
-                    )
-
-                Spacer()
-
-                Image(
-                    systemName: "chevron.right"
-                )
-                .font(
-                    .system(
-                        size: 16,
-                        weight: .regular
-                    )
-                )
-                .foregroundStyle(
-                    Color.white.opacity(0.25)
-                )
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 88)
-            .background(
-                RoundedRectangle(
-                    cornerRadius: 8,
-                    style: .continuous
-                )
-                .fill(
-                    Color.white.opacity(0.07)
-                )
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Family Management
-
-    private var familyManagementSection: some View {
-        VStack(
-            alignment: .leading,
-            spacing: 16
-        ) {
-            sectionTitle("가족관리")
-
-            menuCard {
-                NavigationLink {
-                    FamilySettingsView()
-                } label: {
-                    menuRowLabel(
-                        title: "가족 기본 설정"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    // TODO: 우리집 주소 설정
-                } label: {
-                    menuRowLabel(
-                        title: "우리집 주소 설정"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    // TODO: 공용 초대링크 관리
-                } label: {
-                    menuRowLabel(
-                        title: "공용초대링크 관리"
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    // MARK: - Settings
-
-    private var settingsSection: some View {
-        VStack(
-            alignment: .leading,
-            spacing: 16
-        ) {
-            sectionTitle("설정")
-
-            menuCard {
-                Button {
-                    // TODO: 계정 정보
-                } label: {
-                    menuRowLabel(
-                        title: "계정 정보"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    // TODO: 건의함
-                } label: {
-                    menuRowLabel(
-                        title: "건의함"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    // TODO: 약관정보
-                } label: {
-                    menuRowLabel(
-                        title: "약관정보"
-                    )
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    // TODO: 알림 설정
-                } label: {
-                    menuRowLabel(
-                        title: "알림 설정"
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    // MARK: - Logout
-
-    private var logoutButton: some View {
-        Button {
-            isLogoutAlertPresented = true
-        } label: {
-            HStack {
-                Text("로그아웃")
-                    .font(
-                        .system(
-                            size: 15,
-                            weight: .regular
-                        )
-                    )
-                    .foregroundStyle(
-                        KIRIColor.textSecondary
-                    )
-
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Components
-
-    private func sectionTitle(
-        _ title: String
-    ) -> some View {
-        Text(title)
-            .font(
-                .system(
-                    size: 17,
-                    weight: .medium
-                )
-            )
-            .foregroundStyle(
-                KIRIColor.textPrimary
-            )
-            .frame(
-                maxWidth: .infinity,
-                alignment: .leading
-            )
-    }
-
-    private func menuCard<Content: View>(
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(spacing: 0) {
-            content()
-        }
-        .background(
-            RoundedRectangle(
-                cornerRadius: 8,
-                style: .continuous
-            )
-            .fill(
-                Color.white.opacity(0.07)
-            )
-        )
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: 8,
-                style: .continuous
-            )
-        )
-    }
-
-    private func menuRowLabel(
-        title: String
-    ) -> some View {
+    private func menuRow(_ title: String) -> some View {
         HStack {
-            Text(title)
-                .font(
-                    .system(
-                        size: 16,
-                        weight: .regular
-                    )
-                )
-                .foregroundStyle(
-                    KIRIColor.textPrimary
-                )
-
+            Text(title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
             Spacer()
-
-            Image(
-                systemName: "chevron.right"
-            )
-            .font(
-                .system(
-                    size: 16,
-                    weight: .regular
-                )
-            )
-            .foregroundStyle(
-                Color.white.opacity(0.25)
-            )
-        }
-        .padding(.horizontal, 16)
-        .frame(height: 56)
-        .contentShape(Rectangle())
+            Image(systemName: "chevron.right").font(.system(size: 13, weight: .medium))
+                .foregroundStyle(KIRIColor.Icon.secondary)
+        }.padding(.horizontal, 16).frame(height: 52).contentShape(Rectangle())
     }
 }
 
-#Preview {
-    MyPageView(
-        onLogout: {}
-    )
-}
+#Preview { MyPageView(onLogout: {}) }

@@ -10,14 +10,14 @@ struct FamilyNameEditView: View {
 
     private var trimmedFamilyName: String {
         editedFamilyName
-            .trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" })
+            .joined(separator: " ")
     }
 
     private var isValid: Bool {
         trimmedFamilyName.count >= 2 &&
-        trimmedFamilyName.count <= 10 &&
+        trimmedFamilyName.count <= 15 &&
         containsOnlyAllowedCharacters(
             trimmedFamilyName
         )

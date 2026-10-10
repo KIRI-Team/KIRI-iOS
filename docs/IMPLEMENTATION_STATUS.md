@@ -426,6 +426,62 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 
 ## 부록 B. 전체 Swift 파일 인벤토리
 
+## 마이페이지 구현 업데이트 (2026-10-10)
+
+이번 작업은 Figma 끼리 UI의 마이페이지 프레임을 기준으로 기존 화면을 수정하고, 비어 있던 메뉴 이동을 연결했다.
+
+| 화면/프레임 | 상태 | 구현 내용 |
+| --- | --- | --- |
+| 설정 메인 8213:3062 | 구현 완료(로컬 데이터) | 프로필, 내 설정/가족 설정/설정 카드, 로그아웃 확인을 Figma 레이아웃으로 정렬 |
+| 가족 기본 설정 8216:3570 | 부분 구현 | 기존 FamilySettingsView 및 가족명/닉네임 편집 화면 재사용 |
+| 닉네임 수정 8216:3462 | 구현 완료 | NicknameEditView 재사용 및 프로필 편집 이동 연결 |
+| 가족명 수정 8216:3638 | 구현 완료 | FamilyNameEditView 재사용 |
+| 우리집 위치 8556:9605, 8556:9691, 8556:9927, 8556:10046, 8582:18082 | UI 부분 구현 | 주소 입력 화면과 로컬 입력 상태 연결. 주소 검색/서버 저장 API는 미연동 |
+| 공용 초대링크 8582:18039 | UI 구현(목 데이터) | 링크 카드와 iOS ShareLink 공유 시트 연결. 링크는 Mock이며 서버 생성/저장 안 함 |
+| 내 취향 8596:18240 | UI 부분 구현 | 활동/공간 입력 UI만 연결. 최신 명세의 나머지 필드와 저장 API는 미연동 |
+| 계정 정보 8599:76117 | UI 구현(목 데이터) | 계정 행과 뒤로가기 연결 |
+| 푸시 알림 8599:18423 | UI 구현(로컬 상태) | 전체/미션 토글. 푸시 서버 및 권한 연동은 미구현 |
+| 건의함 8599:76071 | UI 부분 구현 | Figma 문구/입력 영역 구현. 전송 API는 미연동 |
+| 이용약관/오픈라이선스 8599:76457, 8599:76529 | UI 부분 구현 | 상세 메뉴와 안내 문구 연결. 실제 법무 문서 원문은 PM 제공 필요 |
+| 회원탈퇴 8599:76808 | 미구현 | 데이터 삭제 API와 정책 확정 전 성공 처리하지 않음 |
+
+수정 파일:
+
+- KIRI/KIRI/Features/MyPage/MyPageView.swift
+- KIRI/KIRI/Features/MyPage/MyPageSupportViews.swift
+
+기존 FamilySettingsView.swift, NicknameEditView.swift, FamilyNameEditView.swift, AppRouter, MainTabView, AppSessionStore는 재사용했으며 세션/로그인 분기와 로그아웃 콜백은 변경하지 않았다. APIEndpoint에는 마이페이지 관련 서버 엔드포인트가 없어 모든 신규 입력·초대 링크·알림·건의 데이터는 로컬 또는 Mock이다.
+
+빌드 검증: 변경 Swift 파일 swiftc -frontend -parse 통과. xcodebuild는 CoreSimulatorService가 연결되지 않고 No available simulator runtimes for platform iphonesimulator가 발생해 실패했다.
+
+PM 결정 필요: 회원탈퇴/가족공간 나가기 API와 실제 약관·개인정보·오픈라이선스 원문이 제공되어야 성공 처리 및 완전한 콘텐츠 구현이 가능하다.
+
+## 최신 명세서 MY 기능 감사 (2026-10-10 v1.4)
+
+기준 파일은 `docs/specs/KIRI_FEATURE_SPEC_2026-10-10.csv`이며 기존 `KIRI_FEATURE_SPEC_LATEST.csv`보다 우선한다. 아래 상태는 코드와 Figma 프레임을 함께 확인한 결과다.
+
+| ID | 최신 명세 정책 반영 | Figma 확인 | 현재 상태 | API |
+| --- | --- | --- | --- | --- |
+| MY-01 | 닉네임 2~12자, 한글/영문/숫자, 공백·특수문자 금지, 서버 중복/금칙어 검증 | `8213:3062`, `8216:3462` | 부분 구현: 로컬 입력 검증/수정 이동 | 미연동 |
+| MY-02 | 활동 최대 3개 + 공간/활동량/비용/활동시간 5개 선택, 저장 실패 시 기존값 유지 | `8596:18240` | 부분 구현: 5개 선택 UI, 저장 API 없음 | 미연동 |
+| MY-03 | 실제 참여 완료 구성원만 표시, 대기 구성원 생성 금지 | `8216:3570` | 부분 구현: Mock 구성원 카드 | 미연동 |
+| MY-04 | owner만 변경, 가족명 2~15자 및 연속 공백 정규화, 소유권 승계 | `8216:3638`, `8216:3570` | 부분 구현: owner 로컬 플래그/입력 검증/승계 안내 | 미연동 |
+| MY-05 | 링크+코드 제공, 7일 유효, 재발급 시 기존 즉시 만료, 외부 공유 | `8582:18039` | 부분 구현: 코드/링크 카드, ShareLink, Mock 만료·재발급 | 미연동 |
+| MY-06 | 앱 토글과 OS 권한 상태 안내, OFF여도 인앱 이벤트 유지 | `8599:18423` | 부분 구현: 로컬 토글/UNUserNotificationCenter 상태 표시 | 미연동 |
+| MY-07 | 로컬 세션 우선 삭제 후 로그인 이동, 계정/가족 데이터 보존 | 메인 설정 프레임 | 구현 완료: 기존 AppRouter 콜백/확인 팝업 재사용 | 기존 세션 흐름 |
+| MY-08 | 개인정보 hard delete, 가족 기록 익명화, 미래 일정 처리 확인 | `8599:76808` | UI 부분 구현: 확인/정책 안내, 성공 처리 차단 | 미연동 |
+| MY-09 | 빈 내용 제출 금지, 전송 실패 시 내용 유지/재시도, 선택 첨부 | `8599:76071` | 부분 구현: 입력/빈 내용 비활성화, 첨부·재시도 미구현 | 미연동 |
+| MY-10 | 권한자만 공용 위치 저장, 주소/좌표 실패 시 저장 금지, 미등록 허용 | `8556:9605`, `8556:9691`, `8556:9927`, `8556:10046`, `8582:18082` | 부분 구현: 입력 상태/실패 안내, 검색·좌표·저장 미구현 | 미연동 |
+| MY-11 | 이용약관/개인정보/오픈소스/버전, 외부 문서 실패 재시도 | `8599:76457`, `8599:76529`, `8599:76117` | 부분 구현: 메뉴/오픈라이선스/계정 화면, 원문·버전·재시도 미구현 | 정적 콘텐츠 필요 |
+
+Figma는 모든 위 프레임의 디자인 컨텍스트를 직접 조회했다. Figma와 최신 명세가 충돌하는 항목은 없었으며, 서버 계약이 없는 기능은 임의 성공 처리하지 않았다.
+
+## 빌드 안정성 검증 업데이트 (2026-10-10)
+
+`MyPageSupportViews.swift`의 `MyPageAppBar`가 콘텐츠 클로저를 일반 `() -> Content`로만 선언해 여러 하위 View를 전달할 때 result builder가 적용되지 않았다. 초기화 파라미터에 `@ViewBuilder`를 적용해 `VStack`, `Spacer`, 조건부 View, `NavigationLink`가 하나의 `Content`로 조합되도록 수정했다.
+
+수정 후 마이페이지 파일들의 parse 검사는 통과했지만, 전체 `xcodebuild`는 Swift 컴파일 단계에 도달하기 전에 CoreSimulatorService가 런타임을 찾지 못해 실패했다(`No available simulator runtimes for platform iphonesimulator`). 따라서 이번 상태는 빌드 성공이 아닌 **빌드 미검증(환경 실패)**이다.
+
 경로는 `KIRI/KIRI/` 기준. 줄 수는 분석 기준 커밋의 값이다. Preview 타입은 앱 화면으로 집계하지 않는다.
 
 | 파일 | 줄 수 | 주요 선언 |
@@ -470,7 +526,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 | `Features/Mission/MissionView.swift` | 275 | MissionView |
 | `Features/MyPage/FamilyNameEditView.swift` | 112 | FamilyNameEditView |
 | `Features/MyPage/FamilySettingsView.swift` | 194 | FamilySettingsView, FamilyMember |
-| `Features/MyPage/MyPageView.swift` | 408 | MyPageView |
+| `Features/MyPage/MyPageView.swift` | 92 | MyPageView |
+| `Features/MyPage/MyPageSupportViews.swift` | 219 | AccountInfoView, TermsView, OpenLicenseView, PushNotificationView, AddressSettingsView, InviteLinkView, TasteTestView, SuggestionView, WithdrawalView |
 | `Features/MyPage/NicknameEditView.swift` | 112 | NicknameEditView |
 | `Features/Onboarding/FamilyCodeInputView.swift` | 114 | FamilyCodeInputView |
 | `Features/Onboarding/FamilyCodeLoadingView.swift` | 38 | FamilyCodeLoadingView |

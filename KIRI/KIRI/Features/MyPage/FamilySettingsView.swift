@@ -6,6 +6,8 @@ struct FamilySettingsView: View {
 
     @State private var familyName = "끼리네 가족"
     @State private var nickname = "쥬123"
+    @State private var isOwner = true
+    @State private var isLeaveAlertPresented = false
 
     private let members: [FamilyMember] = [
         FamilyMember(role: "딸", nickname: "쥬123", isMe: true),
@@ -34,8 +36,21 @@ struct FamilySettingsView: View {
                     familyNameSection
                         .padding(.top, 38)
 
-                    familyMemberSection
+                familyMemberSection
                         .padding(.top, 54)
+
+                    Button {
+                        isLeaveAlertPresented = true
+                    } label: {
+                        Text("가족공간 나가기")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(KIRIColor.Status.error)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .frame(height: 52)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 28)
 
                     Spacer(minLength: 40)
                 }
@@ -43,6 +58,12 @@ struct FamilySettingsView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .alert("가족공간을 나갈까요?", isPresented: $isLeaveAlertPresented) {
+            Button("취소", role: .cancel) {}
+            Button("나가기", role: .destructive) {}
+        } message: {
+            Text(isOwner ? "소유자가 나가면 남은 구성원에게 소유권이 승계됩니다." : "가족과 함께한 기록은 유지될 수 있습니다.")
+        }
     }
 
     // MARK: - Header
@@ -83,19 +104,17 @@ struct FamilySettingsView: View {
                     .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(KIRIColor.textPrimary)
 
-                NavigationLink {
-                    FamilyNameEditView(
-                        familyName: $familyName
-                    )
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(
-                            Color.white.opacity(0.5)
-                        )
-                        .frame(width: 30, height: 30)
+                Group {
+                    if isOwner {
+                        NavigationLink {
+                            FamilyNameEditView(familyName: $familyName)
+                        } label: {
+                            editIcon
+                        }
+                    } else {
+                        editIcon.opacity(0.35)
+                    }
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 16)
             .frame(height: 58)
@@ -107,6 +126,13 @@ struct FamilySettingsView: View {
                 .fill(Color.white.opacity(0.07))
             )
         }
+    }
+
+    private var editIcon: some View {
+        Image(systemName: "pencil")
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(Color.white.opacity(0.5))
+            .frame(width: 30, height: 30)
     }
 
     // MARK: - Family Members
