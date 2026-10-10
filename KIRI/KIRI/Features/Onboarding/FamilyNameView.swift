@@ -27,12 +27,12 @@ struct FamilyNameView: View {
                 alignment: .leading,
                 spacing: 0
             ) {
-                Text("우리 가족의\n가족명을 설정해주세요.")
+                Text("끼리에서 사용할\n가족명을 작성해주세요")
                     .font(KIRITypography.title)
                     .foregroundStyle(KIRIColor.Text.primary)
                     .lineSpacing(7)
 
-                Text("우리 가족만의 이름을 만들어주세요!")
+                Text("우리 가족을 뭐라고 불러드릴까요?")
                     .font(KIRITypography.subtitle)
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.top, 12)

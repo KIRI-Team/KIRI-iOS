@@ -2,6 +2,12 @@
 import SwiftUI
 
 struct FamilyEntryView: View {
+    enum Mode: Equatable {
+        case all
+        case creationOnly
+    }
+
+    var mode: Mode = .all
     let onBack: () -> Void
     let onCreateFamily: () -> Void
     let onEnterFamilyCode: () -> Void
@@ -29,20 +35,22 @@ struct FamilyEntryView: View {
                         action: onCreateFamily
                     )
 
-                    entryCard(
-                        title: "가족코드 입력하기",
-                        subtitle: "전달받은 가족코드를 입력해주세요!",
-                        action: onEnterFamilyCode
-                    )
+                    if mode == .all {
+                        entryCard(
+                            title: "가족코드 입력하기",
+                            subtitle: "전달받은 가족코드를 입력해주세요!",
+                            action: onEnterFamilyCode
+                        )
 
-                    entryCard(
-                        title: "먼저 둘러보러가기",
-                        subtitle: "할 수 있는 미션을 먼저 살펴봐요!",
-                        action: onBrowse
-                    )
+                        entryCard(
+                            title: "먼저 둘러보러가기",
+                            subtitle: "할 수 있는 미션을 먼저 살펴봐요!",
+                            action: onBrowse
+                        )
+                    }
                 }
-                .padding(.horizontal, 17)
-                .padding(.top, 55)
+                .padding(.horizontal, mode == .creationOnly ? 20 : 17)
+                .padding(.top, mode == .creationOnly ? 55 : 55)
 
                 Spacer()
             }
@@ -95,8 +103,8 @@ struct FamilyEntryView: View {
                     .foregroundStyle(KIRIColor.textPrimary)
             }
             .padding(.horizontal, 20)
-            .frame(height: 88)
-            .background(KIRIColor.surface)
+            .frame(height: 87)
+            .background(KIRIColor.Background.primary)
             .clipShape(
                 RoundedRectangle(
                     cornerRadius: KIRIRadius.large

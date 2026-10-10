@@ -8,6 +8,8 @@ struct BrowseHomeView: View {
         BrowsePlace(imageName: "browse_place_b", title: "경복궁에서 사진찍기", location: "경복궁 종로구")
     ]
 
+    @State private var isFamilyCreationPresented = false
+
     var body: some View {
         ZStack {
             KIRIColor.Background.base
@@ -33,6 +35,11 @@ struct BrowseHomeView: View {
                     .padding(.leading, 18)
                 }
             }
+            .fullScreenCover(isPresented: $isFamilyCreationPresented) {
+                BrowseFamilyCreationFlow {
+                    isFamilyCreationPresented = false
+                }
+            }
         }
     }
 
@@ -46,7 +53,9 @@ struct BrowseHomeView: View {
     }
 
     private var familyActionCard: some View {
-        Button(action: {}) {
+        Button {
+            isFamilyCreationPresented = true
+        } label: {
             HStack(spacing: 12) {
                 ZStack {
                     KIRIColor.Background.secondary
@@ -106,6 +115,75 @@ struct BrowseHomeView: View {
                 }
                 .padding(.trailing, 18)
             }
+        }
+    }
+}
+
+private struct BrowseFamilyCreationFlow: View {
+    private enum Step {
+        case entry
+        case familyName
+        case loading
+        case code
+    }
+
+    @State private var step: Step = .entry
+    @State private var familyName = ""
+    @State private var familyCode = ""
+
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
+
+            switch step {
+            case .entry:
+                FamilyEntryView(
+                    mode: .creationOnly,
+                    onBack: onDismiss,
+                    onCreateFamily: {
+                        step = .familyName
+                    },
+                    onEnterFamilyCode: {},
+                    onBrowse: {}
+                )
+
+            case .familyName:
+                FamilyNameView(
+                    familyName: $familyName,
+                    onBack: {
+                        step = .entry
+                    },
+                    onNext: {
+                        step = .loading
+                        createFamilyCode()
+                    }
+                )
+
+            case .loading:
+                FamilyCodeLoadingView()
+
+            case .code:
+                FamilyCodeView(
+                    familyName: familyName,
+                    familyCode: familyCode,
+                    onBack: {
+                        step = .familyName
+                    },
+                    onComplete: onDismiss
+                )
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func createFamilyCode() {
+        // 서버 연동 전에는 Figma 플로우를 확인할 수 있는 로컬 코드만 사용한다.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            familyCode = "NWTKYJ"
+            step = .code
         }
     }
 }

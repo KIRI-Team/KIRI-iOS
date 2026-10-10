@@ -20,11 +20,11 @@ struct FamilyCodeLoadingView: View {
                     .tint(KIRIColor.textPrimary)
 
                 VStack(spacing: 10) {
-                    Text("가족코드를 생성하고 있어요")
+                    Text("가족코드를\n생성하고 있어요!")
                         .font(KIRITypography.bodyMedium)
                         .foregroundStyle(KIRIColor.textPrimary)
 
-                    Text("잠시만 기다려주세요!")
+                    Text("조금만 기다려주세요")
                         .font(KIRITypography.subtitle)
                         .foregroundStyle(KIRIColor.textSecondary)
                 }

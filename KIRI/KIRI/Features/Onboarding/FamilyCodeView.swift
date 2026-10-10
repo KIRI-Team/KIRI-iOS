@@ -25,45 +25,35 @@ struct FamilyCodeView: View {
         VStack(spacing: 0) {
             header
 
-            VStack(alignment: .leading, spacing: 0) {
-                Text("가족공간이\n완성되었어요!")
+            VStack(alignment: .center, spacing: 0) {
+                Text("가족코드\n생성이 완료되었어요!")
                     .font(KIRITypography.title)
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .multilineTextAlignment(.center)
                     .lineSpacing(7)
 
-                Text("가족들에게 코드를 공유하고 함께 시작해보세요.")
+                Text("복사해서 가족에게 보내주세요")
                     .font(KIRITypography.subtitle)
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.top, 12)
 
-                Spacer()
-
                 familyCodeCard
+                    .padding(.top, 58)
 
-                Spacer()
+                HStack(spacing: 8) {
+                    Button("취소", action: onComplete)
+                        .buttonStyle(InviteSecondaryButtonStyle())
 
-                VStack(spacing: 12) {
-                    KIRIPrimaryButton(
-                        title: "초대하기",
-                        action: {
-                            isShareSheetPresented = true
-                        }
-                    )
-
-                    Button(action: onComplete) {
-                        Text("나중에 할게요")
-                            .font(KIRITypography.button)
-                            .foregroundStyle(KIRIColor.textSecondary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                    Button("초대하기") {
+                        isShareSheetPresented = true
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(InvitePrimaryButtonStyle())
                 }
+                .padding(.top, 18)
             }
             .padding(.horizontal, KIRISpacing.horizontal)
-            .padding(.bottom, 10)
         }
-        .background(KIRIColor.background)
+        .background(KIRIColor.Background.base)
         .sheet(isPresented: $isShareSheetPresented) {
             KIRIShareSheet(
                 items: [shareMessage]
@@ -82,55 +72,31 @@ struct FamilyCodeView: View {
     }
 
     private var familyCodeCard: some View {
-        VStack(spacing: 22) {
-            VStack(spacing: 8) {
-                Text(familyName)
-                    .font(KIRITypography.subtitle)
-                    .foregroundStyle(KIRIColor.textSecondary)
-
-                Text("가족코드")
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.textSecondary)
-            }
-
-            Text(familyCode)
-                .font(.system(size: 30, weight: .semibold))
-                .tracking(5)
-                .foregroundStyle(KIRIColor.textPrimary)
+        VStack(spacing: 8) {
+            Text("링크코드")
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.tertiary)
 
             Button {
                 copyFamilyCode()
             } label: {
-                HStack(spacing: 8) {
-                    Image(
-                        systemName: didCopyCode
-                            ? "checkmark"
-                            : "doc.on.doc"
-                    )
+                HStack(spacing: 6) {
+                    Text(familyCode)
+                        .font(.system(size: 22, weight: .regular))
+                        .tracking(1.2)
+                        .foregroundStyle(KIRIColor.Text.strong)
 
-                    Text(
-                        didCopyCode
-                            ? "복사했어요"
-                            : "코드 복사"
-                    )
+                    Image("family_code_copy")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                 }
-                .font(KIRITypography.bodyMedium)
-                .foregroundStyle(KIRIColor.textPrimary)
-                .padding(.horizontal, 20)
-                .frame(height: 44)
-                .background(KIRIColor.background)
-                .clipShape(Capsule())
             }
             .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 36)
-        .background(KIRIColor.surface)
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: KIRIRadius.xLarge
-            )
-        )
+        .frame(width: 311, height: 90)
+        .background(KIRIColor.Background.elevated)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func copyFamilyCode() {
@@ -145,6 +111,28 @@ struct FamilyCodeView: View {
                 didCopyCode = false
             }
         }
+    }
+}
+
+private struct InvitePrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(KIRITypography.button)
+            .foregroundStyle(KIRIColor.Text.onGreen)
+            .frame(width: 173, height: 54)
+            .background(configuration.isPressed ? KIRIColor.Primary.pressed : KIRIColor.Primary.default)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct InviteSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(KIRITypography.button)
+            .foregroundStyle(KIRIColor.Text.primary)
+            .frame(width: 173, height: 54)
+            .background(configuration.isPressed ? KIRIColor.State.pressed : KIRIColor.Background.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

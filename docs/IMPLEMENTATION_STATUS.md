@@ -289,6 +289,10 @@ Figma 기준 프레임에는 카카오·Google 두 버튼만 있지만 최신 �
 
 둘러보기에서는 질문 답변, 콕, 가족 답변 모아보기, 가족 미션 완료, 가족 버킷·일정·기록을 생성하거나 저장하지 않는다. CTA의 실제 가족 생성/참여 전환은 현재 앱 라우터에 전용 진입 경로가 없어 후속 연결 대상이며, 화면에는 Figma에 없는 안내 모달을 임의로 추가하지 않았다. 공개 장소 추천은 로컬 샘플이며 서버 데이터로 표시하지 않는다.
 
+### 둘러보기 가족공간 생성 후속 플로우
+
+둘러보기 CTA의 확인된 Figma 경로는 `8450:19981` → `7883:23399` → `8098:72650` → `8098:72709` → `8098:72786`이다. `7883:23399`의 가족공간 만들기 카드에서 가족명 입력으로 이동하고, 로컬 생성 대기 후 코드 완료 화면에서 코드 복사와 iOS 기본 공유 시트를 사용할 수 있다. 코드 입력 참여 프레임 `8159:12141`은 별도 진입이므로 이번 CTA에는 연결하지 않았다. 기존 `FamilyEntryView`, `FamilyNameView`, `FamilyCodeLoadingView`, `FamilyCodeView`, `KIRIShareSheet`를 재사용했으며, 로그인·세션 로직은 변경하지 않았다.
+
 ### 비화면 기능과 UI 의존성
 
 B0는 비화면 기능 17개로, UI 우선 방침 때문에 서버 구현을 뒤로 분리한 것이다. 관련 Figma 플로우 시작 시 필요한 ID·상태·권한·실패 응답 계약을 먼저 정하고, **mock임을 구분하는 로컬 데이터**로 UI를 완성한다. 실제 발급·전송·추천·저장 성공처럼 표시하는 방식은 사용하지 않는다. 운영 출시 전 서버 계약과 실제 동작 검증은 필수다.
@@ -326,7 +330,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-현재 로그: `/tmp/kiri-login-build.log`. 기존 경고는 Info-Debug.plist의 Copy Bundle Resources 포함이다. 시뮬레이터 서비스가 복구되면 동일 명령을 다시 실행하고, 그 뒤 실제 시뮬레이터 화면과 Figma를 비교한다. 이전 코드 기준 성공 로그는 `/tmp/kiri-implementation-audit-build.log`에 남아 있다.
+현재 후속 플로우 로그: `/tmp/kiri-browse-flow-build.log`. 기존 경고는 Info-Debug.plist의 Copy Bundle Resources 포함이다. 시뮬레이터 서비스가 복구되면 동일 명령을 다시 실행하고, 그 뒤 CTA→가족명→로딩→코드→공유·뒤로가기 동작을 실제 기기에서 확인한다. 이전 코드 기준 성공 로그는 `/tmp/kiri-implementation-audit-build.log`에 남아 있다.
 
 코드상 연결 여부와 로컬 상태 전이를 검토했으나, 모든 화면의 시뮬레이터 터치·실기기·픽셀 비교·서버 인증/권한 테스트는 수행하지 않았다. 따라서 표의 ‘로컬 완료’와 과거 빌드 성공을 운영 기능 검증으로 확대 해석하지 않는다. 문서는 `git diff --check`로 형식을 검증한다.
 
@@ -341,6 +345,11 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild \
 | `KIRI/KIRI/Features/Home/BrowseHomeView.swift` | Figma `8450:19981` 둘러보기 홈 레이아웃·공개 추천 UI로 교체 |
 | `KIRI/KIRI/Features/Home/Components/PlaceCard.swift` | 기존 장소 카드에 Figma 이미지·별점·인용 아이콘과 카드 규격 지원 추가 |
 | `KIRI/KIRI/Assets.xcassets/browse_*` | 둘러보기 장소 이미지 및 Figma 아이콘을 로컬 번들에 추가 |
+| `KIRI/KIRI/Features/Onboarding/FamilyEntryView.swift` | 기존 선택 화면에 둘러보기 CTA에서 사용하는 가족공간 만들기 전용 모드 추가 |
+| `KIRI/KIRI/Features/Onboarding/FamilyNameView.swift` | Figma `8098:72650` 문구와 생성 입력 화면 반영 |
+| `KIRI/KIRI/Features/Onboarding/FamilyCodeLoadingView.swift` | Figma `8098:72709` 로딩 문구 반영 |
+| `KIRI/KIRI/Features/Onboarding/FamilyCodeView.swift` | Figma `8098:72786` 코드 카드·취소·초대하기·복사·공유 시트 플로우 반영 |
+| `KIRI/KIRI/Assets.xcassets/family_code_copy.imageset` | Figma 코드 복사 아이콘 로컬 자산 추가 |
 
 커밋·푸시는 수행하지 않았다. 이후 구현도 파일별 변경을 보고한 뒤 커밋하며, 커밋 메시지는 요청한 `[Feat] : 설명` / `[Fix] : 설명` 형식을 따른다.
 
