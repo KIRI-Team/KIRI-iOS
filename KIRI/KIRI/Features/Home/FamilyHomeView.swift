@@ -1,6 +1,13 @@
 import SwiftUI
 
 struct FamilyHomeView: View {
+    // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
+    var familyName: String = "끼리네 가족"
+    var familyInviteCode: String? = nil
+
+    @State private var isInvitePresented = false
+    @State private var isInviteUnavailableAlertPresented = false
+
 
     private enum HomeRoute {
         case home
@@ -44,6 +51,22 @@ struct FamilyHomeView: View {
                 )
             }
         }
+        .fullScreenCover(isPresented: $isInvitePresented) {
+            if let code = familyInviteCode, !code.isEmpty {
+                FamilyCodeView(
+                    familyName: familyName,
+                    familyCode: code,
+                    onBack: { isInvitePresented = false },
+                    onComplete: { isInvitePresented = false }
+                )
+                .preferredColorScheme(.dark)
+            }
+        }
+        .alert("초대코드를 불러올 수 없어요", isPresented: $isInviteUnavailableAlertPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("가족공간의 초대코드가 연결되지 않았습니다.")
+        }
     }
 
     // MARK: - Home
@@ -84,7 +107,7 @@ struct FamilyHomeView: View {
 
     private var homeNavigationBar: some View {
         ZStack {
-            Text("끼리네 가족")
+            Text(familyName)
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -185,7 +208,11 @@ struct FamilyHomeView: View {
                 Spacer()
 
                 Button {
-                    // TODO: 가족 초대 화면 연결
+                    if let code = familyInviteCode, !code.isEmpty {
+                        isInvitePresented = true
+                    } else {
+                        isInviteUnavailableAlertPresented = true
+                    }
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "plus")

@@ -10,6 +10,9 @@ struct MainTabView: View {
     }
 
     let userMode: AppRouter.UserMode
+    let familyName: String?
+    let familyInviteCode: String?
+    let onFamilyCreated: (String, String) -> Void
     let onLogout: () -> Void
 
     @State private var selectedTab: AppTab = .home
@@ -42,7 +45,10 @@ struct MainTabView: View {
         switch selectedTab {
         case .home:
             HomeView(
-                userMode: userMode
+                userMode: userMode,
+                familyName: familyName,
+                familyInviteCode: familyInviteCode,
+                onFamilyCreated: onFamilyCreated
             )
 
         case .mission:
@@ -62,6 +68,9 @@ struct MainTabView: View {
 #Preview {
     MainTabView(
         userMode: .family,
+        familyName: "끼리네 가족",
+        familyInviteCode: "KIRI24",
+        onFamilyCreated: { _, _ in },
         onLogout: {}
     )
 }

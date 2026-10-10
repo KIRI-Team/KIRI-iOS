@@ -17,8 +17,8 @@ struct RootView: View {
             case .onboarding:
                 OnboardingFlowView(
                     invitation: router.pendingInvitation,
-                    onEnterFamily: {
-                        router.enterFamilyMode()
+                    onEnterFamily: { name, code in
+                        router.enterFamilyMode(familyName: name, inviteCode: code)
                     },
                     onBrowse: {
                         router.enterBrowseMode()
@@ -31,6 +31,11 @@ struct RootView: View {
             case .main:
                 MainTabView(
                     userMode: router.userMode,
+                    familyName: router.familyName,
+                    familyInviteCode: router.familyInviteCode,
+                    onFamilyCreated: { name, code in
+                        router.enterFamilyMode(familyName: name, inviteCode: code)
+                    },
                     onLogout: {
                         router.logout()
                     }

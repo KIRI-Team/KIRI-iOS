@@ -28,7 +28,7 @@ struct OnboardingFlowView: View {
 
     let invitation: FamilyInvitation?
 
-    let onEnterFamily: () -> Void
+    let onEnterFamily: (String, String) -> Void
     let onBrowse: () -> Void
     let onCancelInvitation: () -> Void
 
@@ -100,7 +100,7 @@ struct OnboardingFlowView: View {
                         step = .familyName
                     },
                     onComplete: {
-                        onEnterFamily()
+                        onEnterFamily(familyName, createdFamilyCode)
                     }
                 )
 
@@ -192,7 +192,7 @@ struct OnboardingFlowView: View {
 
     private func joinFamily() {
         // TODO: 가족공간 참여 API 연결
-        onEnterFamily()
+        onEnterFamily(joinedFamilyName, enteredFamilyCode)
     }
 
     private func handleJoinConfirmBack() {
@@ -210,7 +210,7 @@ struct OnboardingFlowView: View {
 #Preview {
     OnboardingFlowView(
         invitation: nil,
-        onEnterFamily: {},
+        onEnterFamily: { _, _ in },
         onBrowse: {},
         onCancelInvitation: {}
     )

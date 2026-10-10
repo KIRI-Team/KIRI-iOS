@@ -3,6 +3,7 @@ import SwiftUI
 /// 둘러보기 전용 홈.
 /// 가족공간에 연결되지 않은 사용자는 공개 장소 추천만 볼 수 있다.
 struct BrowseHomeView: View {
+    let onFamilyCreated: (String, String) -> Void
     private let places = [
         BrowsePlace(imageName: "browse_place_a", title: "경복궁에서 사진찍기", location: "경복궁 종로구"),
         BrowsePlace(imageName: "browse_place_b", title: "경복궁에서 사진찍기", location: "경복궁 종로구")
@@ -36,9 +37,10 @@ struct BrowseHomeView: View {
                 }
             }
             .fullScreenCover(isPresented: $isFamilyCreationPresented) {
-                BrowseFamilyCreationFlow {
-                    isFamilyCreationPresented = false
-                }
+                BrowseFamilyCreationFlow(
+                    onDismiss: { isFamilyCreationPresented = false },
+                    onFamilyCreated: onFamilyCreated
+                )
             }
         }
     }
@@ -132,6 +134,7 @@ private struct BrowseFamilyCreationFlow: View {
     @State private var familyCode = ""
 
     let onDismiss: () -> Void
+    let onFamilyCreated: (String, String) -> Void
 
     var body: some View {
         ZStack {
@@ -172,7 +175,7 @@ private struct BrowseFamilyCreationFlow: View {
                     onBack: {
                         step = .familyName
                     },
-                    onComplete: onDismiss
+                    onComplete: { onFamilyCreated(familyName, familyCode) }
                 )
             }
         }
@@ -197,5 +200,5 @@ private struct BrowsePlace: Identifiable {
 }
 
 #Preview {
-    BrowseHomeView()
+    BrowseHomeView(onFamilyCreated: { _, _ in })
 }

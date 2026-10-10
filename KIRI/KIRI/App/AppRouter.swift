@@ -17,6 +17,8 @@ final class AppRouter {
     var userMode: UserMode
 
     var pendingInvitation: FamilyInvitation?
+    var familyName: String?
+    var familyInviteCode: String?
 
     private let sessionStore: AppSessionStore
 
@@ -28,6 +30,8 @@ final class AppRouter {
         sessionStore: AppSessionStore = AppSessionStore()
     ) {
         self.sessionStore = sessionStore
+        familyName = sessionStore.familyName
+        familyInviteCode = sessionStore.familyInviteCode
 
         if !sessionStore.isAuthenticated {
             appState = .authentication
@@ -84,7 +88,10 @@ final class AppRouter {
         appState = .onboarding
     }
 
-    func enterFamilyMode() {
+    func enterFamilyMode(familyName: String, inviteCode: String) {
+        sessionStore.saveFamily(name: familyName, inviteCode: inviteCode)
+        self.familyName = familyName
+        self.familyInviteCode = inviteCode
         sessionStore.saveOnboardingCompleted(
             userMode: .family
         )
@@ -111,6 +118,8 @@ final class AppRouter {
         sessionStore.clearSession()
 
         pendingInvitation = nil
+        familyName = nil
+        familyInviteCode = nil
         userMode = .browse
         appState = .authentication
     }

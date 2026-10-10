@@ -12,6 +12,8 @@ final class AppSessionStore {
         static let isAuthenticated = "kiri.isAuthenticated"
         static let isOnboardingCompleted = "kiri.isOnboardingCompleted"
         static let userMode = "kiri.userMode"
+        static let familyName = "kiri.familyName"
+        static let familyInviteCode = "kiri.familyInviteCode"
     }
 
     private let defaults: UserDefaults
@@ -30,6 +32,14 @@ final class AppSessionStore {
         }
 
         return UserMode(rawValue: rawValue)
+    }
+
+    var familyName: String? { defaults.string(forKey: Key.familyName) }
+    var familyInviteCode: String? { defaults.string(forKey: Key.familyInviteCode) }
+
+    func saveFamily(name: String, inviteCode: String) {
+        defaults.set(name, forKey: Key.familyName)
+        defaults.set(inviteCode, forKey: Key.familyInviteCode)
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -66,8 +76,8 @@ final class AppSessionStore {
             forKey: Key.isOnboardingCompleted
         )
 
-        defaults.removeObject(
-            forKey: Key.userMode
-        )
+        defaults.removeObject(forKey: Key.userMode)
+        defaults.removeObject(forKey: Key.familyName)
+        defaults.removeObject(forKey: Key.familyInviteCode)
     }
 }
