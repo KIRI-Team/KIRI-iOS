@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "kiri_character.svg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
