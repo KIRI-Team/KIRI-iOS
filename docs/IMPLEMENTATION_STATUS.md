@@ -480,7 +480,9 @@ Figma는 모든 위 프레임의 디자인 컨텍스트를 직접 조회했다. 
 
 `MyPageSupportViews.swift`의 `MyPageAppBar`가 콘텐츠 클로저를 일반 `() -> Content`로만 선언해 여러 하위 View를 전달할 때 result builder가 적용되지 않았다. 초기화 파라미터에 `@ViewBuilder`를 적용해 `VStack`, `Spacer`, 조건부 View, `NavigationLink`가 하나의 `Content`로 조합되도록 수정했다.
 
-수정 후 마이페이지 파일들의 parse 검사는 통과했지만, 전체 `xcodebuild`는 Swift 컴파일 단계에 도달하기 전에 CoreSimulatorService가 런타임을 찾지 못해 실패했다(`No available simulator runtimes for platform iphonesimulator`). 따라서 이번 상태는 빌드 성공이 아닌 **빌드 미검증(환경 실패)**이다.
+수정 후 마이페이지 파일들의 parse 검사를 통과했다. 이전 검증 시도는 CoreSimulatorService 런타임 오류로 중단됐지만, 2026-10-10 사용자가 Xcode 빌드 성공 및 iPhone 17 Pro 시뮬레이터에서 앱 정상 실행을 직접 확인했다. 현재 상태는 **빌드 및 시뮬레이터 실행 확인**이다.
+
+이후 상세 UI 수정분에 대해 재실행한 `xcodebuild`는 현재 세션에서 `No available simulator runtimes for platform iphonesimulator`로 중단되었다. 따라서 사용자 확인으로 검증된 기존 빌드 성공 상태와 이번 상세 UI 수정분의 재빌드 상태를 구분해 기록한다.
 
 경로는 `KIRI/KIRI/` 기준. 줄 수는 분석 기준 커밋의 값이다. Preview 타입은 앱 화면으로 집계하지 않는다.
 

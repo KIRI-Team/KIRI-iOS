@@ -159,31 +159,54 @@ private struct ToggleRow: View {
 
 struct AddressSettingsView: View {
     @State private var address = ""
+    @State private var postalCode = ""
+    @State private var isSearchPresented = false
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "우리집 주소 설정") {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("우리집 주소를 설정해주세요").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    KIRITextField(placeholder: "주소를 입력하세요.", text: $address)
+                    Text("우리 집 주소 작성하기").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong)
+                    HStack(spacing: 6) {
+                        KIRITextField(placeholder: "주소를 입력해주세요", text: $address)
+                        Button("우편번호 찾기") { isSearchPresented = true }
+                            .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.primary)
+                            .frame(width: 113, height: 54).background(KIRIColor.Background.elevated)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    }
+                    KIRITextField(placeholder: "상세 주소를 입력해주세요", text: $postalCode)
                     Text("주소 검색 API가 연결되기 전까지 입력값은 저장하지 않습니다.")
                         .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                     Spacer()
                 }.padding(18)
             }
         }.toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $isSearchPresented) {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("주소 검색").font(KIRITypography.headingMedium)
+                        Text("주소 검색 API 미연동 상태입니다.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                        Spacer()
+                    }.padding(18).background(KIRIColor.Background.base).foregroundStyle(KIRIColor.Text.strong)
+                }
+                .presentationDetents([.medium])
+            }
     }
 }
 
 struct InviteLinkView: View {
-    private let link = "https://kiri.app/invite/KIRI24"
+    private let link = "https://kiri.app/invite/NWTKYJ"
+    private let code = "NWTKYJ"
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "공용초대링크 관리") {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("가족을 초대해보세요").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    Text(link).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
-                        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
+                    Text("가족이 모이면 더 즐거워져요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
+                    Text("초대 링크는 7일 동안 사용할 수 있어요.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
+                    inviteCard(label: "링크코드", value: code)
+                    inviteCard(label: "초대링크", value: link)
+                    Text("10월 12일까지 사용가능").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
+                    Button("리셋하기") { }
+                        .font(KIRITypography.bodySmall).underline().foregroundStyle(KIRIColor.Text.tertiary)
                     ShareLink(item: link) {
                         Text("초대 링크 공유").font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
                             .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
@@ -193,6 +216,15 @@ struct InviteLinkView: View {
                 }.padding(18)
             }
         }.toolbar(.hidden, for: .navigationBar)
+    }
+    private func inviteCard(label: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+            HStack(spacing: 8) {
+                Text(value).font(label == "링크코드" ? KIRITypography.headingLarge : KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(1)
+                Image(systemName: "doc.on.doc").foregroundStyle(KIRIColor.Icon.primary)
+            }
+        }.frame(maxWidth: .infinity).frame(height: 90).background(KIRIColor.Background.elevated).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
