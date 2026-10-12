@@ -22,7 +22,7 @@ struct NicknameView: View {
 
     private var isValid: Bool {
         trimmedNickname.count >= 2 &&
-        trimmedNickname.count <= 10 &&
+        trimmedNickname.count <= 12 &&
         containsOnlyAllowedCharacters(trimmedNickname)
     }
 
@@ -112,7 +112,7 @@ struct NicknameView: View {
             ) != nil
         }
 
-        return String(filtered.prefix(10))
+        return String(filtered.prefix(12))
     }
 }
 

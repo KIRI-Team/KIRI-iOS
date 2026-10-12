@@ -4,7 +4,7 @@ struct KIRIValidationGuidance: View {
 
     var items: [String] = [
         "한글/영어/숫자 혼합 가능",
-        "최소 2자 ~ 최대 10자 이내",
+        "최소 2자 ~ 최대 12자 이내",
         "특수 문자 입력 불가능"
     ]
 
