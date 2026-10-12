@@ -1,52 +1,70 @@
+
 import SwiftUI
 import AuthenticationServices
 
 struct LoginView: View {
-    let onBack: () -> Void
+    let animateButtonEntrance: Bool
+    let onEntranceAnimationConsumed: (() -> Void)?
     let onKakaoLogin: () -> Void
     let onGoogleLogin: () -> Void
     let onAppleLogin: () -> Void
+
+    @State private var kakaoButtonVisible = false
+    @State private var googleButtonVisible = false
+    @State private var appleButtonVisible = false
+    @State private var hasStartedEntrance = false
 
     var body: some View {
         ZStack {
             KIRIColor.Background.base
                 .ignoresSafeArea()
 
-            header
-
             VStack(spacing: 0) {
                 Image("kiri_character")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 72, height: 72)
+                    .frame(width: 52, height: 52)
 
-                Spacer()
-                    .frame(height: 24)
+                Spacer(minLength: 36)
 
                 Image("kiri_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 150, height: 54)
+                    .frame(width: 202, height: 73)
+                    .frame(height: 128)
 
-                Spacer()
-                    .frame(height: 172)
+                Spacer(minLength: 44)
 
                 socialLoginSection
             }
-            .padding(.top, 271)
+            .padding(.horizontal, KIRISpacing.horizontal)
+            .padding(.top, 80)
+            .padding(.bottom, 24)
         }
-    }
+        .onAppear {
+            guard animateButtonEntrance else {
+                kakaoButtonVisible = true
+                googleButtonVisible = true
+                appleButtonVisible = true
+                return
+            }
+            guard !hasStartedEntrance else { return }
 
-    // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            KIRIBackButton(action: onBack)
-
-            Spacer()
+            hasStartedEntrance = true
+            onEntranceAnimationConsumed?()
+            kakaoButtonVisible = false
+            googleButtonVisible = false
+            appleButtonVisible = false
+            withAnimation(.easeOut(duration: 0.45)) {
+                kakaoButtonVisible = true
+            }
+            withAnimation(.easeOut(duration: 0.45).delay(0.08)) {
+                googleButtonVisible = true
+            }
+            withAnimation(.easeOut(duration: 0.45).delay(0.16)) {
+                appleButtonVisible = true
+            }
         }
-        .padding(.horizontal, KIRISpacing.xSmall)
-        .frame(height: 56)
     }
 
     // MARK: - Social Login
@@ -57,13 +75,9 @@ struct LoginView: View {
 
             googleLoginButton
 
-            // 명세상 Apple 로그인이 필요하지만, 기준 Figma 프레임
-            // (8159:13178)에는 두 버튼만 있다. 현재 버튼은 유지하되
-            // Figma 비교 시 별도 차이로 기록한다.
+            // Apple 로그인은 서비스 요구사항에 따라 유지한다.
             appleLoginButton
         }
-        .padding(.horizontal, KIRISpacing.horizontal)
-        .padding(.bottom, 0)
     }
 
     // MARK: - Kakao
@@ -77,25 +91,28 @@ struct LoginView: View {
                 Image("kakao_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(
-                        width: 20,
-                        height: 20
-                    )
+                    .frame(width: 20, height: 20)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 54)
         .background(
             Color(
-                red: 254 / 255,
-                green: 229 / 255,
-                blue: 0 / 255
+                red: 254.0 / 255.0,
+                green: 229.0 / 255.0,
+                blue: 0.0
             )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 30))
-        .contentShape(Capsule())
+        .clipShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
+        .contentShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
         .accessibilityLabel("카카오 로그인")
+        .opacity(kakaoButtonVisible ? 1 : 0)
+        .offset(y: kakaoButtonVisible ? 0 : 16)
     }
 
     // MARK: - Google
@@ -109,26 +126,33 @@ struct LoginView: View {
                 Image("google_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(
-                        width: 20,
-                        height: 20
-                    )
+                    .frame(width: 20, height: 20)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 54)
         .background(Color.white)
         .overlay {
-            RoundedRectangle(cornerRadius: 30)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    Color(red: 217 / 255, green: 217 / 255, blue: 217 / 255),
+                    Color(
+                        red: 217.0 / 255.0,
+                        green: 217.0 / 255.0,
+                        blue: 217.0 / 255.0
+                    ),
                     lineWidth: 1
                 )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 30))
-        .contentShape(Capsule())
+        .clipShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
+        .contentShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
         .accessibilityLabel("Google로 로그인")
+        .opacity(googleButtonVisible ? 1 : 0)
+        .offset(y: googleButtonVisible ? 0 : 16)
     }
 
     // MARK: - Apple
@@ -149,8 +173,12 @@ struct LoginView: View {
         .signInWithAppleButtonStyle(.white)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
-        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .clipShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
         .accessibilityLabel("Apple로 로그인")
+        .opacity(appleButtonVisible ? 1 : 0)
+        .offset(y: appleButtonVisible ? 0 : 16)
     }
 
     // MARK: - Apple Result
@@ -162,7 +190,7 @@ struct LoginView: View {
         case .success(let authorization):
             guard let credential =
                 authorization.credential
-                as? ASAuthorizationAppleIDCredential
+                    as? ASAuthorizationAppleIDCredential
             else {
                 return
             }
@@ -210,17 +238,14 @@ private struct SocialLoginButtonContent<Logo: View>: View {
     var body: some View {
         HStack(spacing: KIRISpacing.small) {
             logo()
-                .frame(
-                    width: 20,
-                    height: 20
-                )
+                .frame(width: 20, height: 20)
 
             Text(title)
                 .font(KIRITypography.button)
                 .foregroundStyle(foregroundColor)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 54)
         .contentShape(Rectangle())
     }
 }
@@ -229,7 +254,8 @@ private struct SocialLoginButtonContent<Logo: View>: View {
 
 #Preview {
     LoginView(
-        onBack: {},
+        animateButtonEntrance: false,
+        onEntranceAnimationConsumed: nil,
         onKakaoLogin: {},
         onGoogleLogin: {},
         onAppleLogin: {}
