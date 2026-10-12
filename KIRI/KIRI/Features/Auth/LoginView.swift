@@ -1,3 +1,4 @@
+
 import SwiftUI
 import AuthenticationServices
 
@@ -18,23 +19,42 @@ struct LoginView: View {
                 Image("kiri_character")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 72, height: 72)
+                    .frame(width: 52, height: 52)
 
-                Spacer()
-                    .frame(height: 24)
+                Spacer(minLength: 36)
 
-                Image("kiri_logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 150, height: 54)
+                logoComposition
+                    .frame(height: 128)
 
-                Spacer()
-                    .frame(height: 172)
+                Spacer(minLength: 44)
 
                 socialLoginSection
             }
-            .padding(.top, 271)
+            .padding(.horizontal, KIRISpacing.horizontal)
+            .padding(.top, 80)
+            .padding(.bottom, 24)
         }
+    }
+
+    // MARK: - Logo
+
+    private var logoComposition: some View {
+        ZStack {
+            Image("kiri_logo")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(
+                    KIRIColor.Text.secondary.opacity(0.18)
+                )
+                .frame(width: 292, height: 106)
+
+            Image("kiri_logo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 202, height: 73)
+        }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Header
@@ -46,7 +66,7 @@ struct LoginView: View {
             Spacer()
         }
         .padding(.horizontal, KIRISpacing.xSmall)
-        .frame(height: 56)
+        .frame(height: 54)
     }
 
     // MARK: - Social Login
@@ -57,13 +77,9 @@ struct LoginView: View {
 
             googleLoginButton
 
-            // 명세상 Apple 로그인이 필요하지만, 기준 Figma 프레임
-            // (8159:13178)에는 두 버튼만 있다. 현재 버튼은 유지하되
-            // Figma 비교 시 별도 차이로 기록한다.
+            // Apple 로그인은 서비스 요구사항에 따라 유지한다.
             appleLoginButton
         }
-        .padding(.horizontal, KIRISpacing.horizontal)
-        .padding(.bottom, 0)
     }
 
     // MARK: - Kakao
@@ -77,24 +93,25 @@ struct LoginView: View {
                 Image("kakao_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(
-                        width: 20,
-                        height: 20
-                    )
+                    .frame(width: 20, height: 20)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 54)
         .background(
             Color(
-                red: 254 / 255,
-                green: 229 / 255,
-                blue: 0 / 255
+                red: 254.0 / 255.0,
+                green: 229.0 / 255.0,
+                blue: 0.0
             )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 30))
-        .contentShape(Capsule())
+        .clipShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
+        .contentShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
         .accessibilityLabel("카카오 로그인")
     }
 
@@ -109,25 +126,30 @@ struct LoginView: View {
                 Image("google_logo")
                     .resizable()
                     .scaledToFit()
-                    .frame(
-                        width: 20,
-                        height: 20
-                    )
+                    .frame(width: 20, height: 20)
             }
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 54)
         .background(Color.white)
         .overlay {
-            RoundedRectangle(cornerRadius: 30)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    Color(red: 217 / 255, green: 217 / 255, blue: 217 / 255),
+                    Color(
+                        red: 217.0 / 255.0,
+                        green: 217.0 / 255.0,
+                        blue: 217.0 / 255.0
+                    ),
                     lineWidth: 1
                 )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 30))
-        .contentShape(Capsule())
+        .clipShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
+        .contentShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
         .accessibilityLabel("Google로 로그인")
     }
 
@@ -146,10 +168,12 @@ struct LoginView: View {
                 handleAppleSignInResult(result)
             }
         )
-        .signInWithAppleButtonStyle(.white)
+        .signInWithAppleButtonStyle(.black)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
-        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .clipShape(
+            RoundedRectangle(cornerRadius: 12)
+        )
         .accessibilityLabel("Apple로 로그인")
     }
 
@@ -162,7 +186,7 @@ struct LoginView: View {
         case .success(let authorization):
             guard let credential =
                 authorization.credential
-                as? ASAuthorizationAppleIDCredential
+                    as? ASAuthorizationAppleIDCredential
             else {
                 return
             }
@@ -210,17 +234,14 @@ private struct SocialLoginButtonContent<Logo: View>: View {
     var body: some View {
         HStack(spacing: KIRISpacing.small) {
             logo()
-                .frame(
-                    width: 20,
-                    height: 20
-                )
+                .frame(width: 20, height: 20)
 
             Text(title)
                 .font(KIRITypography.button)
                 .foregroundStyle(foregroundColor)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 56)
+        .frame(height: 54)
         .contentShape(Rectangle())
     }
 }
