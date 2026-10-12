@@ -7,7 +7,9 @@ struct AuthFlowView: View {
     }
 
     @State private var step: Step = .login
+    @State private var hasConsumedLoginEntrance = false
 
+    let animateLoginEntrance: Bool
     let onAuthenticated: () -> Void
 
     var body: some View {
@@ -18,7 +20,10 @@ struct AuthFlowView: View {
             switch step {
             case .login:
                 LoginView(
-                    onBack: {},
+                    animateButtonEntrance: animateLoginEntrance && !hasConsumedLoginEntrance,
+                    onEntranceAnimationConsumed: {
+                        hasConsumedLoginEntrance = true
+                    },
                     onKakaoLogin: {
                         handleSocialLogin(
                             provider: .kakao
@@ -136,6 +141,7 @@ enum SocialLoginProvider {
 
 #Preview {
     AuthFlowView(
+        animateLoginEntrance: false,
         onAuthenticated: {}
     )
 }

@@ -521,6 +521,10 @@ Figma는 모든 위 프레임의 디자인 컨텍스트를 직접 조회했다. 
 
 이번 수정은 Swift parse 검사와 `git diff --check`를 통과했다. 시뮬레이터 대상 `xcodebuild`는 CoreSimulatorService가 런타임을 제공하지 않아 `BUILD FAILED`로 재검증하지 못했다.
 
+## 최종 스플래시 버튼 등장 시점 분석 결과 (2026-10-12)
+
+`최종스플래시.mp4`의 컨테이너와 트랙 메타데이터는 확인했다(H.264/avc1, 390×844, 30fps, 12.033초). 현재 실행 환경의 AVAssetImageGenerator와 AVAssetReader가 모두 `Cannot Decode`를 반환해 실제 프레임을 추출하지 못했으므로 로그인 버튼 등장 시각은 확정하지 않았다. 이후 요구사항에 따라 영상 길이와 무관한 2.0초 고정 전환으로 변경했다.
+
 ## 홈 튜토리얼 진입 상태 분리 (2026-10-12)
 
 Figma `9173:13678`의 하위 프레임 `9167:10395(홈/초기)`, `9173:12885(홈/미션제공)`, `9173:13415(홈/미션제공)`과 섹션 전체 화면을 직접 확인했다. 섹션은 홈 화면을 어둡게 처리하고 실제 홈 영역을 초록색 테두리로 강조하는 안내 상태를 포함한다. 별도 전체 화면 카드나 시스템 아이콘은 사용하지 않고, 기존 홈 위에 안내 오버레이를 표시하도록 교체했다.
@@ -532,6 +536,33 @@ Figma `9173:13678`의 하위 프레임 `9167:10395(홈/초기)`, `9173:12885(홈
 - 둘러보기에서 가족공간에 초대코드로 참여하는 별도 UI/콜백은 현재 코드와 Figma 하위 프레임에서 확인되지 않았다. 해당 플로우는 임의로 추가하지 않고 미구현으로 기록한다.
 
 이번 변경은 Swift parse 검사와 `git diff --check`를 통과했다. API 연동은 없으며 스플래시·인증·세션 로직은 유지했다.
+
+## MP4 스플래시 적용 (2026-10-12)
+
+- `KIRI/KIRI/Group 9.mp4`를 확인했다. H.264 기반 MP4이며 파일 크기는 약 275KB이다. Xcode 프로젝트가 `PBXFileSystemSynchronizedRootGroup`으로 `KIRI/KIRI` 폴더를 동기화하므로 앱 번들 리소스 대상에 포함되는 구조다.
+- `SplashView`에서 정적 캐릭터·로고와 650ms 타이머를 제거하고 `AVPlayer`/`AVPlayerLayer`로 영상을 중앙에 원본 비율로 표시한다. 자동 재생, 음소거, 1회 재생이며 재생 컨트롤은 노출하지 않는다.
+- 영상 종료, 재생 실패, 리소스 누락은 하나의 중복 방지 콜백으로 처리해 RootView의 기존 인증 상태 분기로 전환한다.
+- Swift parse 검사와 `git diff --check`는 통과했다. 시뮬레이터 빌드는 CoreSimulatorService가 런타임을 제공하지 않아 `No available simulator runtimes for platform iphonesimulator`로 검증하지 못했다.
+
+## 최종 MP4 스플래시·로그인 연결 (2026-10-12)
+
+- `KIRI/KIRI/최종스플래시.mp4`를 최종 스플래시 리소스로 확인하고 `Group 9.mp4` 참조를 제거했다. 두 파일 모두 동기화 폴더에 남아 있지만 앱 코드는 최종 파일만 조회한다.
+- 최종 영상의 390×844 화면 비율에 맞춰 `SplashView`를 전체 화면 `resizeAspect`로 표시하고, 기존 AVPlayer 자동 재생·음소거·1회 재생·실패 시 종료 처리를 유지했다.
+- `LoginView`에서 어두운 템플릿 로고 배경을 제거하고 초록색 `kiri_logo`만 표시했다. 캐릭터와 로고 전경의 기존 크기·수직 기준 및 카카오/Google 버튼 위치를 유지해 영상 전환 시 레이아웃 이동을 줄였다.
+- 영상에는 카카오·Google 버튼만 보이므로 기존 Apple 로그인 버튼은 삭제하지 않았다. 영상 마지막 프레임과 Apple 버튼 영역 사이에는 시각적 차이가 남을 수 있다.
+
+Swift parse 검사와 `git diff --check`는 통과했다. 현재 환경의 CoreSimulatorService가 시뮬레이터 런타임을 찾지 못해 실제 Xcode 빌드는 `BUILD FAILED`로 검증하지 못했다.
+
+## 최종 스플래시→로그인 2초 전환 적용 (2026-10-12)
+
+- 영상 메타데이터(12.033초)는 확인했지만, 이 실행 환경에서는 `AVAssetImageGenerator`와 `AVAssetReader`가 모두 `Cannot Decode`를 반환했다. 따라서 로그인 버튼이 나타나는 정확한 프레임과 시각은 검증되지 않았으며, 임의의 정확한 버튼 등장 시점으로 기록하지 않는다.
+- `SplashVideoCoordinator`는 영상 시작 후 정확히 2.0초가 되면 플레이어를 일시 정지하고 LoginView로 전환한다. 영상 전체 길이에서 계산하는 10.533초 후보 로직은 제거했다. 2초 전에 재생 실패하거나 리소스가 없으면 기존 안전 종료 경로를 사용하고, 2초 전환 콜백은 한 번만 호출한다.
+- `LoginView`는 스플래시에서 처음 진입한 비로그인 상태에서만 카카오→Google→Apple 순서로 각 버튼을 0.45초 ease-out, 16pt 아래에서 순차 표시한다. 캐릭터와 초록색 로고에는 등장 애니메이션을 적용하지 않으며, 약관 화면에서 돌아오거나 재진입할 때 같은 애니메이션을 반복하지 않도록 인증 흐름에서 소비 상태를 관리한다.
+- Apple 버튼은 기존 인증 콜백을 유지하면서 Figma에 없는 요구사항에 따라 흰색 시스템 버튼 스타일로 표시한다. 이 버튼은 영상에 보이지 않으므로 전환 프레임과의 차이로 남는다.
+
+이번 변경 대상은 `RootView.swift`, `AuthFlowView.swift`, `LoginView.swift`, `SplashView.swift`이며, `NotificationView.swift`의 기존 미커밋 변경은 수정하지 않았다. Swift parse 검사 대상에 포함했고, 실제 시뮬레이터 빌드는 아래 검증 결과에 따라 환경 문제 여부를 별도로 보고한다.
+
+검증: 변경된 Swift 파일 parse 검사와 `git diff --check`는 통과했다. `xcodebuild -project KIRI/KIRI.xcodeproj -scheme KIRI -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'`는 Swift 오류에 도달하기 전에 CoreSimulatorService가 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 `BUILD FAILED`했다. 따라서 시뮬레이터 실행 및 실제 2초 전환은 이 환경에서 미검증이다. 로그인 화면의 직접 뒤로가기 버튼은 제거했고 온보딩의 `TermsAgreementView` 뒤로가기는 유지했다.
 
 ### 홈 클릭 요소 점검
 

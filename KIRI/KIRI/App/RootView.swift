@@ -8,6 +8,7 @@ struct RootView: View {
 
     @State private var router = AppRouter()
     @State private var isSplashPresented = true
+    @State private var shouldAnimateLoginEntrance = false
     @State private var tutorialMode: TutorialMode?
     @AppStorage("kiri_browse_tutorial_completed") private var browseTutorialCompleted = false
     // Stable family ID가 제공되기 전까지 Mock의 가족 튜토리얼은 계정 단위로 보관한다.
@@ -21,16 +22,18 @@ struct RootView: View {
 
             if isSplashPresented {
                 SplashView {
-                    isSplashPresented = false
+                    finishSplash()
                 }
-                .transition(.opacity)
                 .zIndex(3)
             } else {
                 switch router.appState {
                 case .authentication:
-                    AuthFlowView {
-                        router.completeAuthentication()
-                    }
+                    AuthFlowView(
+                        animateLoginEntrance: shouldAnimateLoginEntrance,
+                        onAuthenticated: {
+                            router.completeAuthentication()
+                        }
+                    )
 
                 case .onboarding:
                     OnboardingFlowView(
@@ -55,6 +58,7 @@ struct RootView: View {
                             enterMainAndShowTutorial(familyName: name, inviteCode: code)
                         },
                         onLogout: {
+                            shouldAnimateLoginEntrance = false
                             router.logout()
                         }
                     )
@@ -71,6 +75,11 @@ struct RootView: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    private func finishSplash() {
+        shouldAnimateLoginEntrance = router.appState == .authentication
+        isSplashPresented = false
     }
 
     private func finishTutorial(_ mode: TutorialMode) {

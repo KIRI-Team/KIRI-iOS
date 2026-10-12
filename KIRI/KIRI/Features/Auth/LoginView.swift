@@ -3,17 +3,21 @@ import SwiftUI
 import AuthenticationServices
 
 struct LoginView: View {
-    let onBack: () -> Void
+    let animateButtonEntrance: Bool
+    let onEntranceAnimationConsumed: (() -> Void)?
     let onKakaoLogin: () -> Void
     let onGoogleLogin: () -> Void
     let onAppleLogin: () -> Void
+
+    @State private var kakaoButtonVisible = false
+    @State private var googleButtonVisible = false
+    @State private var appleButtonVisible = false
+    @State private var hasStartedEntrance = false
 
     var body: some View {
         ZStack {
             KIRIColor.Background.base
                 .ignoresSafeArea()
-
-            header
 
             VStack(spacing: 0) {
                 Image("kiri_character")
@@ -23,7 +27,10 @@ struct LoginView: View {
 
                 Spacer(minLength: 36)
 
-                logoComposition
+                Image("kiri_logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 202, height: 73)
                     .frame(height: 128)
 
                 Spacer(minLength: 44)
@@ -34,39 +41,30 @@ struct LoginView: View {
             .padding(.top, 80)
             .padding(.bottom, 24)
         }
-    }
+        .onAppear {
+            guard animateButtonEntrance else {
+                kakaoButtonVisible = true
+                googleButtonVisible = true
+                appleButtonVisible = true
+                return
+            }
+            guard !hasStartedEntrance else { return }
 
-    // MARK: - Logo
-
-    private var logoComposition: some View {
-        ZStack {
-            Image("kiri_logo")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(
-                    KIRIColor.Text.secondary.opacity(0.18)
-                )
-                .frame(width: 292, height: 106)
-
-            Image("kiri_logo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 202, height: 73)
+            hasStartedEntrance = true
+            onEntranceAnimationConsumed?()
+            kakaoButtonVisible = false
+            googleButtonVisible = false
+            appleButtonVisible = false
+            withAnimation(.easeOut(duration: 0.45)) {
+                kakaoButtonVisible = true
+            }
+            withAnimation(.easeOut(duration: 0.45).delay(0.08)) {
+                googleButtonVisible = true
+            }
+            withAnimation(.easeOut(duration: 0.45).delay(0.16)) {
+                appleButtonVisible = true
+            }
         }
-        .accessibilityHidden(true)
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            KIRIBackButton(action: onBack)
-
-            Spacer()
-        }
-        .padding(.horizontal, KIRISpacing.xSmall)
-        .frame(height: 54)
     }
 
     // MARK: - Social Login
@@ -113,6 +111,8 @@ struct LoginView: View {
             RoundedRectangle(cornerRadius: 12)
         )
         .accessibilityLabel("카카오 로그인")
+        .opacity(kakaoButtonVisible ? 1 : 0)
+        .offset(y: kakaoButtonVisible ? 0 : 16)
     }
 
     // MARK: - Google
@@ -151,6 +151,8 @@ struct LoginView: View {
             RoundedRectangle(cornerRadius: 12)
         )
         .accessibilityLabel("Google로 로그인")
+        .opacity(googleButtonVisible ? 1 : 0)
+        .offset(y: googleButtonVisible ? 0 : 16)
     }
 
     // MARK: - Apple
@@ -168,13 +170,15 @@ struct LoginView: View {
                 handleAppleSignInResult(result)
             }
         )
-        .signInWithAppleButtonStyle(.black)
+        .signInWithAppleButtonStyle(.white)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
         .clipShape(
             RoundedRectangle(cornerRadius: 12)
         )
         .accessibilityLabel("Apple로 로그인")
+        .opacity(appleButtonVisible ? 1 : 0)
+        .offset(y: appleButtonVisible ? 0 : 16)
     }
 
     // MARK: - Apple Result
@@ -250,7 +254,8 @@ private struct SocialLoginButtonContent<Logo: View>: View {
 
 #Preview {
     LoginView(
-        onBack: {},
+        animateButtonEntrance: false,
+        onEntranceAnimationConsumed: nil,
         onKakaoLogin: {},
         onGoogleLogin: {},
         onAppleLogin: {}
