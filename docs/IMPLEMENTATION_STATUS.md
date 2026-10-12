@@ -564,6 +564,16 @@ Swift parse 검사와 `git diff --check`는 통과했다. 현재 환경의 CoreS
 
 검증: 변경된 Swift 파일 parse 검사와 `git diff --check`는 통과했다. `xcodebuild -project KIRI/KIRI.xcodeproj -scheme KIRI -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'`는 Swift 오류에 도달하기 전에 CoreSimulatorService가 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 `BUILD FAILED`했다. 따라서 시뮬레이터 실행 및 실제 2초 전환은 이 환경에서 미검증이다. 로그인 화면의 직접 뒤로가기 버튼은 제거했고 온보딩의 `TermsAgreementView` 뒤로가기는 유지했다.
 
+## 홈 튜토리얼 Figma 3단계 오버레이 적용 (2026-10-12)
+
+- Figma 섹션 `9173:13678`과 프레임 `9167:10395`, `9173:12885`, `9173:13415`를 직접 확인했다. 프레임 밖 레이어의 강조 영역과 안내 문구까지 포함해 단계 데이터를 재작성했다.
+- 1단계(`9167:10395`): 답변 모아보기, 가족 초대하기, 오늘 질문 카드를 강조하고 `우리 가족들의 답변을 모아봐요!`, `가족을 초대해서 방을 만들어요!`, `질문은 매일 하나씩 발행돼요!`를 표시한다.
+- 2단계(`9173:12885`): 미션 카드와 새로고침 영역을 강조하고 `스와이프로 질문카드도 확인할 수 있어요!`, `우리 가족의 답변을 바탕으로 매주 한 개의 미션이 발행돼요!`를 표시한다.
+- 3단계(`9173:13415`): 추천 섹션 제목을 강조하고 `끼리가 큐레이팅 한 미션 목록!`을 표시한다. 각 단계는 Figma의 390×844 좌표를 실제 홈 화면 크기에 맞춰 배율 적용한다.
+- Figma에서 확인 가능한 진행 방식에 맞춰 왼쪽 스와이프만 다음 단계로 연결하고, 세 번째 단계에서 튜토리얼 완료 콜백을 호출한다. 별도 다음/건너뛰기 버튼은 추가하지 않았다. 둘러보기·가족공간 완료 상태 키 분리는 `RootView` 기존 구조를 유지한다.
+
+검증: `HomeTutorialView.swift`, `RootView.swift` Swift parse 및 `git diff --check` 통과. 시뮬레이터 `xcodebuild`는 CoreSimulatorService가 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 `BUILD FAILED`했으며, 실제 기기 오버레이 정렬은 미검증이다. `NotificationView.swift`의 기존 변경은 보존했다.
+
 ### 홈 클릭 요소 점검
 
 | 요소 | 기대 동작/근거 | 구현 상태 |
