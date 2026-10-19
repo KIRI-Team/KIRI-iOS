@@ -29,10 +29,8 @@ struct MyPageView: View {
                             NavigationLink { InviteLinkView() } label: { menuRow("공용초대링크 관리") }
                         }.padding(.top, 36)
                         menuSection(title: "설정") {
-                            NavigationLink { AccountInfoView() } label: { menuRow("계정 정보") }
+                            NavigationLink { AccountInfoView(onLogout: onLogout) } label: { menuRow("계정 정보") }
                             NavigationLink { SuggestionView() } label: { menuRow("건의함") }
-                            NavigationLink { TermsView() } label: { menuRow("약관정보") }
-                            NavigationLink { PushNotificationView() } label: { menuRow("알림 설정") }
                         }.padding(.top, 36)
                         Button {
                             isLogoutAlertPresented = true
@@ -57,8 +55,16 @@ struct MyPageView: View {
 
     private var profileSection: some View {
         HStack(spacing: 12) {
-            Circle().fill(KIRIColor.Background.tertiary).frame(width: 44, height: 44)
-                .overlay(Image(systemName: "person.2.fill").foregroundStyle(KIRIColor.Icon.secondary))
+            Circle()
+                .fill(KIRIColor.Background.tertiary)
+                .frame(width: 44, height: 44)
+                .overlay {
+                    Image("family-me")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 38, height: 38)
+                        .clipShape(Circle())
+                }
             VStack(alignment: .leading, spacing: 4) {
                 Text(nickname).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
                 Text("\(familyName) I 딸").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)

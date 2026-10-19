@@ -46,20 +46,67 @@ private struct MyPageRows: View {
 }
 
 struct AccountInfoView: View {
+    let onLogout: () -> Void
+    @State private var isLogoutAlertPresented = false
+
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "계정 정보") {
                 ScrollView {
                     VStack(spacing: 16) {
-                        MyPageRows(rows: [("이메일", "Apple 로그인"), ("가입일", "2026.06.23")])
-                        NavigationLink { WithdrawalView() } label: {
-                            HStack { Text("회원탈퇴").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Status.error); Spacer(); Image(systemName: "chevron.right").foregroundStyle(KIRIColor.Icon.secondary) }
-                                .padding(.horizontal, 16).frame(height: 52)
-                        }.buttonStyle(.plain).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
+                        VStack(spacing: 0) {
+                            NavigationLink { TermsView() } label: { accountRow("이용 약관") }
+                            NavigationLink { OpenLicenseView() } label: { accountRow("오픈 라이선스") }
+                            accountRow("앱 버전", trailingText: "1.0.0", showsChevron: false)
+                        }
+                        .background(KIRIColor.Background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                        VStack(spacing: 0) {
+                            Button { isLogoutAlertPresented = true } label: { accountRow("로그아웃") }
+                                .buttonStyle(.plain)
+                            NavigationLink { WithdrawalView() } label: { accountRow("회원탈퇴", tint: KIRIColor.Status.error) }
+                        }
+                        .background(KIRIColor.Background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }.padding(18)
                 }
             }
-        }.toolbar(.hidden, for: .navigationBar)
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .alert("로그아웃할까요?", isPresented: $isLogoutAlertPresented) {
+            Button("취소", role: .cancel) {}
+            Button("로그아웃", role: .destructive, action: onLogout)
+        } message: {
+            Text("현재 계정에서 로그아웃합니다.")
+        }
+    }
+
+    private func accountRow(
+        _ title: String,
+        trailingText: String = "",
+        showsChevron: Bool = true,
+        tint: Color? = nil
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(KIRITypography.bodyMedium)
+                .foregroundStyle(tint ?? KIRIColor.Text.primary)
+            Spacer()
+            if !trailingText.isEmpty {
+                Text(trailingText)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13))
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .contentShape(Rectangle())
     }
 }
 
