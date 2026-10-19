@@ -21,23 +21,27 @@ struct HomeView: View {
     let familyInviteCode: String?
     let tutorialStore: HomeTutorialStore
     let onFamilyCreated: (String, String) -> Void
+    let onExploreMission: () -> Void
 
     @AppStorage("kiri_browse_tutorial_completed") private var browseTutorialCompleted = false
     @AppStorage("kiri_family_tutorial_completed") private var familyTutorialCompleted = false
     @State private var didApplyDebugReset = false
+    @State private var tutorialFrames: [HomeTutorialTarget: CGRect] = [:]
 
     init(
         userMode: AppRouter.UserMode,
         familyName: String?,
         familyInviteCode: String?,
         tutorialStore: HomeTutorialStore,
-        onFamilyCreated: @escaping (String, String) -> Void
+        onFamilyCreated: @escaping (String, String) -> Void,
+        onExploreMission: @escaping () -> Void
     ) {
         self.userMode = userMode
         self.familyName = familyName
         self.familyInviteCode = familyInviteCode
         self.tutorialStore = tutorialStore
         self.onFamilyCreated = onFamilyCreated
+        self.onExploreMission = onExploreMission
     }
 
     var body: some View {
@@ -48,6 +52,7 @@ struct HomeView: View {
             if tutorialStore.isActive {
                 HomeTutorialView(
                     mode: tutorialStore.mode,
+                    frames: tutorialFrames,
                     onComplete: completeTutorial,
                     onStepChanged: { tutorialStore.step = $0 }
                 )
@@ -60,6 +65,10 @@ struct HomeView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .coordinateSpace(name: "homeTutorial")
+        .onPreferenceChange(HomeTutorialFramePreferenceKey.self) { frames in
+            tutorialFrames = frames
+        }
         .onAppear {
             applyDebugResetIfRequested()
             syncTutorialState()
@@ -82,7 +91,8 @@ struct HomeView: View {
             FamilyHomeView(
                 familyName: familyName ?? "끼리네 가족",
                 familyInviteCode: familyInviteCode,
-                tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil
+                tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil,
+                onExploreMission: onExploreMission
             )
 
         case .browse:
@@ -90,7 +100,8 @@ struct HomeView: View {
                 FamilyHomeView(
                     familyName: "끼리네 가족",
                     familyInviteCode: nil,
-                    tutorialStep: tutorialStore.step
+                    tutorialStep: tutorialStore.step,
+                    onExploreMission: onExploreMission
                 )
             } else {
                 BrowseHomeView(onFamilyCreated: onFamilyCreated)

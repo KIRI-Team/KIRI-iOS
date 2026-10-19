@@ -79,7 +79,8 @@ struct MainTabView: View {
                 familyName: familyName,
                 familyInviteCode: familyInviteCode,
                 tutorialStore: homeTutorialStore,
-                onFamilyCreated: onFamilyCreated
+                onFamilyCreated: onFamilyCreated,
+                onExploreMission: { selectedTab = .mission }
             )
 
         case .mission:

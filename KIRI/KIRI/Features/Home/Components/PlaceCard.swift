@@ -66,7 +66,7 @@ struct PlaceCard: View {
             .padding(.bottom, 16)
         }
         .frame(width: 251, height: 284)
-        .background(KIRIColor.Background.secondary)
+        .background(KIRIColor.Background.primary)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: 16

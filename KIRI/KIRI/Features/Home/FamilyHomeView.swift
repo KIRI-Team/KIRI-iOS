@@ -5,6 +5,7 @@ struct FamilyHomeView: View {
     var familyName: String = "끼리네 가족"
     var familyInviteCode: String? = nil
     var tutorialStep: Int? = nil
+    var onExploreMission: () -> Void = {}
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
@@ -12,6 +13,7 @@ struct FamilyHomeView: View {
     @State private var selectedPlace: HomeMockPlace?
     @State private var selectedMember: HomeMockMember?
     @State private var isPlaceBookmarked = false
+    @State private var showsMissionFace = false
 
 
     private enum HomeRoute {
@@ -112,6 +114,16 @@ struct FamilyHomeView: View {
         } message: {
             Text("가족공간의 초대코드가 연결되지 않았습니다.")
         }
+        .onAppear {
+            if let tutorialStep {
+                showsMissionFace = tutorialStep >= 1
+            }
+        }
+        .onChange(of: tutorialStep) { _, newStep in
+            if let newStep {
+                showsMissionFace = newStep >= 1
+            }
+        }
     }
 
     // MARK: - Home
@@ -125,36 +137,17 @@ struct FamilyHomeView: View {
                     alignment: .leading,
                     spacing: 0
                 ) {
-                    if tutorialStep == nil {
-                        preferenceBanner
-                            .padding(.top, 20)
-                    }
-
                     answerCollectionSection
-                        .padding(.top, 58)
+                        .padding(.top, 23)
 
-                    if showsQuestionForTutorial {
-                        questionSection
-                            .padding(.top, 48)
-                    }
-
-                    if showsMissionForTutorial {
-                        if tutorialStep == nil {
-                            weeklyMissionSection
-                                .padding(.top, 36)
-                        } else {
-                            tutorialMissionSection
-                                .padding(.top, 36)
-                        }
-                    }
+                    questionMissionSection
+                        .padding(.top, 48)
 
                     placeRecommendationSection
-                        .padding(.top, 36)
+                        .padding(.top, 48)
 
-                    if tutorialStep == nil {
-                        moodRecommendationSection
-                            .padding(.top, 36)
-                    }
+                    moodRecommendationSection
+                        .padding(.top, 36)
 
                     Spacer()
                         .frame(height: 120)
@@ -220,45 +213,19 @@ struct FamilyHomeView: View {
         .frame(height: 62)
     }
 
-    // MARK: - Preference Banner
-
-    private var preferenceBanner: some View {
-        Button { route = .taste } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("주연님의")
-                    Text("취향을 더 알고싶어요!")
-                }
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
-                .foregroundStyle(KIRIColor.Text.primary)
-                Spacer()
-                Text("취향테스트 참여하러가기")
-                    .font(KIRITypography.caption)
-                    .tracking(-0.48)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-            }
-            .padding(.horizontal, 20)
-            .frame(height: 84)
-            .background(KIRIColor.Background.tertiary)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .padding(.horizontal, 18)
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Answer Collection
 
     private var answerCollectionSection: some View {
         VStack(
             alignment: .leading,
-            spacing: 20
+            spacing: 24
         ) {
             HStack {
                 Text("답변 모아보기")
                     .font(KIRITypography.headingSmall)
                     .tracking(-0.72)
                     .foregroundStyle(KIRIColor.Text.strong)
+                    .homeTutorialMeasured(.answerCollection)
 
                 Spacer()
 
@@ -295,6 +262,7 @@ struct FamilyHomeView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .homeTutorialMeasured(.invite)
             }
 
             ScrollView(
@@ -317,15 +285,16 @@ struct FamilyHomeView: View {
         .padding(.horizontal, 18)
     }
 
-    // MARK: - Question
+    // MARK: - Question / Mission Flip Card
 
-    private var questionSection: some View {
+    /// HOME-05: 질문과 가족 미션은 별도 카드로 나열하지 않고 하나의 카드 앞뒤로 제공합니다.
+    private var questionMissionSection: some View {
         VStack(
             alignment: .leading,
             spacing: 14
         ) {
             HStack {
-                Text("오늘 나의 질문카드")
+                Text(showsMissionFace ? "이번주 미션이에요!" : "오늘 나의 질문카드")
                     .font(KIRITypography.headingSmall)
                     .tracking(-0.72)
                     .foregroundStyle(KIRIColor.Text.strong)
@@ -338,10 +307,17 @@ struct FamilyHomeView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
 
-            Button { route = .questionAnswer } label: {
-                QuestionCard(questionNumber: mockData.question.number, question: mockData.question.text, answer: mockData.question.answer)
-            }
-            .buttonStyle(.plain)
+            QuestionMissionFlipCard(
+                questionNumber: mockData.question.number,
+                question: mockData.question.text,
+                answer: mockData.question.answer,
+                mission: mockData.weeklyMission,
+                showsMission: $showsMissionFace,
+                onQuestionAnswer: { route = .questionAnswer },
+                onMissionDetail: { route = .missionDetail },
+                onMissionExplore: onExploreMission
+            )
+            .homeTutorialMeasured(.questionMissionCard)
         }
         .padding(.horizontal, 18)
     }
@@ -358,6 +334,7 @@ struct FamilyHomeView: View {
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
+                .homeTutorialMeasured(.recommendationTitle)
 
             ScrollView(
                 .horizontal,
@@ -376,95 +353,6 @@ struct FamilyHomeView: View {
         }
     }
 
-    private var weeklyMissionSection: some View {
-        Button { route = .missionDetail } label: {
-            HStack(spacing: 14) {
-                Image(systemName: mockData.hasSchedule ? "calendar.badge.checkmark" : "circle.dashed")
-                    .font(.system(size: 26))
-                    .foregroundStyle(mockData.hasSchedule ? KIRIColor.Primary.default : KIRIColor.Icon.secondary)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(mockData.hasSchedule ? "이번 주 미션 일정을 확인해보세요" : "이번 주 가족 미션")
-                        .font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
-                    Text(mockData.hasSchedule ? "활동 기록을 남기면 미션이 완료됩니다" : "가족과 함께 작은 추억을 만들어보세요")
-                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(KIRIColor.Icon.secondary)
-            }
-            .padding(16)
-            .background(KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 18)
-    }
-
-    private var tutorialMissionSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .bottom) {
-                Text("이번주 미션이에요!")
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
-                    .foregroundStyle(KIRIColor.Text.strong)
-
-                Spacer()
-
-                Text("다른 가족들의 답변을 기다려요!")
-                    .font(KIRITypography.caption)
-                    .tracking(-0.48)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-            }
-
-            Button { route = .missionDetail } label: {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("광장시장에서 시장음식 먹어보기")
-                                .font(.system(size: 18, weight: .medium))
-                                .tracking(-0.72)
-                                .foregroundStyle(KIRIColor.Text.strong)
-                                .lineLimit(1)
-
-                            Text("광장시장 · 종로구")
-                                .font(.system(size: 14))
-                                .tracking(-0.56)
-                                .foregroundStyle(KIRIColor.Text.secondary)
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                            .frame(width: 33, height: 33)
-                    }
-
-                    HStack(spacing: 8) {
-                        tutorialMissionTag("대중교통 편리")
-                        tutorialMissionTag("혼잡도 높음")
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
-                .background(KIRIColor.Background.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 18)
-        }
-    }
-
-    private func tutorialMissionTag(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 12))
-            .tracking(-0.48)
-            .foregroundStyle(KIRIColor.Text.secondary)
-            .padding(.horizontal, 8)
-            .frame(height: 29)
-            .background(KIRIColor.Background.tertiary)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-    }
-
     private var displayedMembers: [HomeMockMember] {
         guard tutorialStep != nil else { return mockData.members }
         return [
@@ -474,16 +362,6 @@ struct FamilyHomeView: View {
             HomeMockMember(id: "doldoli", name: "돌돌이", role: "아들", hasAnswered: true, isMe: false),
             HomeMockMember(id: "daughter", name: "딸", role: "딸", hasAnswered: true, isMe: false)
         ]
-    }
-
-    private var showsQuestionForTutorial: Bool {
-        guard let tutorialStep else { return true }
-        return tutorialStep == 0
-    }
-
-    private var showsMissionForTutorial: Bool {
-        guard let tutorialStep else { return true }
-        return tutorialStep >= 1
     }
 
     // MARK: - Mood Recommendation
