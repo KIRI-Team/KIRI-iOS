@@ -1,160 +1,125 @@
 import SwiftUI
+import UIKit
 
-/// Figma 9173:13678의 홈 튜토리얼 오버레이.
-/// 실제 홈 화면 위에 단계별 dim 처리와 강조 영역을 표시한다.
+/// Figma에서 내보낸 390×844 튜토리얼 화면을 그대로 표시한다.
+/// 강조, 딤, 안내 문구는 이미지에 포함되어 있으므로 SwiftUI에서 다시 그리지 않는다.
 struct HomeTutorialView: View {
-    enum Mode {
+    enum Mode: Equatable {
         case browse
         case family
     }
 
-    private struct Highlight {
-        let rect: CGRect
-        let isCircle: Bool
-    }
-
-    private struct Callout {
-        let text: String
-        let rect: CGRect
-    }
-
-    private struct Step {
-        let highlights: [Highlight]
-        let callouts: [Callout]
-    }
-
     let mode: Mode
     let onComplete: () -> Void
+    let onStepChanged: (Int) -> Void
 
     @State private var stepIndex = 0
+    @State private var isAdvancing = false
 
-    // Figma uses the same three visual steps for both entry modes. Mode stays
-    // in the API so RootView can persist browse and family completion separately.
-    private let steps: [Step] = [
-        Step(
-            // 9167:10656, 9173:12347, 9173:12349
-            highlights: [
-                Highlight(rect: CGRect(x: 14, y: 140, width: 105, height: 54), isCircle: false),
-                Highlight(rect: CGRect(x: 267, y: 139, width: 105, height: 54), isCircle: false),
-                Highlight(rect: CGRect(x: 14, y: 347, width: 358, height: 130), isCircle: false)
-            ],
-            callouts: [
-                Callout(text: "우리 가족들의\n답변을 모아봐요!", rect: CGRect(x: 14, y: 203, width: 113, height: 54)),
-                Callout(text: "가족을 초대해서\n방을 만들어요!", rect: CGRect(x: 260, y: 203, width: 112, height: 54)),
-                Callout(text: "질문은 매일 하나씩 발행돼요!", rect: CGRect(x: 178, y: 493, width: 194, height: 27))
-            ]
-        ),
-        Step(
-            // 9173:12439, 9173:13145
-            highlights: [
-                Highlight(rect: CGRect(x: 14, y: 347, width: 358, height: 130), isCircle: false),
-                Highlight(rect: CGRect(x: 332, y: 359, width: 33, height: 33), isCircle: true)
-            ],
-            callouts: [
-                Callout(text: "스와이프로 질문카드도 확인할 수 있어요!", rect: CGRect(x: 100, y: 302, width: 272, height: 27)),
-                Callout(text: "우리 가족의 답변을 바탕으로\n매주 한 개의 미션이 발행돼요!", rect: CGRect(x: 174, y: 493, width: 198, height: 54))
-            ]
-        ),
-        Step(
-            // 9173:13412
-            highlights: [
-                Highlight(rect: CGRect(x: 14, y: 520, width: 160, height: 37), isCircle: false)
-            ],
-            callouts: [
-                Callout(text: "끼리가 큐레이팅 한 미션 목록!", rect: CGRect(x: 14, y: 574, width: 198, height: 27))
-            ]
-        )
+    private let imageNames = [
+        "홈 튜토리얼 1",
+        "홈 튜토리얼 2",
+        "홈 튜토리얼 3"
     ]
 
     var body: some View {
-        GeometryReader { geometry in
-            let scale = geometry.size.width / 390
-            let currentStep = steps[stepIndex]
-            let holes = currentStep.highlights.map { scaleRect($0.rect, by: scale) }
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
 
-            ZStack {
-                TutorialDimMask(holes: holes)
-                    .fill(
-                        Color.black.opacity(0.72),
-                        style: FillStyle(eoFill: true)
+            if let image = tutorialImage(for: stepIndex) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(stepIndex)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        )
                     )
-                    .ignoresSafeArea()
-
-                ForEach(Array(currentStep.highlights.enumerated()), id: \.offset) { _, highlight in
-                    let rect = scaleRect(highlight.rect, by: scale)
-
-                    if highlight.isCircle {
-                        Circle()
-                            .stroke(KIRIColor.Primary.default, lineWidth: 1)
-                            .frame(width: rect.width, height: rect.height)
-                            .position(x: rect.midX, y: rect.midY)
-                    } else {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(KIRIColor.Primary.default, lineWidth: 1)
-                            .frame(width: rect.width, height: rect.height)
-                            .position(x: rect.midX, y: rect.midY)
-                    }
-                }
-
-                ForEach(Array(currentStep.callouts.enumerated()), id: \.offset) { _, callout in
-                    let rect = scaleRect(callout.rect, by: scale)
-
-                    Text(callout.text)
-                        .font(KIRITypography.headingSmall)
-                        .foregroundStyle(KIRIColor.Text.strong)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(0)
-                        .frame(width: rect.width, height: rect.height)
-                        .position(x: rect.midX, y: rect.midY)
-                }
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 24)
-                    .onEnded { value in
-                        guard value.translation.width < -24 else { return }
-                        advance()
-                    }
+        }
+        .overlay(alignment: .bottom) {
+            tutorialControls
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { value in
+                    guard value.translation.width < -24 else { return }
+                    advance()
+                }
+        )
+        .onTapGesture {
+            advance()
+        }
+        .animation(.easeOut(duration: 0.3), value: stepIndex)
+        .onAppear {
+            #if DEBUG
+            print(
+                "[KIRI TutorialDebug][ImageTutorial] onAppear " +
+                "mode=\(String(describing: mode)) " +
+                "step=\(stepIndex + 1) " +
+                "image=\(imageNames[stepIndex]) " +
+                "loaded=\(tutorialImage(for: stepIndex) != nil)"
             )
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("홈 튜토리얼 단계 \(stepIndex + 1) / \(steps.count)")
-            .accessibilityHint("왼쪽으로 쓸어 다음 안내를 확인하세요")
+            #endif
         }
         .ignoresSafeArea()
+        .onAppear {
+            onStepChanged(stepIndex)
+        }
     }
 
-    private func scaleRect(_ rect: CGRect, by scale: CGFloat) -> CGRect {
-        CGRect(
-            x: rect.origin.x * scale,
-            y: rect.origin.y * scale,
-            width: rect.width * scale,
-            height: rect.height * scale
+    /// PNG에 포함된 홈 콘텐츠와 안내 레이어는 그대로 보존하고,
+    /// 단계 진행에 필요한 컨트롤만 화면 하단에 추가한다.
+    private var tutorialControls: some View {
+        VStack(spacing: 10) {
+            Text("\(stepIndex + 1) / 3")
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.secondary)
+
+            KIRIPrimaryButton(
+                title: stepIndex == imageNames.count - 1 ? "시작하기" : "다음",
+                action: advance
+            )
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .safeAreaPadding(.bottom, 8)
+        .background(
+            KIRIColor.Background.base.opacity(0.94)
         )
     }
 
+    private func tutorialImage(for index: Int) -> UIImage? {
+        guard imageNames.indices.contains(index) else { return nil }
+        let name = imageNames[index]
+
+        // Xcode의 파일 시스템 동기화 그룹에서 복사된 원본 PNG를 우선 읽고,
+        // 이미지 이름 조회를 보조 경로로 사용한다. 파일명은 한글과 공백을 보존한다.
+        if let path = Bundle.main.path(forResource: name, ofType: "png"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        return UIImage(named: name)
+    }
+
     private func advance() {
-        if stepIndex == steps.count - 1 {
+        guard !isAdvancing else { return }
+        isAdvancing = true
+
+        if stepIndex == imageNames.count - 1 {
             onComplete()
         } else {
             stepIndex += 1
+            onStepChanged(stepIndex)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                isAdvancing = false
+            }
         }
-    }
-}
-
-private struct TutorialDimMask: Shape {
-    let holes: [CGRect]
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addRect(rect)
-
-        for hole in holes {
-            path.addRoundedRect(
-                in: hole,
-                cornerSize: CGSize(width: 8, height: 8)
-            )
-        }
-
-        return path
     }
 }

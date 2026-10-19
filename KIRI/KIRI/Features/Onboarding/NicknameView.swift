@@ -26,6 +26,11 @@ struct NicknameView: View {
         containsOnlyAllowedCharacters(trimmedNickname)
     }
 
+    private var validationState: KIRIValidationGuidance.ValidationState {
+        guard !trimmedNickname.isEmpty else { return .neutral }
+        return isValid ? .valid : .invalid
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -53,7 +58,7 @@ struct NicknameView: View {
                     nickname = sanitize(newValue)
                 }
 
-                KIRIValidationGuidance()
+                KIRIValidationGuidance(state: validationState)
                     .padding(.leading, 24)
                     .padding(.top, 10)
 

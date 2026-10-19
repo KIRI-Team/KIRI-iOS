@@ -50,7 +50,8 @@ struct FamilyNameEditView: View {
 
                     KIRITextField(
                         placeholder: "이름을 입력하세요.",
-                        text: $editedFamilyName
+                        text: $editedFamilyName,
+                        state: editedFamilyName.isEmpty || isValid ? .normal : .error
                     )
                     .padding(.top, 40)
 

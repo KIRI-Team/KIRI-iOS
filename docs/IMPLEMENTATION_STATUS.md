@@ -574,6 +574,15 @@ Swift parse 검사와 `git diff --check`는 통과했다. 현재 환경의 CoreS
 
 검증: `HomeTutorialView.swift`, `RootView.swift` Swift parse 및 `git diff --check` 통과. 시뮬레이터 `xcodebuild`는 CoreSimulatorService가 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 `BUILD FAILED`했으며, 실제 기기 오버레이 정렬은 미검증이다. `NotificationView.swift`의 기존 변경은 보존했다.
 
+## 홈 최초 진입 튜토리얼 렌더링 및 콘텐츠 동기화 (2026-10-12)
+
+- `RootView.finishSplash()`에서 이미 온보딩을 완료한 사용자의 첫 메인 진입도 userMode별 튜토리얼 완료 상태를 확인하도록 연결했다. 완료하지 않은 경우 일반 홈과 같은 렌더 사이클에서 튜토리얼 상태를 함께 설정해 초기 일반 홈 노출 후 오버레이가 바뀌는 현상을 줄였다.
+- `MainTabView`가 홈 튜토리얼 단계를 `HomeView`와 공유하고, `FamilyHomeView`는 1단계에서 질문 카드, 2·3단계에서 주간 미션 카드를 표시하도록 콘텐츠를 동기화한다. 튜토리얼 중 둘러보기 모드는 동일한 기존 `FamilyHomeView` 컴포넌트를 읽기 화면으로 재사용하고 완료 후 `BrowseHomeView`로 돌아간다.
+- 홈 컴포넌트가 `PreferenceKey`로 실제 렌더 프레임을 제공하도록 변경했다. `HomeTutorialView`는 고정된 390×844 좌표를 사용하지 않고 답변 모아보기, 가족 초대, 질문 카드, 미션 카드, 추천 제목의 실제 프레임에서 강조 영역과 안내 문구 위치를 계산한다.
+- 튜토리얼 완료 상태는 기존 `kiri_browse_tutorial_completed`와 `kiri_family_tutorial_completed`를 그대로 사용하며, 세 번째 단계에서 완료 콜백이 실행될 때만 저장한다.
+
+검증: 관련 Swift 파일 parse 검사와 `git diff --check` 통과. 시뮬레이터 `xcodebuild`는 CoreSimulatorService가 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 `BUILD FAILED`했으므로 실제 신규 사용자 진입과 재진입은 미검증이다. `NotificationView.swift`의 기존 미커밋 변경은 건드리지 않았다.
+
 ### 홈 클릭 요소 점검
 
 | 요소 | 기대 동작/근거 | 구현 상태 |
@@ -664,3 +673,88 @@ Swift parse 검사와 `git diff --check`는 통과했다. 현재 환경의 CoreS
 | `Features/Record/Schedule/TodayActivityView.swift` | 581 | TodayActivityView |
 | `KIRIApp.swift` | 10 | KIRIApp |
 | `Models/FamilyInvitation.swift` | 7 | FamilyInvitation |
+
+## tutorialStep optional 타입 오류 수정 (2026-10-12)
+
+- `Features/Home/FamilyHomeView.swift`에서 `tutorialStep`은 튜토리얼 미진행 상태를 표현하기 위해 `Int?`로 유지된다.
+- 기존 `if tutorialStep == nil || tutorialStep >= 1` 조건이 optional `Int?`를 `Int`와 비교해 `Value of optional type 'Int?' must be unwrapped to a value of type 'Int'` 컴파일 오류를 발생시켰다.
+- 질문/미션 노출 조건을 `showsQuestionForTutorial`, `showsMissionForTutorial` 계산 프로퍼티로 분리하고 `guard let tutorialStep else`를 사용해 수정했다. `nil`은 일반 홈(튜토리얼 미진행), `0`은 질문 단계, `1` 이상은 미션 단계로 기존 의미와 1→2→3 진행을 유지한다.
+- 관련 `RootView`/`MainTabView`/`HomeView`의 `Int?` 전달 구조는 튜토리얼 미진행 상태를 보존해야 하므로 변경하지 않았다.
+- 수정 파일의 Swift 파싱과 `git diff --check`는 통과했다. 전체 `xcodebuild`는 Swift 타입 검사 전에 CoreSimulatorService에 사용 가능한 iOS Simulator 런타임이 없어 `actool: No available simulator runtimes`로 중단되어 빌드 미검증 상태다.
+
+## 홈 튜토리얼 Figma 오버레이 재검토 (2026-10-12)
+
+- 확인한 Figma 섹션: `9173:13678` 및 프레임 `9167:10395`, `9173:12885`, `9173:13415`.
+- 세 프레임은 각각 실제 홈 콘텐츠 상태이며, dim 레이어와 강조 사각형/설명 문구는 섹션의 형제 레이어로 배치되어 있었다. 기존 SwiftUI의 강조 영역을 뚫는 마스크 방식은 Figma 구조와 달랐다.
+- `HomeTutorialView`를 전체 화면 `#1A1A1A` 75% dim 위에 초록색 8% fill/70% stroke 강조 레이어를 합성하는 방식으로 수정했다. 강조 영역은 dim mask의 hole로 제외해 질문카드·미션카드 내부 콘텐츠가 어두워지지 않도록 했다. preference frame과 오버레이가 Root의 동일한 `homeTutorial` 좌표계를 사용하도록 조정했다.
+- 튜토리얼 중 `FamilyHomeView`는 Figma에 맞는 가족 구성원 목데이터(내 답변/마마/빠빠/돌돌이/딸)와 미션 상태(광장시장 카드, 위치, 태그)를 표시하며, 일반 홈 상태 데이터는 유지한다.
+- Swift 파싱과 `git diff --check`는 통과했다. iPhone 17 Pro 시뮬레이터는 CoreSimulatorService 연결 오류로 부팅/화면 캡처를 실행할 수 없어 실제 화면 비교는 미완료다. `xcodebuild`도 동일 환경에서 `No available simulator runtimes`로 실패했다.
+
+## 홈 튜토리얼 탭 진행 정책 (2026-10-13)
+
+- `HomeTutorialView`에 전체 화면 탭 진행을 추가했다. 1→2→3 단계는 탭 또는 왼쪽 스와이프로만 전환되며, 별도 다음/완료/건너뛰기 버튼은 추가하지 않았다.
+- `isAdvancing` 잠금으로 탭과 스와이프가 동시에 인식되거나 빠른 연속 입력으로 두 단계 이상 진행되는 것을 방지한다. 오버레이가 전체 입력을 소비하므로 뒤쪽 홈 버튼은 튜토리얼 중 동작하지 않는다.
+- 마지막 단계에서만 기존 `RootView`의 둘러보기/가족공간 `AppStorage` 완료 상태가 저장된다. 재실행 시 기존 완료 상태에 따라 튜토리얼을 다시 표시하지 않는다.
+
+## 홈 튜토리얼 강조 대상 bounds 정렬 (2026-10-13)
+
+- `FamilyHomeView`의 답변 제목, 가족 초대 버튼, 질문카드, 미션카드, 미션 새로고침 컨테이너, 추천 제목에 실제 대상 View의 `.overlay`로 preference를 부착했다. 내부 텍스트나 padding이 적용된 부모를 측정하지 않는다.
+- `HomeTutorialView`는 전달받은 CGRect를 별도 x/y/비율 보정 없이 동일하게 dim hole과 강조 테두리에 사용한다.
+- 초기 구현에서는 튜토리얼 오버레이를 `MainTabView` 내부로 이동해 preference 측정, named coordinate space, `HomeTutorialView` 렌더링을 맞췄다. 후속 홈 중심 리팩터링에서 동일한 좌표계와 overlay 구조를 `HomeView`로 이동했다. 오버레이 GeometryReader의 원점을 같은 named space에서 읽어 local CGRect로 변환한다. 시뮬레이터에서의 실제 bounds 겹침은 CoreSimulatorService 문제로 아직 확인하지 못했다.
+
+## 홈 튜토리얼 표시 회귀 점검 (2026-10-13)
+
+- `RootView`는 둘러보기/가족공간의 AppStorage 완료 상태가 `false`인 최초 진입에서 `tutorialMode`를 설정하고 `tutorialStep = 0`으로 시작한다. `.main` 분기에서 `tutorialMode`가 존재할 때만 `MainTabView`에 모드를 전달하며, `MainTabView`의 `if let tutorialMode`가 `HomeTutorialView`를 생성하는 경로는 유지되고 있다. 따라서 완료 상태 조건 때문에 튜토리얼이 누락되는 구조적 문제는 확인되지 않았다.
+- 회귀 원인은 `HomeTutorialView`가 bottom 정렬 `ZStack`의 자식으로만 배치되어 부모가 제안하는 크기에 의존했던 점으로 판단된다. 프레임 preference가 아직 비어 있거나 특정 기기에서 자식의 측정 크기가 축소되면 오버레이 전체가 화면에 표시되지 않을 수 있었다.
+- `MainTabView`에서 `HomeTutorialView`에 `maxWidth/maxHeight: .infinity` 프레임을 명시해 홈 콘텐츠와 동일한 전체 영역을 보장했다. 프레임이 비어 있는 초기 상태에도 dim 및 입력 레이어 자체는 생성되고, 실제 강조 박스만 측정 완료 후 표시된다.
+- 수정 파일: `KIRI/KIRI/App/MainTabView.swift`. Swift 파싱 및 `git diff --check`는 통과했다. `xcodebuild`는 Swift 컴파일 오류가 아니라 CoreSimulatorService가 사용 가능한 iOS Simulator 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 중단되었으며, 실제 시뮬레이터 표시 검증은 미완료다.
+
+## 홈 튜토리얼 DEBUG 진단 로그 (2026-10-13)
+
+- UI, Figma 좌표, 단계 진행 로직은 변경하지 않고 DEBUG 빌드 전용 콘솔 로그만 추가했다.
+- 홈 중심 리팩터링 전에는 `RootView`와 `MainTabView`에서 상태 로그를 출력했고, 현재는 `HomeView`가 모드, 완료 상태, 활성 단계 및 `HomeTutorialFramePreferenceKey` 대상별 CGRect를 출력한다.
+- `HomeTutorialView`는 실제 `GeometryReader` 크기, `onAppear` 실행 여부, 모드/단계/현재 프레임을 출력한다.
+- 로그 접두사는 `[KIRI TutorialDebug]`이며 `#if DEBUG` 내부에만 존재한다. 운영 빌드에는 콘솔 출력이나 표시용 UI가 추가되지 않는다.
+- 현재 환경에서는 CoreSimulatorService에 사용 가능한 런타임이 없어 실제 콘솔 흐름과 화면 표시 여부는 아직 확인하지 못했다. 시뮬레이터 실행 후 `[Root] → [MainTab] → [HomeTutorial]` 순서와 GeometryReader 크기, preference CGRect를 확인해야 원인을 확정할 수 있다.
+
+## 홈 중심 튜토리얼 컨테이너 리팩터링 (2026-10-13)
+
+- Figma MCP로 `9167:10395`, `9173:12885`, `9173:13415`, `9173:13678`을 다시 확인했다. 세 프레임은 실제 홈 콘텐츠와 형제 dim/강조/안내 레이어로 구성되며, 기존 확인값인 1단계 답변·초대·질문카드, 2단계 미션·새로고침, 3단계 추천 제목의 대상 구조를 유지한다.
+- `RootView`는 스플래시와 인증/온보딩/메인 분기만 담당하도록 `tutorialMode`, `tutorialStep`, 튜토리얼 완료 AppStorage 및 CGRect 전달을 제거했다.
+- `MainTabView`는 탭 전환과 `HomeTutorialStore` 보존만 담당한다. 홈 컨테이너가 탭 전환으로 재생성되어도 진행 중인 단계가 초기화되지 않도록 store를 MainTab 수명 동안 유지한다.
+- `HomeView`가 모드별 AppStorage 완료 상태를 확인하고 최초 홈 진입 시 튜토리얼을 시작한다. 마지막 단계 완료 시에만 해당 모드의 완료 상태를 저장한다.
+- `HomeTutorialView`는 `HomeView`의 overlay에서 실제 홈 콘텐츠와 같은 `homeTutorial` coordinate space를 사용한다. `FamilyHomeView`가 제공하는 실제 bounds preference를 HomeView에서 수집하며, 프레임이 비어 있어도 오버레이 자체는 생성된다.
+- 튜토리얼 중에는 홈 컨테이너가 MainTab의 탭바보다 높은 z-index를 가져 입력을 차단하고, 일반 홈에서는 기존 탭바 레이어 순서를 유지한다.
+- Swift 파싱과 `git diff --check`는 통과했다. `xcodebuild`는 CoreSimulatorService가 런타임을 제공하지 않아 `actool: No available simulator runtimes for platform iphonesimulator`로 실패했으며, 실제 최초 진입/단계 진행 및 Figma 스크린샷 비교는 미검증이다.
+
+## 홈 튜토리얼 원본 이미지 전환 (2026-10-14)
+
+- 확인한 원본 파일: `KIRI/KIRI/홈 튜토리얼 1.png`, `홈 튜토리얼 2.png`, `홈 튜토리얼 3.png`.
+- 세 파일 모두 390×844, 8-bit RGBA PNG이며 실제 이미지 내용을 직접 확인했다.
+- `HomeTutorialView`는 더 이상 PreferenceKey, GeometryReader bounds 계산, 딤 마스크, 강조 박스, 안내 문구를 생성하지 않는다. 각 단계의 원본 PNG를 `Bundle.main`에서 읽어 원본 비율로 표시한다.
+- 기존 홈 컨테이너의 모드별 AppStorage, 1→2→3 진행, 탭/왼쪽 스와이프, 마지막 단계 완료 저장 구조는 유지했다.
+- DEBUG 실행 인자 `-reset-kiri-home-tutorial`을 사용하면 둘러보기/가족공간 완료 상태를 DEBUG에서만 초기화해 최초 진입을 재현할 수 있다. 운영 빌드에는 초기화 코드가 포함되지 않는다.
+- Swift 파싱 및 `git diff --check`는 통과했다. `xcodebuild`는 CoreSimulatorService에 사용 가능한 시뮬레이터 런타임이 없어 `No available simulator runtimes for platform iphonesimulator`로 실패했으며, 실제 번들 로드와 화면 진행은 미검증이다.
+
+## 가족공간 최초 진입 및 단계 진행 보완 (2026-10-14)
+
+- 가족공간 생성/초대 완료 시 `RootView.enterMain`이 `AppRouter.userMode = .family`와 `appState = .main`을 설정하고, 동일한 `HomeTutorialStore`를 사용하는 `HomeView`가 `kiri_family_tutorial_completed`를 다시 평가하도록 보완했다. 둘러보기 완료 상태는 가족공간 표시 조건에 사용하지 않는다.
+- `HomeView`에 mode 식별 task를 추가해 둘러보기→가족공간 전환에서 모드가 바뀌면 단계를 1단계로 재설정하고 가족공간 완료 상태가 false일 때 즉시 활성화한다.
+- 원본 이미지 위에 누락된 안내 문구를 전체 표시하고, `다음`/`시작하기` 버튼과 단계 인디케이터를 추가했다. 버튼은 `KIRIPrimaryButton`을 사용하며 탭/왼쪽 스와이프와 동일한 단일 단계 잠금 및 0.3초 페이드·수평 슬라이드 전환을 사용한다.
+- 세 PNG는 기존 번들 복사 경로를 유지한다. 시뮬레이터 실행은 CoreSimulatorService 오류로 미검증이다.
+
+## 홈 튜토리얼 표시 경로 재점검 (2026-10-14)
+
+- 가입 완료 후 둘러보기는 `OnboardingFlowView.onBrowse` → `RootView.enterMain(browse:)` → `AppRouter.enterBrowseMode()` → `.main`의 `MainTabView(userMode: .browse)` → `HomeView` 순서다.
+- 가족 생성 완료와 초대코드 참여 완료는 각각 `OnboardingFlowView.onEnterFamily` → `RootView.enterMain(familyName:inviteCode:)` → `AppRouter.enterFamilyMode()` → `.main`의 `MainTabView(userMode: .family)` → `HomeView` 순서다.
+- `HomeTutorialStore`는 `MainTabView`가 생성해 보유하고 `HomeView`에 전달한다. 기존 구현은 완료 상태가 이미 true인 경우 `isActive = false`가 되고, 둘러보기→가족공간 전환 시 동일 store가 유지되는 상태에서 모드 재동기화 시점이 `onAppear/onChange/task`에 분산되어 표시 조건을 추적하기 어려웠다.
+- `HomeView`를 명시적인 `ZStack`으로 변경해 `isActive == true`일 때 `HomeTutorialView`를 홈 콘텐츠 위에 `zIndex(10)`으로 직접 생성한다. CGRect나 PreferenceKey는 표시 조건에 사용하지 않는다.
+- DEBUG 실행 인자 `-force-kiri-home-tutorial`을 추가했다. 이 인자는 AppStorage가 true여도 HomeView 진입 시 `step = 0`, `isActive = true`로 강제한다. 기존 `-reset-kiri-home-tutorial`은 두 완료 상태를 false로 초기화한 뒤 동일한 동작을 재현한다.
+- Swift 파싱과 `git diff --check`는 통과했다. 실제 시뮬레이터에서 세 진입 경로를 실행하는 검증은 CoreSimulatorService 오류로 미완료다.
+
+## 홈 튜토리얼 원본 이미지 중복 UI 제거 (2026-10-14)
+
+- `HomeTutorialView`에서 원본 PNG에 이미 포함된 홈 콘텐츠·딤·강조 영역·안내 문구를 다시 그리던 `tutorialCopy`와 중앙 `VStack`을 제거했다.
+- 각 단계는 `홈 튜토리얼 1.png`, `홈 튜토리얼 2.png`, `홈 튜토리얼 3.png`를 원본 비율로 전체 화면에 표시하고, SwiftUI 레이어는 단계 진행용 `다음`/`시작하기` 버튼과 페이지 인디케이터만 하단에 표시한다.
+- 기존 모드별 완료 상태, 1→2→3 전환, 탭/왼쪽 스와이프, 마지막 단계 완료 저장은 변경하지 않았다. 하단 컨트롤은 별도 영역으로 묶어 중앙 안내 문구나 질문·미션 카드 위에 중복 텍스트가 쌓이지 않도록 했다.
+- Swift 문법 검사와 `git diff --check`는 통과했다. `xcodebuild`는 CoreSimulatorService에 사용 가능한 iOS Simulator 런타임이 없어 `actool: No available simulator runtimes for platform iphonesimulator`로 실패했으며, 실제 기기에서 PNG 표시·버튼 위치·단계 진행 시각 비교는 미검증이다.

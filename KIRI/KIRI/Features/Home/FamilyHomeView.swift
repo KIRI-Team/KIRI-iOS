@@ -4,6 +4,7 @@ struct FamilyHomeView: View {
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
     var familyName: String = "끼리네 가족"
     var familyInviteCode: String? = nil
+    var tutorialStep: Int? = nil
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
@@ -124,23 +125,36 @@ struct FamilyHomeView: View {
                     alignment: .leading,
                     spacing: 0
                 ) {
-                    preferenceBanner
-                        .padding(.top, 20)
+                    if tutorialStep == nil {
+                        preferenceBanner
+                            .padding(.top, 20)
+                    }
 
                     answerCollectionSection
                         .padding(.top, 58)
 
-                    questionSection
-                        .padding(.top, 48)
+                    if showsQuestionForTutorial {
+                        questionSection
+                            .padding(.top, 48)
+                    }
 
-                    weeklyMissionSection
-                        .padding(.top, 36)
+                    if showsMissionForTutorial {
+                        if tutorialStep == nil {
+                            weeklyMissionSection
+                                .padding(.top, 36)
+                        } else {
+                            tutorialMissionSection
+                                .padding(.top, 36)
+                        }
+                    }
 
                     placeRecommendationSection
                         .padding(.top, 36)
 
-                    moodRecommendationSection
-                        .padding(.top, 36)
+                    if tutorialStep == nil {
+                        moodRecommendationSection
+                            .padding(.top, 36)
+                    }
 
                     Spacer()
                         .frame(height: 120)
@@ -288,7 +302,7 @@ struct FamilyHomeView: View {
                 showsIndicators: false
             ) {
                 HStack(spacing: 18) {
-                    ForEach(mockData.members) { member in
+                    ForEach(displayedMembers) { member in
                         Button {
                             selectedMember = member
                             route = member.isMe ? .questionAnswer : .memberDetail
@@ -383,6 +397,93 @@ struct FamilyHomeView: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, 18)
+    }
+
+    private var tutorialMissionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .bottom) {
+                Text("이번주 미션이에요!")
+                    .font(KIRITypography.headingSmall)
+                    .tracking(-0.72)
+                    .foregroundStyle(KIRIColor.Text.strong)
+
+                Spacer()
+
+                Text("다른 가족들의 답변을 기다려요!")
+                    .font(KIRITypography.caption)
+                    .tracking(-0.48)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+
+            Button { route = .missionDetail } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("광장시장에서 시장음식 먹어보기")
+                                .font(.system(size: 18, weight: .medium))
+                                .tracking(-0.72)
+                                .foregroundStyle(KIRIColor.Text.strong)
+                                .lineLimit(1)
+
+                            Text("광장시장 · 종로구")
+                                .font(.system(size: 14))
+                                .tracking(-0.56)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                            .frame(width: 33, height: 33)
+                    }
+
+                    HStack(spacing: 8) {
+                        tutorialMissionTag("대중교통 편리")
+                        tutorialMissionTag("혼잡도 높음")
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, minHeight: 130, alignment: .topLeading)
+                .background(KIRIColor.Background.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 18)
+        }
+    }
+
+    private func tutorialMissionTag(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 12))
+            .tracking(-0.48)
+            .foregroundStyle(KIRIColor.Text.secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 29)
+            .background(KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var displayedMembers: [HomeMockMember] {
+        guard tutorialStep != nil else { return mockData.members }
+        return [
+            HomeMockMember(id: "me", name: "내 답변", role: "딸", hasAnswered: true, isMe: true),
+            HomeMockMember(id: "mama", name: "마마", role: "엄마", hasAnswered: true, isMe: false),
+            HomeMockMember(id: "papa", name: "빠빠", role: "아빠", hasAnswered: false, isMe: false),
+            HomeMockMember(id: "doldoli", name: "돌돌이", role: "아들", hasAnswered: true, isMe: false),
+            HomeMockMember(id: "daughter", name: "딸", role: "딸", hasAnswered: true, isMe: false)
+        ]
+    }
+
+    private var showsQuestionForTutorial: Bool {
+        guard let tutorialStep else { return true }
+        return tutorialStep == 0
+    }
+
+    private var showsMissionForTutorial: Bool {
+        guard let tutorialStep else { return true }
+        return tutorialStep >= 1
     }
 
     // MARK: - Mood Recommendation

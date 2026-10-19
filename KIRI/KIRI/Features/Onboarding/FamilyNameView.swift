@@ -19,6 +19,11 @@ struct FamilyNameView: View {
         containsOnlyAllowedCharacters(trimmedFamilyName)
     }
 
+    private var validationState: KIRIValidationGuidance.ValidationState {
+        guard !trimmedFamilyName.isEmpty else { return .neutral }
+        return isValid ? .valid : .invalid
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -46,7 +51,7 @@ struct FamilyNameView: View {
                     familyName = sanitize(newValue)
                 }
 
-                KIRIValidationGuidance()
+                KIRIValidationGuidance(state: validationState)
                     .padding(.leading, 24)
                     .padding(.top, 10)
 
