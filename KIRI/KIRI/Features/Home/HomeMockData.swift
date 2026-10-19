@@ -28,6 +28,8 @@ struct HomeMockPlace: Identifiable {
     let rating: Double
     let description: String
     let tags: [String]
+    let mockAssetName: String?
+    let imageURL: URL?
 }
 
 struct HomeMockData {
@@ -46,8 +48,8 @@ struct HomeMockData {
         isComplete: false
     )
     var places: [HomeMockPlace] = [
-        HomeMockPlace(id: "gyeongbok", title: "경복궁에서 사진찍기", location: "경복궁 종로구", rating: 4.6, description: "대중교통이 편리하고, 부모님이랑 가기 좋아요!", tags: ["문화", "가족 추천"]),
-        HomeMockPlace(id: "namsan", title: "남산에서 산책하기", location: "서울 중구", rating: 4.5, description: "가볍게 산책하면서 함께 시간을 보내기 좋아요.", tags: ["산책", "야외"])
+        HomeMockPlace(id: "gyeongbok", title: "경복궁에서 사진찍기", location: "경복궁 종로구", rating: 4.6, description: "대중교통이 편리하고, 부모님이랑 가기 좋아요!", tags: ["문화", "가족 추천"], mockAssetName: "home_gyeongbok", imageURL: nil),
+        HomeMockPlace(id: "namsan", title: "남산에서 산책하기", location: "서울 중구", rating: 4.5, description: "가볍게 산책하면서 함께 시간을 보내기 좋아요.", tags: ["산책", "야외"], mockAssetName: "home_namsan", imageURL: nil)
     ]
     var isMissionComplete = false
     var hasSchedule = false

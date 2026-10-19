@@ -71,6 +71,8 @@ struct FamilyHomeView: View {
                         rating: selectedPlace.rating,
                         tags: selectedPlace.tags,
                         isRecommended: true,
+                        mockAssetName: selectedPlace.mockAssetName,
+                        imageURL: selectedPlace.imageURL,
                         isBookmarked: $isPlaceBookmarked,
                         onBack: { route = .home }
                     )
@@ -343,7 +345,7 @@ struct FamilyHomeView: View {
                 HStack(spacing: 24) {
                     ForEach(mockData.places) { place in
                         Button { selectedPlace = place; route = .placeDetail } label: {
-                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description)
+                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description, imageName: place.mockAssetName, imageURL: place.imageURL)
                         }
                         .buttonStyle(.plain)
                     }
@@ -384,7 +386,7 @@ struct FamilyHomeView: View {
                 HStack(spacing: 24) {
                     ForEach(mockData.places.reversed()) { place in
                         Button { selectedPlace = place; route = .placeDetail } label: {
-                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description)
+                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description, imageName: place.mockAssetName, imageURL: place.imageURL)
                         }
                         .buttonStyle(.plain)
                     }

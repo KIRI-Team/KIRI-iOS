@@ -9,6 +9,8 @@ struct MissionActivityDetailView: View {
     let rating: Double?
     let tags: [String]
     let isRecommended: Bool
+    let mockAssetName: String? = nil
+    let imageURL: URL? = nil
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
 
@@ -60,17 +62,11 @@ struct MissionActivityDetailView: View {
 
     private var cover: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(KIRIColor.Background.elevated)
-
-            VStack(spacing: 12) {
-                Image(systemName: "photo")
-                    .font(.system(size: 34, weight: .light))
-                    .foregroundStyle(KIRIColor.Icon.secondary)
-                Text("장소 이미지 준비 중")
-                    .font(KIRITypography.bodySmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
+            KIRIContentImage(imageURL: imageURL, mockAssetName: mockAssetName) {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(KIRIColor.Background.elevated)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .frame(height: 240)
         .accessibilityLabel("장소 이미지 미등록")

@@ -8,6 +8,8 @@ struct MissionPlaceCard: View {
     let rating: Double?
     let tags: [String]
     let isRecommended: Bool
+    let mockAssetName: String? = nil
+    let imageURL: URL? = nil
 
     @Binding var isBookmarked: Bool
 
@@ -60,10 +62,11 @@ struct MissionPlaceCard: View {
 
     private var thumbnail: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(
-                cornerRadius: 10
-            )
-            .fill(KIRIColor.Background.elevated)
+            KIRIContentImage(imageURL: imageURL, mockAssetName: mockAssetName) {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(KIRIColor.Background.elevated)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             if let rating {
                 ratingBadge(rating)
