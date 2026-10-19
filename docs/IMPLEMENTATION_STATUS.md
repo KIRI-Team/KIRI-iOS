@@ -825,3 +825,14 @@ Figma MCP로 기록 대표 프레임을 확인했다: 캘린더 `7883:25337`, �
 - Figma 목 사진은 `mock_review_food.imageset`, `mock_review_family.imageset`으로 등록했다. 이 에셋은 개발/Preview용 목 자료이며 실제 리뷰 저장 데이터와 분리한다. 실제 캘린더와 상세 화면은 사용자가 저장한 Draft 사진을 우선 표시한다.
 
 Swift 파싱과 `git diff --check`는 통과했다. `xcodebuild`는 Swift 오류가 아니라 CoreSimulatorService에 사용 가능한 iOS Simulator 런타임이 없어 `No available simulator runtimes for platform iphonesimulator`로 실패했으며, 시뮬레이터에서의 실제 저장·갱신·사진 표시 검증은 미완료다.
+
+## 홈·미션 Figma 목 이미지 및 API 전환 구조 (2026-10-19)
+
+Figma 홈 `8347:7411`과 미션 관련 화면 `7948:1685`, 미션 카드/상세 상태 `8012:9925`, `8460:8451`, `8460:8707`의 이미지 레이어를 확인했다. 실제 사진 원본을 추출해 다음 에셋으로 등록했다.
+
+- 홈 추천: `home_gyeongbok`, `home_namsan`
+- 미션 목록·상세: `mission_gyeongbok`, `mission_namsan`
+
+`KIRIContentImage`는 유효한 API 이미지 URL을 우선 로드하고, 로딩 실패·URL 부재 시 콘텐츠별 `mockAssetName`을 fallback으로 사용한다. 홈 `HomeMockPlace`와 미션 `PlaceItem`에 콘텐츠 ID와 목 에셋 매핑을 보관하며, 카드와 상세 화면은 같은 이미지 컴포넌트를 사용한다. API 계약은 추가하지 않았고, 실제 URL 필드가 채워지면 화면 코드 변경 없이 실제 이미지가 우선 표시된다.
+
+Swift 파싱 및 `git diff --check`는 통과했다. 실제 Xcode 빌드와 시뮬레이터 픽셀 비교는 CoreSimulatorService 런타임 문제로 미검증이다.
