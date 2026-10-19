@@ -14,6 +14,30 @@ struct MissionActivityDetailView: View {
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
 
+    init(
+        title: String,
+        placeName: String,
+        district: String,
+        rating: Double?,
+        tags: [String],
+        isRecommended: Bool,
+        mockAssetName: String? = nil,
+        imageURL: URL? = nil,
+        isBookmarked: Binding<Bool>,
+        onBack: @escaping () -> Void
+    ) {
+        self.title = title
+        self.placeName = placeName
+        self.district = district
+        self.rating = rating
+        self.tags = tags
+        self.isRecommended = isRecommended
+        self.mockAssetName = mockAssetName
+        self.imageURL = imageURL
+        self._isBookmarked = isBookmarked
+        self.onBack = onBack
+    }
+
     var body: some View {
         ZStack {
             KIRIColor.Background.base.ignoresSafeArea()

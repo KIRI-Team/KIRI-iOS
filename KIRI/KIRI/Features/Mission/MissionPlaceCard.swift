@@ -13,6 +13,28 @@ struct MissionPlaceCard: View {
 
     @Binding var isBookmarked: Bool
 
+    init(
+        title: String,
+        placeName: String,
+        district: String,
+        rating: Double?,
+        tags: [String],
+        isRecommended: Bool,
+        mockAssetName: String? = nil,
+        imageURL: URL? = nil,
+        isBookmarked: Binding<Bool>
+    ) {
+        self.title = title
+        self.placeName = placeName
+        self.district = district
+        self.rating = rating
+        self.tags = tags
+        self.isRecommended = isRecommended
+        self.mockAssetName = mockAssetName
+        self.imageURL = imageURL
+        self._isBookmarked = isBookmarked
+    }
+
     var body: some View {
         HStack(spacing: 17) {
             thumbnail
