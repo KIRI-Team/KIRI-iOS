@@ -46,7 +46,7 @@
 | C01 | [AppRouter](../KIRI/KIRI/App/AppRouter.swift), [RootView](../KIRI/KIRI/App/RootView.swift), [MainTabView](../KIRI/KIRI/App/MainTabView.swift), [AppSessionStore](../KIRI/KIRI/Core/Storage/AppSessionStore.swift) | Bool 세션/모드 복원, pendingInvitation, 로그아웃. receiveInvitation 외부 호출 없음, userMode는 홈에만 전달. switch 탭 교체로 하위 State 유지 보장 없음 |
 | C02 | [AuthFlowView](../KIRI/KIRI/Features/Auth/AuthFlowView.swift), [LoginView](../KIRI/KIRI/Features/Auth/LoginView.swift), [TermsAgreementView](../KIRI/KIRI/Features/Auth/TermsAgreementView.swift) | 로그인→약관→온보딩. Apple 시스템 버튼은 LoginView 내 구현. 별도 AppleSignInButton.swift는 빈 파일. TermDetailView는 private |
 | C03 | [OnboardingFlowView](../KIRI/KIRI/Features/Onboarding/OnboardingFlowView.swift)와 같은 폴더의 9개 화면, [FamilyInvitation](../KIRI/KIRI/Models/FamilyInvitation.swift) | 닉네임/역할/가족명/코드/조회중/참여확인/공유 확장. KIRI24·가족명 mock, familyId/token/만료/owner 모델 없음 |
-| C04 | [FamilyHomeView](../KIRI/KIRI/Features/Home/FamilyHomeView.swift), [BrowseHomeView](../KIRI/KIRI/Features/Home/BrowseHomeView.swift), [HomeView](../KIRI/KIRI/Features/Home/HomeView.swift) | 홈/알림/고정 요청 상세만 route 존재. 배너·추천·질문 액션 없음. 일정 수락은 home 복귀만 |
+| C04 | [FamilyHomeView](../KIRI/KIRI/Features/Home/FamilyHomeView.swift), [BrowseHomeView](../KIRI/KIRI/Features/Home/BrowseHomeView.swift), [HomeView](../KIRI/KIRI/Features/Home/HomeView.swift) | 홈의 질문·주간 미션 플립 카드와 알림/상세 route가 존재한다. 주간 배정·완료 API는 미연동이며 로컬 Mock만 사용한다. |
 | C05 | [FamilyMemberItem](../KIRI/KIRI/Features/Home/Components/FamilyMemberItem.swift), [QuestionCard](../KIRI/KIRI/Features/Home/Components/QuestionCard.swift), [PlaceCard](../KIRI/KIRI/Features/Home/Components/PlaceCard.swift) | 표시용 아바타/완료 질문/추천 카드. 기존 타입에 상태·액션 확장 우선 |
 | C06 | [MissionView](../KIRI/KIRI/Features/Mission/MissionView.swift), [MissionPlaceCard](../KIRI/KIRI/Features/Mission/MissionPlaceCard.swift) | 검색·6종 카테고리·상세·북마크 연결. 지역/시간 TODO, 5개 상수 데이터·중복 샘플 |
 | C07 | [MissionActivityDetailView](../KIRI/KIRI/Features/Mission/MissionActivityDetailView.swift) | 목록에서 fullScreenCover 연결. 이미지 placeholder·장소/지역·태그·저장만 있어 상세 섹션 확장 대상 |
@@ -138,8 +138,8 @@ CSV 원본 ID·명칭·우선순위를 사용한다. C 번호는 2절 코드 근
 | HOME-02 · 질문 상태 전환 | P0 / U1 | UI 부분 구현 / 기능 부분 구현 | C04,C05 — hasAnswered 표시 파라미터만 있고 답변 저장 이벤트/상태 모델 없음. | [8070:11636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8070-11636),[8159:12976](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12976) | 구성원별 UNANSWERED/ANSWERED 즉시 갱신·중복 이벤트 처리. 콕 발송 상태는 별도로 유지. |
 | HOME-03 · 오늘/다가오는 일정 상태 | P1 / U6 | UI 미구현 / 기능 미구현 | C04,C11 — 홈 일정 배너·일정 선택 라우트가 없다. | [8012:10311](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-10311) | 응답/재확인 필요 우선, D-7~D-1 확정 1개·당일 1개, 시작시각 우선 선택. 취소/미확정/완료 제외. |
 | HOME-04 · 가족 질문 상태 상세 | P1 / U1 | UI 미구현 / 기능 미구현 | C05 — 스토리 프로필에 탭/상세 액션 없음. | [8070:11636](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8070-11636),[8159:12976](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8159-12976) | 답변 있음/없음 상세, 본인 콕 숨김·당일 콕 보냄·권한 없음 필요. Q-03/Q-04와 같은 화면으로 구현. |
-| HOME-05 · 앞뒤 플립 카드 | P0 / U1 | UI 미구현 / 기능 미구현 | C04,C05 — QuestionCard는 답변완료 텍스트 전용이다. | [8012:9925](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-9925),[8460:8451](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8451) | 앞면 오늘 질문+뒷면 주간 미션 공존 플립, 미션 비노출 시 탐색 CTA 필요. 플립이 답변·완료 데이터를 바꾸면 안 됨. |
-| HOME-REC-01 · 주간 미션 배정 | P0 / U1 | UI 미구현 / 기능 미구현 | C04 — 주간 미션 카드/배정 모델 없음. | [8347:7734](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7734),[8012:9925](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-9925) | 가족 공통 주 1개·월요일 KST 00:00 시작, 후보 없음/데이터 부족 UI 필요. 배정 서버 로직은 별도 계약. |
+| HOME-05 · 앞뒤 플립 카드 | P0 / U1 | UI 구현 완료(로컬) / 기능 부분 구현 | C04,C05 — `QuestionMissionFlipCard`가 354×136 카드의 질문/미션 앞뒤 상태와 탭·좌우 스와이프를 제공한다. | [8012:9925](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-9925),[8460:8451](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8451),[8460:8707](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8707) | 서버 데이터·권한·실제 미션 없음 상태는 미연동. 플립은 답변/완료 데이터를 변경하지 않는다. |
+| HOME-REC-01 · 주간 미션 배정 | P0 / U1 | UI 구현 완료(로컬) / 기능 연동 대기 | C04 — 가족 공통 `HomeMockMission`을 플립 카드 뒷면에 표시한다. | [8347:7734](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7734),[8012:9925](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8012-9925) | 월요일 KST 배정, 후보 정렬, 가족 ID별 유지·대체는 서버 계약 대기. 후보가 없을 때 탐색 CTA UI만 준비했다. |
 | HOME-REC-02 · 주간 미션 유지/갱신 | P0 / U1 | UI 미구현 / 기능 미구현 | C04 — 주간 식별자·유지/갱신/취소 대체 처리 없음. | [8460:8451](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8451),[8460:8707](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8707) | 같은 주 카드 유지, 취향 변경은 다음 주 반영, 취소/종료 때만 대체. 후보 없으면 탐색 유도. |
 | HOME-REC-03 · 주간 미션 완료 상태 | P1 / U6 | UI 미구현 / 기능 미구현 | C04,C13 — 리뷰→주간 미션 연결 없음. | [8460:8707](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8460-8707) | 연결 일정의 최초 유효 리뷰로 완료 표시. 시간 경과/단독 완료 버튼으로 처리하지 않음. |
 | Q-01 · 질문 배정 | P0 / U1 | UI 미구현 / 기능 미구현 | C04,C05 — 질문/답변 고정 문자열만 있다. | [8347:7411](https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th?node-id=8347-7411) | 가족 생성일 기준 첫 7일 고정 질문, 8일차 검수 풀, familyId+KST 날짜당 1개. 신규 참여자는 같은 질문, browse 배정 금지. 배정 대기/실패 상태 필요. |
@@ -458,7 +458,7 @@ PM 결정 필요: 회원탈퇴/가족공간 나가기 API와 실제 약관·개�
 
 ## 최신 명세서 MY 기능 감사 (2026-10-10 v1.4)
 
-기준 파일은 `docs/specs/KIRI_FEATURE_SPEC_2026-10-10.csv`이며 기존 `KIRI_FEATURE_SPEC_LATEST.csv`보다 우선한다. 아래 상태는 코드와 Figma 프레임을 함께 확인한 결과다.
+기준 파일은 `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`이며 기존 `KIRI_FEATURE_SPEC_LATEST.csv`보다 우선한다. 아래 상태는 코드와 Figma 프레임을 함께 확인한 결과다.
 
 | ID | 최신 명세 정책 반영 | Figma 확인 | 현재 상태 | API |
 | --- | --- | --- | --- | --- |
@@ -758,3 +758,70 @@ Swift parse 검사와 `git diff --check`는 통과했다. 현재 환경의 CoreS
 - 각 단계는 `홈 튜토리얼 1.png`, `홈 튜토리얼 2.png`, `홈 튜토리얼 3.png`를 원본 비율로 전체 화면에 표시하고, SwiftUI 레이어는 단계 진행용 `다음`/`시작하기` 버튼과 페이지 인디케이터만 하단에 표시한다.
 - 기존 모드별 완료 상태, 1→2→3 전환, 탭/왼쪽 스와이프, 마지막 단계 완료 저장은 변경하지 않았다. 하단 컨트롤은 별도 영역으로 묶어 중앙 안내 문구나 질문·미션 카드 위에 중복 텍스트가 쌓이지 않도록 했다.
 - Swift 문법 검사와 `git diff --check`는 통과했다. `xcodebuild`는 CoreSimulatorService에 사용 가능한 iOS Simulator 런타임이 없어 `actool: No available simulator runtimes for platform iphonesimulator`로 실패했으며, 실제 기기에서 PNG 표시·버튼 위치·단계 진행 시각 비교는 미검증이다.
+
+## Figma 기준 전체 UI 대표 화면 검수 (2026-10-19)
+
+검수 브랜치: `feat/figma-ui-audit`
+
+검수 기준: Figma `UMC 10th 팀 HALO`의 `끼리 UI` 페이지와 최신 기능명세서 `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`.
+
+Figma MCP로 대표 프레임의 계층·스크린샷·타이포그래피·컴포넌트 크기를 직접 확인했다. 파일 루트 노드 `7883:11018`은 MCP에서 선택 레이어가 없다는 응답을 반환해 전체 루트 컨텍스트는 확인하지 못했으며, 아래 화면은 유효한 개별 노드 기준으로 판정했다.
+
+| 화면/상태 | Swift 파일 | 확인한 Figma 노드 | 판정 | 확인된 차이 또는 사유 |
+|---|---|---|---|---|
+| 스플래시 | `Features/Auth/SplashView.swift` | 전용 최종 프레임 확인 필요 | 확인 필요 | 정상 동작 중인 MP4는 이번 검수에서 변경하지 않음 |
+| 로그인 | `Features/Auth/LoginView.swift` | `8095:62717` | 확인 필요 | 해당 노드는 로그인 전체가 아닌 앱 바 레이어 응답으로 확인되어 최종 로그인 프레임 확정 보류 |
+| 약관 동의 | `Features/Auth/TermsAgreementView.swift` | `8296:13599` | 확인 필요 | 제목·약관 행·하단 액션 구조는 확인했으나 시뮬레이터 픽셀 비교 미완료 |
+| 가족명 입력 | `Features/Onboarding/FamilyNameView.swift` | `8098:72650` | 확인 필요 | Figma는 2~10자 안내, 최신 명세는 2~15자로 충돌해 임의 변경하지 않음 |
+| 가족공간 홈 | `Features/Home/FamilyHomeView.swift` | `8347:7411` | 불일치 → 수정 | Figma 기준 취향 배너 제거, 답변 영역 상단/간격을 23/24pt로 조정, 추천 영역 간격 48pt 적용 |
+| 질문 카드 | `Features/Home/Components/QuestionCard.swift` | `8413:5593` | 불일치 → 수정 | 354×136, 8pt radius, #252524 배경, 14/18pt Pretendard와 답변 색상으로 정렬 |
+| 플레이스 카드 | `Features/Home/Components/PlaceCard.swift` | 홈 플레이스 카드 계층 | 불일치 → 수정 | 카드 배경을 Figma `bg-primary` 토큰으로 수정 |
+| 홈 튜토리얼 | `Features/Home/HomeTutorialView.swift` | `9167:10395`, `9173:12885`, `9173:13415` | 확인 필요 | 실제 홈 bounds 기반 SwiftUI 오버레이로 재구현했으며 실제 기기 비교는 미완료 |
+| 둘러보기 홈 | `Features/Home/BrowseHomeView.swift` | `8450:19981` | 확인 필요 | 공개 추천/가족공간 CTA 구조는 확인했으나 스크린샷 픽셀 비교 미완료 |
+| 미션 탐색 | `Features/Mission/MissionView.swift` | `7948:1685` | 확인 필요 | 검색·카테고리·필터·목록 계층은 확인했으나 필터 아이콘 원본 에셋과 실제 렌더링 비교 보류 |
+| 기록/캘린더 | `Features/Record/RecordView.swift` | `7883:25337` | 확인 필요 | 탭·캘린더·일정 상태의 Figma 상세 상태가 여러 개라 최종 프레임 확정 보류 |
+| 마이페이지 메인 | `Features/MyPage/MyPageView.swift` | `8213:3062` | 불일치 → 수정 | 프로필 아바타를 기존 `family-me` 에셋으로 교체하고, Figma의 내 설정/가족 설정/설정 행 구성에 맞춰 설정 섹션의 중복 알림·직접 약관 행을 제거했다. 약관·오픈소스·버전·탈퇴는 Figma `8599:76117` 계정 정보 화면으로 연결한다. |
+| 가족 설정 | `Features/MyPage/FamilySettingsView.swift` | `8216:3570` | 확인 필요 | 실제 구성원·권한 데이터가 없는 Mock 화면이므로 시각 비교와 정책 구현을 분리해 보류 |
+| 알림함 | `Features/Home/Notification/NotificationView.swift` | 관련 상세 노드 확인 필요 | 확인 필요 | 기존 미커밋 변경을 보존하고 이번 검수에서 수정하지 않음 |
+
+하단 탭바는 Figma `KIRI/Bottom Navigation` 레이어의 확인값(#404140 바, #F7F7F6 선택 pill, green accent, 비활성 #737473)에 맞춰 공통 디자인 토큰을 수정했다. 이번 검수에서 확정된 코드 수정은 대표 홈 레이아웃/카드·공통 하단 탭바·마이페이지 프로필 에셋에 한정했다. Figma 최종 프레임이 확인되지 않은 화면은 추측으로 수정하지 않았다.
+## 최신 통합 명세서 기준 홈 플립 카드 수정 (2026-10-19)
+
+이번 홈 카드 검수의 기능 기준은 기존 날짜 버전이 아니라 `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`이다.
+
+| 기능 ID | 명세서 확인 내용 | Figma 기준 | 구현 상태 |
+|---|---|---|---|
+| HOME-05 | 질문·미션은 한 카드의 앞면/뒷면이며 탭 또는 좌우/플립 액션은 표시 상태만 전환한다. | `8012:9925`(미션 플립 상태), `8347:7734`(질문 카드 상태) | 단일 SwiftUI 3D 플립 카드 UI 구현 완료, API 미연동 |
+| HOME-REC-01 | 가족공간 단위로 월요일 00:00~일요일 23:59(KST) 주 1개를 배정하고 모든 구성원이 동일한 미션을 본다. | `8012:9925`, `8460:8451`, `8460:8707` | 가족 공통 Mock 미션을 뒷면에 연결, 실제 배정 API 대기 |
+| Q-01/Q-02/Q-03 | 가족별 동일 질문 1개, 개인별 답변 상태와 열람을 독립 관리한다. | `8347:7734` | 기존 로컬 답변/상세 화면 유지, 플립으로 데이터 변경 없음 |
+| FAM-06 | 홈 튜토리얼은 답변 모아보기·질문 카드·추천을 짧게 안내한다. | `9167:10395`, `9173:12885`, `9173:13415` | 실제 홈 컴포넌트 기반 SwiftUI 오버레이로 구현 |
+
+기존 `FamilyHomeView`에서 질문 카드와 주간 미션을 별도 세로 섹션으로 렌더링하던 구조를 제거하고, 기존 `QuestionCard`를 앞면으로 재사용하는 `QuestionMissionFlipCard`가 동일한 354×136pt 카드 영역에서 앞면 질문과 뒷면 미션을 렌더링하도록 변경했다. 카드 회전은 `rotation3DEffect`로 처리하며 뒷면 텍스트는 반대 회전으로 보정한다. 질문 답변과 미션 상세 진입은 각 면의 액션 영역에서 유지하고, 플립 중 연속 입력은 잠근다.
+
+주간 미션이 없는 상태의 탐색 탭 유도와 주간 배정·완료 판정은 서버 계약이 없어 Mock 성공으로 표시하지 않았다. Figma에서 플립 애니메이션의 정확한 시간/이징은 확인되지 않아 SwiftUI의 0.35초 ease-in-out은 구현상 기본값이며 디자인 확정값이 아니다.
+
+## 홈 튜토리얼 SwiftUI 오버레이 재구현 (2026-10-19)
+
+Figma 섹션 `9173:13678`의 형제 레이어까지 확인한 결과, 튜토리얼은 프레임 위 전체 딤(`#1A1A1A`, 75%), 초록 강조 벡터, 단계별 설명 텍스트로 구성되어 있었다. 기존 `홈 튜토리얼 1~3.png` 렌더링은 제거하고 실제 `FamilyHomeView` 컴포넌트의 PreferenceKey bounds를 `HomeTutorialView`에 전달하는 구조로 변경했다.
+
+| 단계 | Figma 노드 | 실제 SwiftUI 대상 | 상태 |
+|---|---|---|---|
+| 1 | `9167:10395` | 답변 모아보기, 가족 초대, 질문·미션 카드 앞면 | SwiftUI 오버레이 구현 |
+| 2 | `9173:12885` | 질문·미션 카드 뒷면, 새로고침 영역 | SwiftUI 오버레이 구현 |
+| 3 | `9173:13415` | 추천 제목 영역 | SwiftUI 오버레이 구현 |
+
+튜토리얼 단계 전환 시 `FamilyHomeView`의 플립 카드도 질문 앞면에서 미션 뒷면으로 동기화된다. 기존 모드별 완료 상태와 마지막 단계 완료 저장은 유지한다. 시뮬레이터 화면 비교는 CoreSimulatorService 런타임 부재로 미검증이다.
+
+최신 FAM-06 정책은 건너뛰기 가능성을 규정하지만, 확인한 Figma 튜토리얼 형제 레이어에는 별도 건너뛰기 버튼이 없다. 따라서 Figma에 없는 버튼은 추가하지 않았으며, 이 정책·디자인 충돌은 확인 필요로 남긴다.
+
+## 기록 사진 및 리뷰-캘린더 연결 (2026-10-19)
+
+Figma MCP로 기록 대표 프레임을 확인했다: 캘린더 `7883:25337`, 캘린더 변형 `8105:76303`, 리뷰 작성 `8012:10942`, 리뷰 상세 `7903:1926`. 캘린더에는 완료 활동의 대표 사진 썸네일이 표시되고, 같은 날짜에 여러 활동이 있으면 대표 썸네일과 추가 개수로 표시하는 CAL-03 정책을 확인했다.
+
+- `ActivityReviewStore`를 추가해 리뷰 Draft(평점·내용·반복 여부·사진)를 UserDefaults에 로컬 저장한다. 서버 API 성공을 가장하지 않으며, 앱 재실행 후에도 로컬 리뷰를 복원한다.
+- `RecordView`가 기존 화면 메모리 딕셔너리 대신 저장소를 공유하고, 저장·수정·삭제 시 캘린더에 전달할 Draft를 갱신한다.
+- `RecordCalendarView`가 저장된 리뷰를 실제 `CalendarActivity`로 생성한다. 완료 날짜 셀은 저장된 첫 사진을 사용하고, 날짜/사진 선택은 해당 `ReviewDetailData`로 연결된다.
+- `ReviewDetailView`는 캘린더에서 진입한 리뷰의 Draft 사진·내용을 사용하며 기존 수정·삭제 흐름을 유지한다.
+- Figma 목 사진은 `mock_review_food.imageset`, `mock_review_family.imageset`으로 등록했다. 이 에셋은 개발/Preview용 목 자료이며 실제 리뷰 저장 데이터와 분리한다. 실제 캘린더와 상세 화면은 사용자가 저장한 Draft 사진을 우선 표시한다.
+
+Swift 파싱과 `git diff --check`는 통과했다. `xcodebuild`는 Swift 오류가 아니라 CoreSimulatorService에 사용 가능한 iOS Simulator 런타임이 없어 `No available simulator runtimes for platform iphonesimulator`로 실패했으며, 시뮬레이터에서의 실제 저장·갱신·사진 표시 검증은 미완료다.

@@ -1,8 +1,8 @@
 # KIRI iOS 작업 기준
 
 - 프로젝트: KIRI iOS
-- 최신 기능명세서: `docs/specs/KIRI_FEATURE_SPEC_2026-10-10.csv`
-- `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`보다 2026년 10월 10일 명세서를 우선한다.
+- 최신 기능명세서: `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`
+- `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`를 현재 통합 기준으로 사용한다. 날짜 버전 명세서는 참고용이며 최신 통합 명세서를 우선한다.
 - Figma 원본: https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th-%ED%8C%80-HALO?node-id=7883-11018
 - 기능 및 정책은 최신 명세서, UI 디자인은 Figma를 기준으로 한다.
 - 화면 구현 전 해당 Figma 프레임을 직접 확인한다.
@@ -29,3 +29,16 @@
 실제 빌드가 성공하지 않으면 작업 상태를 `빌드 미검증` 또는 `빌드 실패`로 보고하며, 빌드 성공으로 확정하지 않는다.
 
 작업 완료 조건은 Swift 컴파일 오류 없음, 프로젝트 전체 빌드 성공, 기존 화면 무손상, 새 View 참조 정상 여부 확인이다. API 미연동 기능은 성공한 것처럼 처리하지 않는다.
+
+## Git 운영 규칙
+
+- 모든 작업 시작 전에 현재 브랜치와 `git status`를 확인한다.
+- 하나의 화면·기능 단위가 검증되면 기능 단위로 커밋한다. 반복적인 UI 수정은 관련 변경을 묶는다.
+- 명확한 코드 오류·충돌·누락 파일·미완성 코드가 있으면 먼저 해결한다. Codex 환경의 CoreSimulatorService 또는 시뮬레이터 런타임 오류만으로 커밋·푸시를 중단하지 않는다. 빌드 미검증 상태는 보고서에 명시한다.
+- 커밋 메시지는 `[Type] : 설명` 형식을 사용하며 Type은 `Feat`, `Fix`, `Design`, `Refactor`, `Docs`, `Chore` 중 의미에 맞게 선택한다.
+- 의미 있는 변경이 누적되면 원격 작업 브랜치에 푸시한다. 매 수정마다 무조건 푸시하지 않는다.
+- 기존 작업자의 변경 사항을 덮어쓰거나 삭제하지 않는다.
+- `develop`과 `main`에는 직접 푸시하지 않는다.
+- PR 생성·병합은 별도 사용자 요청이 있을 때만 진행한다.
+- `git push --force`는 사용하지 않는다.
+- 작업 완료 보고에는 수정 파일, 검증 결과, 커밋 해시, 원격 푸시 여부, 현재 브랜치, PR 필요 여부를 포함한다.
