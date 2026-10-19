@@ -9,8 +9,8 @@ struct MissionActivityDetailView: View {
     let rating: Double?
     let tags: [String]
     let isRecommended: Bool
-    let mockAssetName: String? = nil
-    let imageURL: URL? = nil
+    let mockAssetName: String?
+    let imageURL: URL?
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
 
