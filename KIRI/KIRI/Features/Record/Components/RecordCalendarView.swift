@@ -1,5 +1,6 @@
 
 import SwiftUI
+import UIKit
 
 struct RecordCalendarView: View {
 
@@ -37,6 +38,19 @@ struct RecordCalendarView: View {
         let review: String
         let writtenDate: String
         let representativePhotoURL: URL?
+        let draft: ActivityReviewWriteView.Draft?
+
+        init(title: String, date: String, familyName: String, authorName: String, isCurrentUser: Bool, review: String, writtenDate: String, representativePhotoURL: URL? = nil, draft: ActivityReviewWriteView.Draft? = nil) {
+            self.title = title
+            self.date = date
+            self.familyName = familyName
+            self.authorName = authorName
+            self.isCurrentUser = isCurrentUser
+            self.review = review
+            self.writtenDate = writtenDate
+            self.representativePhotoURL = representativePhotoURL
+            self.draft = draft
+        }
     }
 
     struct CalendarActivity: Identifiable {
@@ -66,6 +80,7 @@ struct RecordCalendarView: View {
     // API 연동 전 화면 연결을 위한 내부 데이터
     var demoTodaySchedule: ScheduleDetailData? = nil
     var savedReviewSchedules: [ScheduleDetailData] = []
+    var savedReviewDrafts: [String: ActivityReviewWriteView.Draft] = [:]
     var onSelectSavedReview: (ScheduleDetailData) -> Void = { _ in }
 
     // MARK: - State
@@ -80,12 +95,14 @@ struct RecordCalendarView: View {
         onSelectReview: @escaping (ReviewDetailData) -> Void = { _ in },
         demoTodaySchedule: ScheduleDetailData? = nil,
         savedReviewSchedules: [ScheduleDetailData] = [],
+        savedReviewDrafts: [String: ActivityReviewWriteView.Draft] = [:],
         onSelectSavedReview: @escaping (ScheduleDetailData) -> Void = { _ in }
     ) {
         self.onSelectSchedule = onSelectSchedule
         self.onSelectReview = onSelectReview
         self.demoTodaySchedule = demoTodaySchedule
         self.savedReviewSchedules = savedReviewSchedules
+        self.savedReviewDrafts = savedReviewDrafts
         self.onSelectSavedReview = onSelectSavedReview
 
         let today = Date()
@@ -162,9 +179,26 @@ struct RecordCalendarView: View {
         return schedules
     }
 
-    // 추후 API 연결 시 실제 가족 기록 데이터로 교체
+    private func reviewKey(_ schedule: ScheduleDetailData) -> String {
+        "\(schedule.date)|\(schedule.title)"
+    }
+
     private var calendarActivities: [CalendarActivity] {
-        []
+        savedReviewSchedules.compactMap { schedule in
+            guard let draft = savedReviewDrafts[reviewKey(schedule)] else { return nil }
+            let review = ReviewDetailData(
+                title: schedule.title, date: schedule.date,
+                familyName: "끼리네가족", authorName: "나",
+                isCurrentUser: true, review: draft.comment,
+                writtenDate: Date.now.formatted(.dateTime.month().day()),
+                representativePhotoURL: nil, draft: draft
+            )
+            return CalendarActivity(
+                day: schedule.day, state: .completed,
+                representativePhotoURL: nil, additionalCompletedCount: 0,
+                schedule: schedule, review: review
+            )
+        }
     }
 
     private var upcomingSchedules: [ScheduleDetailData] {
@@ -452,14 +486,29 @@ struct RecordCalendarView: View {
             }
 
         case .completed:
-            VStack(spacing: 2) {
-                Image(systemName: "photo.fill")
-                    .font(.system(size: 17))
-                    .foregroundStyle(KIRIColor.Primary.default)
-
-                Text(String(day))
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.Text.primary)
+            if let image = reviews(for: day).first?.draft?.images.first {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 45, height: 45)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(alignment: .bottom) {
+                        Text(String(day))
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.black.opacity(0.35))
+                    }
+                    .clipped()
+            } else {
+                VStack(spacing: 2) {
+                    Image(systemName: "photo.fill")
+                        .font(.system(size: 17))
+                        .foregroundStyle(KIRIColor.Primary.default)
+                    Text(String(day))
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                }
             }
         }
     }

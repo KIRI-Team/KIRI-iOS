@@ -336,7 +336,7 @@ struct ReviewDetailView: View {
 
 
 
-                Text(localDraft?.comment ?? review.review)
+                Text((localDraft ?? review.draft)?.comment ?? review.review)
 
                     .font(KIRITypography.body)
 
@@ -420,7 +420,7 @@ struct ReviewDetailView: View {
 
 
 
-            if review.isCurrentUser && localDraft != nil {
+            if review.isCurrentUser && (localDraft ?? review.draft) != nil {
 
                 menuArea
 
@@ -504,7 +504,7 @@ struct ReviewDetailView: View {
 
         Group {
 
-            if let first = localDraft?.images.first {
+            if let first = (localDraft ?? review.draft)?.images.first {
                 Image(uiImage: first).resizable().scaledToFill()
             } else if let url = review.representativePhotoURL {
 
