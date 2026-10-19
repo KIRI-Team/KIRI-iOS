@@ -16,6 +16,33 @@ struct MainTabView: View {
     let onLogout: () -> Void
 
     @State private var selectedTab: AppTab = .home
+    @State private var homeTutorialStore: HomeTutorialStore
+
+    init(
+        userMode: AppRouter.UserMode,
+        familyName: String?,
+        familyInviteCode: String?,
+        onFamilyCreated: @escaping (String, String) -> Void,
+        onLogout: @escaping () -> Void
+    ) {
+        self.userMode = userMode
+        self.familyName = familyName
+        self.familyInviteCode = familyInviteCode
+        self.onFamilyCreated = onFamilyCreated
+        self.onLogout = onLogout
+        _homeTutorialStore = State(
+            initialValue: HomeTutorialStore(
+                mode: {
+                    switch userMode {
+                    case .browse:
+                        return .browse
+                    case .family:
+                        return .family
+                    }
+                }()
+            )
+        )
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -27,12 +54,15 @@ struct MainTabView: View {
                     maxWidth: .infinity,
                     maxHeight: .infinity
                 )
+                .zIndex(homeTutorialStore.isActive ? 2 : 0)
 
             KIRITabBar(
                 selectedTab: $selectedTab
             )
             .padding(.horizontal, 18)
             .padding(.bottom, 8)
+            .zIndex(1)
+
         }
         .ignoresSafeArea(
             .keyboard,
@@ -48,6 +78,7 @@ struct MainTabView: View {
                 userMode: userMode,
                 familyName: familyName,
                 familyInviteCode: familyInviteCode,
+                tutorialStore: homeTutorialStore,
                 onFamilyCreated: onFamilyCreated
             )
 
@@ -63,6 +94,7 @@ struct MainTabView: View {
             )
         }
     }
+
 }
 
 #Preview {

@@ -1,128 +1,125 @@
 import SwiftUI
+import UIKit
 
-/// Figma 9173:13678에 표현된 홈 화면 안내 오버레이.
-/// 별도 전체 화면 레이아웃이나 시스템 아이콘을 만들지 않고, 실제 홈의 안내 대상만 강조한다.
+/// Figma에서 내보낸 390×844 튜토리얼 화면을 그대로 표시한다.
+/// 강조, 딤, 안내 문구는 이미지에 포함되어 있으므로 SwiftUI에서 다시 그리지 않는다.
 struct HomeTutorialView: View {
-    enum Mode {
+    enum Mode: Equatable {
         case browse
         case family
     }
 
-    private struct Step {
-        let highlight: CGRect
-        let messages: [(text: String, position: CGPoint)]
-    }
-
     let mode: Mode
     let onComplete: () -> Void
+    let onStepChanged: (Int) -> Void
 
     @State private var stepIndex = 0
+    @State private var isAdvancing = false
 
-    private var steps: [Step] {
-        switch mode {
-        case .browse:
-            // Figma annotation 9167:10685. 둘러보기 홈의 가족공간 생성 영역만 안내한다.
-            return [
-                Step(
-                    highlight: CGRect(x: 18, y: 145, width: 354, height: 96),
-                    messages: [
-                        ("가족을 초대해서\n방을 만들어요!", CGPoint(x: 300, y: 278))
-                    ]
-                )
-            ]
-
-        case .family:
-            // Figma annotations 9173:10693, 9173:13144, 9173:12443, 9173:13413.
-            return [
-                Step(
-                    highlight: CGRect(x: 18, y: 145, width: 354, height: 128),
-                    messages: [
-                        ("우리 가족들의\n답변을 모아봐요!", CGPoint(x: 110, y: 310))
-                    ]
-                ),
-                Step(
-                    highlight: CGRect(x: 18, y: 426, width: 354, height: 130),
-                    messages: [
-                        ("스와이프로 질문카드도 확인할 수 있어요!", CGPoint(x: 230, y: 400)),
-                        ("우리 가족의 답변을 바탕으로\n매주 한 개의 미션이 발행돼요!", CGPoint(x: 270, y: 610))
-                    ]
-                ),
-                Step(
-                    highlight: CGRect(x: 18, y: 640, width: 354, height: 30),
-                    messages: [
-                        ("끼리가 큐레이팅 한 미션 목록!", CGPoint(x: 150, y: 700))
-                    ]
-                )
-            ]
-        }
-    }
-
-    private var currentStep: Step {
-        steps[min(stepIndex, steps.count - 1)]
-    }
+    private let imageNames = [
+        "홈 튜토리얼 1",
+        "홈 튜토리얼 2",
+        "홈 튜토리얼 3"
+    ]
 
     var body: some View {
-        GeometryReader { geometry in
-            let scale = geometry.size.width / 390
-            let highlight = CGRect(
-                x: currentStep.highlight.origin.x * scale,
-                y: currentStep.highlight.origin.y * scale,
-                width: currentStep.highlight.width * scale,
-                height: currentStep.highlight.height * scale
-            )
+        ZStack {
+            KIRIColor.Background.base
+                .ignoresSafeArea()
 
-            ZStack {
-                TutorialDimMask(hole: highlight)
-                    .fill(Color.black.opacity(0.72), style: FillStyle(eoFill: true))
-                    .ignoresSafeArea()
-
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(KIRIColor.Primary.default, lineWidth: 1)
-                    .frame(width: highlight.width, height: highlight.height)
-                    .position(x: highlight.midX, y: highlight.midY)
-
-                ForEach(Array(currentStep.messages.enumerated()), id: \.offset) { _, message in
-                    Text(message.text)
-                        .font(KIRITypography.body)
-                        .foregroundStyle(KIRIColor.Text.strong)
-                        .multilineTextAlignment(.center)
-                        .position(
-                            x: message.position.x * scale,
-                            y: message.position.y * scale
+            if let image = tutorialImage(for: stepIndex) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .id(stepIndex)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
                         )
-                }
+                    )
             }
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 24)
-                    .onEnded { value in
-                        guard value.translation.width < -24 else { return }
-                        advance()
-                    }
+        }
+        .overlay(alignment: .bottom) {
+            tutorialControls
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 24)
+                .onEnded { value in
+                    guard value.translation.width < -24 else { return }
+                    advance()
+                }
+        )
+        .onTapGesture {
+            advance()
+        }
+        .animation(.easeOut(duration: 0.3), value: stepIndex)
+        .onAppear {
+            #if DEBUG
+            print(
+                "[KIRI TutorialDebug][ImageTutorial] onAppear " +
+                "mode=\(String(describing: mode)) " +
+                "step=\(stepIndex + 1) " +
+                "image=\(imageNames[stepIndex]) " +
+                "loaded=\(tutorialImage(for: stepIndex) != nil)"
             )
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("홈 튜토리얼")
-            .accessibilityHint("왼쪽으로 쓸어 다음 안내를 확인하세요")
+            #endif
         }
         .ignoresSafeArea()
+        .onAppear {
+            onStepChanged(stepIndex)
+        }
+    }
+
+    /// PNG에 포함된 홈 콘텐츠와 안내 레이어는 그대로 보존하고,
+    /// 단계 진행에 필요한 컨트롤만 화면 하단에 추가한다.
+    private var tutorialControls: some View {
+        VStack(spacing: 10) {
+            Text("\(stepIndex + 1) / 3")
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.secondary)
+
+            KIRIPrimaryButton(
+                title: stepIndex == imageNames.count - 1 ? "시작하기" : "다음",
+                action: advance
+            )
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 12)
+        .safeAreaPadding(.bottom, 8)
+        .background(
+            KIRIColor.Background.base.opacity(0.94)
+        )
+    }
+
+    private func tutorialImage(for index: Int) -> UIImage? {
+        guard imageNames.indices.contains(index) else { return nil }
+        let name = imageNames[index]
+
+        // Xcode의 파일 시스템 동기화 그룹에서 복사된 원본 PNG를 우선 읽고,
+        // 이미지 이름 조회를 보조 경로로 사용한다. 파일명은 한글과 공백을 보존한다.
+        if let path = Bundle.main.path(forResource: name, ofType: "png"),
+           let image = UIImage(contentsOfFile: path) {
+            return image
+        }
+        return UIImage(named: name)
     }
 
     private func advance() {
-        if stepIndex == steps.count - 1 {
+        guard !isAdvancing else { return }
+        isAdvancing = true
+
+        if stepIndex == imageNames.count - 1 {
             onComplete()
         } else {
             stepIndex += 1
+            onStepChanged(stepIndex)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                isAdvancing = false
+            }
         }
-    }
-}
-
-private struct TutorialDimMask: Shape {
-    let hole: CGRect
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.addRect(rect)
-        path.addRoundedRect(in: hole, cornerSize: CGSize(width: 8, height: 8))
-        return path
     }
 }

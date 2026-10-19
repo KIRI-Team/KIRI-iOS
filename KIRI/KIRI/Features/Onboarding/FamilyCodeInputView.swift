@@ -30,6 +30,11 @@ struct FamilyCodeInputView: View {
         }
     }
 
+    private var validationState: KIRIValidationGuidance.ValidationState {
+        guard !normalizedCode.isEmpty else { return .neutral }
+        return isValid ? .valid : .invalid
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -62,7 +67,7 @@ struct FamilyCodeInputView: View {
                 Text("영문과 숫자로 구성된 6자리 코드를 입력해주세요.")
                     .font(KIRITypography.captionMedium)
                     .tracking(-0.48)
-                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .foregroundStyle(validationColor)
                     .padding(.top, 10)
 
                 Spacer()
@@ -83,6 +88,17 @@ struct FamilyCodeInputView: View {
             .padding(.bottom, 10)
         }
         .background(KIRIColor.Background.base)
+    }
+
+    private var validationColor: Color {
+        switch validationState {
+        case .neutral:
+            return KIRIColor.Text.tertiary
+        case .invalid:
+            return KIRIColor.Status.error
+        case .valid:
+            return KIRIColor.Status.success
+        }
     }
 
     // MARK: - Header
