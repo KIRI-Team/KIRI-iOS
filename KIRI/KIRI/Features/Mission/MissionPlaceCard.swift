@@ -8,8 +8,32 @@ struct MissionPlaceCard: View {
     let rating: Double?
     let tags: [String]
     let isRecommended: Bool
+    let mockAssetName: String?
+    let imageURL: URL?
 
     @Binding var isBookmarked: Bool
+
+    init(
+        title: String,
+        placeName: String,
+        district: String,
+        rating: Double?,
+        tags: [String],
+        isRecommended: Bool,
+        mockAssetName: String? = nil,
+        imageURL: URL? = nil,
+        isBookmarked: Binding<Bool>
+    ) {
+        self.title = title
+        self.placeName = placeName
+        self.district = district
+        self.rating = rating
+        self.tags = tags
+        self.isRecommended = isRecommended
+        self.mockAssetName = mockAssetName
+        self.imageURL = imageURL
+        self._isBookmarked = isBookmarked
+    }
 
     var body: some View {
         HStack(spacing: 17) {
@@ -60,10 +84,11 @@ struct MissionPlaceCard: View {
 
     private var thumbnail: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(
-                cornerRadius: 10
-            )
-            .fill(KIRIColor.Background.elevated)
+            KIRIContentImage(imageURL: imageURL, mockAssetName: mockAssetName) {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(KIRIColor.Background.elevated)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             if let rating {
                 ratingBadge(rating)

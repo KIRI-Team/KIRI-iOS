@@ -45,7 +45,7 @@ struct RecordView: View {
     @State private var editingReview = false
     @State private var showingDeleteConfirmation = false
     @State private var selectedReviewSchedule: RecordCalendarView.ScheduleDetailData?
-    @State private var savedReviews: [String: ActivityReviewWriteView.Draft] = [:]
+    @State private var reviewStore = ActivityReviewStore()
 
     private var demoTodaySchedule: RecordCalendarView.ScheduleDetailData {
 
@@ -130,7 +130,7 @@ struct RecordView: View {
              } else if let review = selectedReview {
                 ReviewDetailView(
                     review: review,
-                    localDraft: selectedReviewSchedule.flatMap { savedReviews[reviewKey($0)] },
+                    localDraft: selectedReviewSchedule.flatMap { reviewStore.reviews[reviewKey($0)] } ?? review.draft,
                     onBack: { selectedReview = nil; selectedReviewSchedule = nil },
                     onEdit: { editingReview = true },
                     onDelete: { showingDeleteConfirmation = true }
@@ -151,11 +151,11 @@ struct RecordView: View {
 
                         schedule.title == demoTodaySchedule.title ? mockTodayContent : nil,
 
-                    savedReview: savedReviews[reviewKey(schedule)],
+                    savedReview: reviewStore.reviews[reviewKey(schedule)],
 
                     onReviewSaved: { draft in
 
-                        savedReviews[reviewKey(schedule)] = draft
+                        reviewStore.save(draft, for: reviewKey(schedule))
 
                     }
 
@@ -171,11 +171,11 @@ struct RecordView: View {
 
         .fullScreenCover(isPresented: $editingReview) {
             if let schedule = selectedReviewSchedule,
-               let draft = savedReviews[reviewKey(schedule)] {
+               let draft = reviewStore.reviews[reviewKey(schedule)] {
                 ActivityReviewWriteView(
                     onBack: { editingReview = false },
                     onSubmit: { updated in
-                        savedReviews[reviewKey(schedule)] = updated
+                        reviewStore.save(updated, for: reviewKey(schedule))
                         selectedReview = reviewData(for: schedule, draft: updated)
                         editingReview = false
                     },
@@ -186,7 +186,7 @@ struct RecordView: View {
         .confirmationDialog("이 기록을 삭제할까요?", isPresented: $showingDeleteConfirmation) {
             Button("삭제하기", role: .destructive) {
                 if let schedule = selectedReviewSchedule {
-                    savedReviews.removeValue(forKey: reviewKey(schedule))
+                    reviewStore.remove(for: reviewKey(schedule))
                 }
                 selectedReview = nil
                 selectedReviewSchedule = nil
@@ -248,9 +248,11 @@ struct RecordView: View {
 
                         demoTodaySchedule: demoTodaySchedule,
 
-                        savedReviewSchedules: savedReviews.keys.contains(reviewKey(demoTodaySchedule))
+                        savedReviewSchedules: reviewStore.reviews.keys.contains(reviewKey(demoTodaySchedule))
 
                             ? [demoTodaySchedule] : [],
+
+                        savedReviewDrafts: reviewStore.reviews,
 
                         onSelectSavedReview: { schedule in
 
@@ -287,7 +289,7 @@ struct RecordView: View {
     }
 
     private func openSavedReview(_ schedule: RecordCalendarView.ScheduleDetailData) {
-        guard let draft = savedReviews[reviewKey(schedule)] else { return }
+        guard let draft = reviewStore.reviews[reviewKey(schedule)] else { return }
         selectedReviewSchedule = schedule
         selectedReview = reviewData(for: schedule, draft: draft)
     }
@@ -297,7 +299,8 @@ struct RecordView: View {
         .init(title: schedule.title, date: schedule.date,
               familyName: "끼리네가족", authorName: "나", isCurrentUser: true,
               review: draft.comment, writtenDate: Date.now.formatted(.dateTime.month().day()),
-              representativePhotoURL: nil)
+              representativePhotoURL: nil,
+              draft: draft)
     }
 
     // MARK: - Invitation

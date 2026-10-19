@@ -20,8 +20,8 @@ struct KIRITabBar: View {
                 tabItem(tab)
             }
         }
-        .padding(4)
-        .frame(height: 62)
+        .padding(6)
+        .frame(height: 65)
         .background(
             KIRIColor.Navigation.Bar.background
         )
@@ -72,12 +72,7 @@ struct KIRITabBar: View {
                 Text(
                     title(for: tab)
                 )
-                .font(
-                    .system(
-                        size: 10,
-                        weight: .semibold
-                    )
-                )
+                .font(KIRITypography.navigation)
                 .tracking(
                     isSelected
                         ? -0.1
@@ -92,8 +87,8 @@ struct KIRITabBar: View {
             )
             .frame(
                 maxWidth: .infinity,
-                minHeight: 54,
-                maxHeight: 54
+                minHeight: 53,
+                maxHeight: 53
             )
             .background {
                 if isSelected {

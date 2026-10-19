@@ -6,6 +6,7 @@ struct PlaceCard: View {
     let rating: Double
     let description: String
     var imageName: String? = nil
+    var imageURL: URL? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -66,7 +67,7 @@ struct PlaceCard: View {
             .padding(.bottom, 16)
         }
         .frame(width: 251, height: 284)
-        .background(KIRIColor.Background.secondary)
+        .background(KIRIColor.Background.primary)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: 16
@@ -76,18 +77,8 @@ struct PlaceCard: View {
 
     private var imagePlaceholder: some View {
         ZStack {
-            if let imageName {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFill()
-                    .opacity(0.8)
-            } else {
-                Rectangle()
-                    .fill(KIRIColor.Background.tertiary)
-
-                Image(systemName: "photo")
-                    .font(.system(size: 30))
-                    .foregroundStyle(KIRIColor.Text.secondary)
+            KIRIContentImage(imageURL: imageURL, mockAssetName: imageName) {
+                Rectangle().fill(KIRIColor.Background.tertiary)
             }
         }
         .frame(height: 144)

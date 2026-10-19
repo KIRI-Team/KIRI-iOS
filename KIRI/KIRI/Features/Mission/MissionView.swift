@@ -18,6 +18,8 @@ struct MissionView: View {
         let tags: [String]
         let isRecommended: Bool
         let category: Category
+        let mockAssetName: String?
+        let imageURL: URL?
         var isBookmarked: Bool
     }
     @StateObject private var bucketStore = MissionBucketStore.shared
@@ -36,6 +38,8 @@ struct MissionView: View {
             ],
             isRecommended: true,
             category: .food,
+            mockAssetName: "mission_gyeongbok",
+            imageURL: nil,
             isBookmarked: true
         ),
         PlaceItem(
@@ -49,6 +53,8 @@ struct MissionView: View {
             ],
             isRecommended: false,
             category: .food,
+            mockAssetName: "mission_namsan",
+            imageURL: nil,
             isBookmarked: true
         ),
         PlaceItem(
@@ -62,6 +68,8 @@ struct MissionView: View {
             ],
             isRecommended: false,
             category: .food,
+            mockAssetName: "mission_gyeongbok",
+            imageURL: nil,
             isBookmarked: false
         ),
         PlaceItem(
@@ -75,6 +83,8 @@ struct MissionView: View {
             ],
             isRecommended: false,
             category: .outdoor,
+            mockAssetName: "mission_namsan",
+            imageURL: nil,
             isBookmarked: false
         ),
         PlaceItem(
@@ -88,6 +98,8 @@ struct MissionView: View {
             ],
             isRecommended: false,
             category: .exhibition,
+            mockAssetName: "mission_gyeongbok",
+            imageURL: nil,
             isBookmarked: false
         )
     ]
@@ -141,6 +153,8 @@ struct MissionView: View {
                 rating: place.rating,
                 tags: place.tags,
                 isRecommended: place.isRecommended,
+                mockAssetName: place.mockAssetName,
+                imageURL: place.imageURL,
                 isBookmarked: bookmarkBinding(for: place.id),
                 onBack: { selectedPlace = nil }
             )
@@ -244,6 +258,8 @@ struct MissionView: View {
                     rating: place.rating,
                     tags: place.tags,
                     isRecommended: place.isRecommended,
+                    mockAssetName: place.mockAssetName,
+                    imageURL: place.imageURL,
                     isBookmarked: bookmarkBinding(
                         for: place.id
                     )
