@@ -39,6 +39,12 @@ final class AuthService {
             socialProviderToken: token,
             nonce: nonce
         )
+        #if DEBUG
+        print(
+            "[KIRI][Auth] login request: provider=\(provider.rawValue), "
+                + "tokenPresent=\(!token.isEmpty), noncePresent=\(!nonce.isEmpty)"
+        )
+        #endif
         let envelope: APIEnvelope<SocialLoginResult> = try await client.requestEnvelope(
             endpoint: endpoint,
             body: body
@@ -46,6 +52,13 @@ final class AuthService {
         guard let result = envelope.result else {
             throw APIError.decodingFailed
         }
+        #if DEBUG
+        print(
+            "[KIRI][Auth] login response: provider=\(provider.rawValue), "
+                + "isSuccess=\(envelope.isSuccess), "
+                + "isNewUser=\(result.isNewUser), termsAgreed=\(result.termsAgreed)"
+        )
+        #endif
         try tokenStore.save(
             AuthTokens(
                 accessToken: result.accessToken,

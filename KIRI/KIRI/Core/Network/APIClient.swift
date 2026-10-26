@@ -38,7 +38,27 @@ final class APIClient {
             throw APIError.invalidResponse
         }
 
+        #if DEBUG
+        if endpoint.path == "/api/v1/auth/login" {
+            print(
+                "[KIRI][API] \(endpoint.method.rawValue) \(endpoint.path) "
+                    + "status=\(httpResponse.statusCode)"
+            )
+        }
+        #endif
+
         if httpResponse.statusCode == 401 {
+            #if DEBUG
+            if let envelope = try? decoder.decode(
+                APIEnvelope<EmptyAPIResult>.self,
+                from: data
+            ) {
+                print(
+                    "[KIRI][API] auth failure: "
+                        + "code=\(envelope.code), message=\(envelope.message)"
+                )
+            }
+            #endif
             throw APIError.unauthorized
         }
 
@@ -47,6 +67,14 @@ final class APIClient {
                 APIEnvelope<EmptyAPIResult>.self,
                 from: data
             ) {
+                #if DEBUG
+                if endpoint.path == "/api/v1/auth/login" {
+                    print(
+                        "[KIRI][API] auth failure: "
+                            + "code=\(envelope.code), message=\(envelope.message)"
+                    )
+                }
+                #endif
                 throw APIError.serverError(
                     code: envelope.code,
                     message: envelope.message

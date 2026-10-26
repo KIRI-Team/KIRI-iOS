@@ -42,6 +42,9 @@ final class GoogleLoginService {
         }
 
         let nonce = UUID().uuidString
+        #if DEBUG
+        print("[KIRI][Google] starting SDK sign-in: noncePresent=true")
+        #endif
         return try await withCheckedThrowingContinuation { continuation in
             GIDSignIn.sharedInstance.signIn(
                 withPresenting: presentingViewController,
@@ -51,16 +54,35 @@ final class GoogleLoginService {
                 claims: nil
             ) { result, error in
                 if let error {
+                    #if DEBUG
+                    let nsError = error as NSError
+                    print(
+                        "[KIRI][Google] SDK sign-in failed: "
+                            + "domain=\(nsError.domain), code=\(nsError.code)"
+                    )
+                    #endif
                     continuation.resume(throwing: error)
                     return
                 }
 
                 guard let idToken = result?.user.idToken?.tokenString else {
+                    #if DEBUG
+                    print("[KIRI][Google] SDK sign-in succeeded without ID token")
+                    #endif
                     continuation.resume(
                         throwing: GoogleLoginError.missingIDToken
                     )
                     return
                 }
+
+                #if DEBUG
+                Self.logTokenMetadata(
+                    idToken,
+                    expectedAudience:
+                        configuration.serverClientID ?? configuration.clientID,
+                    nonce: nonce
+                )
+                #endif
 
                 continuation.resume(
                     returning: GoogleLoginCredentials(
@@ -100,4 +122,50 @@ final class GoogleLoginService {
 
         return window?.rootViewController
     }
+
+    #if DEBUG
+    private static func logTokenMetadata(
+        _ token: String,
+        expectedAudience: String,
+        nonce: String
+    ) {
+        let segments = token.split(separator: ".")
+        guard segments.count == 3,
+              let payloadData = Data(
+                base64URLEncoded: String(segments[1])
+              ),
+              let payload = try? JSONSerialization.jsonObject(
+                with: payloadData
+              ) as? [String: Any]
+        else {
+            print("[KIRI][Google] ID token metadata unavailable")
+            return
+        }
+
+        let audienceMatches = payload["aud"] as? String == expectedAudience
+        let nonceMatches = payload["nonce"] as? String == nonce
+        let expiresAt = (payload["exp"] as? NSNumber)?.doubleValue
+        let isExpired = expiresAt.map { $0 <= Date().timeIntervalSince1970 } ?? true
+
+        print(
+            "[KIRI][Google] ID token metadata: "
+                + "audienceMatches=\(audienceMatches), "
+                + "noncePresent=\(payload["nonce"] != nil), "
+                + "nonceMatches=\(nonceMatches), "
+                + "expired=\(isExpired)"
+        )
+    }
+    #endif
 }
+
+#if DEBUG
+private extension Data {
+    init?(base64URLEncoded value: String) {
+        var base64 = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+        self.init(base64Encoded: base64)
+    }
+}
+#endif
