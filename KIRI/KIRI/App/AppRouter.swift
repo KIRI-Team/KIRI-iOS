@@ -21,19 +21,26 @@ final class AppRouter {
     var familyInviteCode: String?
 
     private let sessionStore: AppSessionStore
+    private let tokenStore: AuthTokenStoring
 
     var hasPendingInvitation: Bool {
         pendingInvitation != nil
     }
 
     init(
-        sessionStore: AppSessionStore = AppSessionStore()
+        sessionStore: AppSessionStore = AppSessionStore(),
+        tokenStore: AuthTokenStoring = KeychainAuthTokenStore.shared
     ) {
         self.sessionStore = sessionStore
+        self.tokenStore = tokenStore
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
 
-        if !sessionStore.isAuthenticated {
+        // UserDefaults는 로그아웃·앱 삭제·이전 버전 데이터로 인해
+        // 토큰과 불일치할 수 있으므로, 실제 Keychain 세션이 있을 때만
+        // 인증 완료 상태를 신뢰한다.
+        guard sessionStore.isAuthenticated, hasStoredSession else {
+            sessionStore.clearSession()
             appState = .authentication
             userMode = .browse
             return
@@ -57,6 +64,22 @@ final class AppRouter {
         }
 
         appState = .main
+    }
+
+    private var hasStoredSession: Bool {
+        do {
+            guard let tokens = try tokenStore.read(),
+                  !tokens.accessToken.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                  ).isEmpty
+            else {
+                return false
+            }
+
+            return true
+        } catch {
+            return false
+        }
     }
 
     func receiveInvitation(
