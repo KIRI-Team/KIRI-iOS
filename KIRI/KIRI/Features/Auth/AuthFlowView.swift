@@ -83,10 +83,10 @@ struct AuthFlowView: View {
                     nonce: nonce
                 )
 
-                if result.termsAgreed {
-                    onAuthenticated()
-                } else {
+                if result.isNewUser || !result.termsAgreed {
                     loadTermsAndShow()
+                } else {
+                    onAuthenticated()
                 }
             } catch {
                 authErrorMessage = error.localizedDescription
@@ -108,10 +108,10 @@ struct AuthFlowView: View {
                     nonce: credentials.nonce
                 )
 
-                if result.termsAgreed {
-                    onAuthenticated()
-                } else {
+                if result.isNewUser || !result.termsAgreed {
                     loadTermsAndShow()
+                } else {
+                    onAuthenticated()
                 }
             } catch {
                 authErrorMessage = error.localizedDescription
