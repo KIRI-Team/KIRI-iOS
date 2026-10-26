@@ -21,7 +21,7 @@ struct RootView: View {
                     AuthFlowView(
                         animateLoginEntrance: shouldAnimateLoginEntrance,
                         onAuthenticated: {
-                            router.completeAuthentication()
+                            router.completeAuthentication(isNewUser: $0)
                         }
                     )
 

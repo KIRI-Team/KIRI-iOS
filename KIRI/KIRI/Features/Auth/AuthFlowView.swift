@@ -11,9 +11,10 @@ struct AuthFlowView: View {
     @State private var isAuthenticating = false
     @State private var authErrorMessage: String?
     @State private var terms: [Term] = []
+    @State private var pendingNewUser = false
 
     let animateLoginEntrance: Bool
-    let onAuthenticated: () -> Void
+    let onAuthenticated: (Bool) -> Void
 
     var body: some View {
         ZStack {
@@ -84,9 +85,10 @@ struct AuthFlowView: View {
                 )
 
                 if result.isNewUser || !result.termsAgreed {
+                    pendingNewUser = result.isNewUser
                     loadTermsAndShow()
                 } else {
-                    onAuthenticated()
+                    onAuthenticated(result.isNewUser)
                 }
             } catch {
                 authErrorMessage = error.localizedDescription
@@ -109,9 +111,10 @@ struct AuthFlowView: View {
                 )
 
                 if result.isNewUser || !result.termsAgreed {
+                    pendingNewUser = result.isNewUser
                     loadTermsAndShow()
                 } else {
-                    onAuthenticated()
+                    onAuthenticated(result.isNewUser)
                 }
             } catch {
                 authErrorMessage = error.localizedDescription
@@ -141,7 +144,7 @@ struct AuthFlowView: View {
             defer { isAuthenticating = false }
             do {
                 try await AuthService.shared.agree(to: agreements)
-                onAuthenticated()
+                onAuthenticated(pendingNewUser)
             } catch {
                 authErrorMessage = error.localizedDescription
             }
@@ -154,6 +157,6 @@ struct AuthFlowView: View {
 #Preview {
     AuthFlowView(
         animateLoginEntrance: false,
-        onAuthenticated: {}
+        onAuthenticated: { _ in }
     )
 }
