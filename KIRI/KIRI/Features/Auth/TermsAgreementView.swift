@@ -9,7 +9,8 @@ struct TermsAgreementView: View {
     @State private var selectedTerm: TermType?
 
     let onBack: () -> Void
-    let onComplete: () -> Void
+    let onComplete: ([TermAgreement]) -> Void
+    let termIDs: [Int]
 
     private var allAgreed: Bool {
         serviceTermsAgreed &&
@@ -198,7 +199,19 @@ struct TermsAgreementView: View {
         KIRIPrimaryButton(
             title: "동의하고 계속하기",
             isEnabled: requiredAgreed,
-            action: onComplete
+            action: {
+                let values = [
+                    serviceTermsAgreed,
+                    privacyCollectionAgreed,
+                    privacyPolicyConfirmed,
+                    locationAgreed
+                ]
+                onComplete(
+                    zip(termIDs, values).map { termID, isAgreed in
+                        TermAgreement(termId: termID, isAgreed: isAgreed)
+                    }
+                )
+            }
         )
     }
 }
@@ -496,6 +509,7 @@ private struct TermDetailView: View {
 #Preview {
     TermsAgreementView(
         onBack: {},
-        onComplete: {}
+        onComplete: { _ in },
+        termIDs: [1, 2, 3, 4]
     )
 }
