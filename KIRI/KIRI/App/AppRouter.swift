@@ -13,7 +13,16 @@ final class AppRouter {
         case browse
     }
 
-    var appState: AppState
+    var appState: AppState {
+        didSet {
+            #if DEBUG
+            print(
+                "[KIRI][Router] appState changed: "
+                    + "\(Self.stateName(oldValue)) -> \(Self.stateName(appState))"
+            )
+            #endif
+        }
+    }
     var userMode: UserMode
 
     var pendingInvitation: FamilyInvitation?
@@ -36,19 +45,37 @@ final class AppRouter {
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
 
+        #if DEBUG
+        print(
+            "[KIRI][Router] init: "
+                + "authenticatedFlag=\(sessionStore.isAuthenticated), "
+                + "tokenPresent=\(Self.storedSessionExists(using: tokenStore)), "
+                + "onboardingCompleted=\(sessionStore.isOnboardingCompleted), "
+                + "storedMode=\(sessionStore.userMode?.rawValue ?? "none")"
+        )
+        #endif
+
         // UserDefaults는 로그아웃·앱 삭제·이전 버전 데이터로 인해
         // 토큰과 불일치할 수 있으므로, 실제 Keychain 세션이 있을 때만
         // 인증 완료 상태를 신뢰한다.
-        guard sessionStore.isAuthenticated, hasStoredSession else {
+        guard sessionStore.isAuthenticated,
+              Self.storedSessionExists(using: tokenStore)
+        else {
             sessionStore.clearSession()
             appState = .authentication
             userMode = .browse
+            #if DEBUG
+            print("[KIRI][Router] initial route: authentication")
+            #endif
             return
         }
 
         if !sessionStore.isOnboardingCompleted {
             appState = .onboarding
             userMode = .browse
+            #if DEBUG
+            print("[KIRI][Router] initial route: onboarding")
+            #endif
             return
         }
 
@@ -64,9 +91,24 @@ final class AppRouter {
         }
 
         appState = .main
+        #if DEBUG
+        print("[KIRI][Router] initial route: main")
+        #endif
     }
 
-    private var hasStoredSession: Bool {
+    #if DEBUG
+    private static func stateName(_ state: AppState) -> String {
+        switch state {
+        case .authentication: return "authentication"
+        case .onboarding: return "onboarding"
+        case .main: return "main"
+        }
+    }
+    #endif
+
+    private static func storedSessionExists(
+        using tokenStore: AuthTokenStoring
+    ) -> Bool {
         do {
             guard let tokens = try tokenStore.read(),
                   !tokens.accessToken.trimmingCharacters(

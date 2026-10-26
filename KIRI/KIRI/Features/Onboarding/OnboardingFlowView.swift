@@ -134,6 +134,22 @@ struct OnboardingFlowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: step)
+        .onAppear {
+            #if DEBUG
+            print(
+                "[KIRI][Onboarding] entered: "
+                    + "invitation=\(invitation != nil), step=\(Self.stepName(step))"
+            )
+            #endif
+        }
+        .onChange(of: step) { oldStep, newStep in
+            #if DEBUG
+            print(
+                "[KIRI][Onboarding] step changed: "
+                    + "\(Self.stepName(oldStep)) -> \(Self.stepName(newStep))"
+            )
+            #endif
+        }
     }
 
     // MARK: - Role Completion
@@ -205,6 +221,22 @@ struct OnboardingFlowView: View {
             step = .familyCodeInput
         }
     }
+
+    #if DEBUG
+    private static func stepName(_ step: Step) -> String {
+        switch step {
+        case .nickname: return "nickname"
+        case .role: return "role"
+        case .familyEntry: return "familyEntry"
+        case .familyName: return "familyName"
+        case .familyCodeLoading: return "familyCodeLoading"
+        case .familyCode: return "familyCode"
+        case .familyCodeInput: return "familyCodeInput"
+        case .familyJoinLoading: return "familyJoinLoading"
+        case .familyJoinConfirm: return "familyJoinConfirm"
+        }
+    }
+    #endif
 }
 
 #Preview {
