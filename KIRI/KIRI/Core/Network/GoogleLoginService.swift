@@ -58,7 +58,8 @@ final class GoogleLoginService {
                     let nsError = error as NSError
                     print(
                         "[KIRI][Google] SDK sign-in failed: "
-                            + "domain=\(nsError.domain), code=\(nsError.code)"
+                            + "domain=\(nsError.domain), code=\(nsError.code), "
+                            + Self.safeOAuthErrorSummary(nsError)
                     )
                     #endif
                     continuation.resume(throwing: error)
@@ -154,6 +155,29 @@ final class GoogleLoginService {
                 + "nonceMatches=\(nonceMatches), "
                 + "expired=\(isExpired)"
         )
+    }
+
+    private static func safeOAuthErrorSummary(_ error: NSError) -> String {
+        var parts: [String] = []
+        if let value = error.userInfo["error"] as? String {
+            parts.append("oauthError=\(value)")
+        }
+        if let value = error.userInfo["error_description"] as? String {
+            parts.append("oauthDescription=\(value)")
+        }
+        if let json = error.userInfo["json"] as? [String: Any] {
+            if let value = json["error"] as? String {
+                parts.append("oauthError=\(value)")
+            }
+            if let value = json["error_description"] as? String {
+                parts.append("oauthDescription=\(value)")
+            }
+        }
+        let keys = error.userInfo.keys
+            .compactMap { $0 as? String }
+            .sorted()
+        parts.append("userInfoKeys=\(keys.joined(separator: ","))")
+        return parts.joined(separator: ", ")
     }
     #endif
 }
