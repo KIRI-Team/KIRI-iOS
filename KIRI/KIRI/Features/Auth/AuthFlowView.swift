@@ -10,7 +10,7 @@ struct AuthFlowView: View {
     @State private var hasConsumedLoginEntrance = false
     @State private var isAuthenticating = false
     @State private var authErrorMessage: String?
-    @State private var termIDs: [Int] = []
+    @State private var terms: [Term] = []
 
     let animateLoginEntrance: Bool
     let onAuthenticated: () -> Void
@@ -49,7 +49,7 @@ struct AuthFlowView: View {
                     onComplete: { agreements in
                         completeSignUp(agreements: agreements)
                     },
-                    termIDs: termIDs
+                    terms: terms
                 )
             }
         }
@@ -98,7 +98,7 @@ struct AuthFlowView: View {
         Task {
             do {
                 let terms = try await AuthService.shared.terms()
-                termIDs = terms.map(\.termId)
+                self.terms = terms
                 step = .terms
             } catch {
                 authErrorMessage = error.localizedDescription
