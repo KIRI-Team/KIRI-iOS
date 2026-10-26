@@ -28,6 +28,11 @@ struct GoogleLoginCredentials: Sendable {
 final class GoogleLoginService {
     static let shared = GoogleLoginService()
 
+    private static let expectedIOSClientID =
+        "932646982366-gmqn82k2fqe0b4umi3fskh3p15f662ct.apps.googleusercontent.com"
+    private static let expectedServerClientID =
+        "932646982366-u4d2vt0gmg1boulr74jrd21aijiokij2s.apps.googleusercontent.com"
+
     private init() {}
 
     func login() async throws -> GoogleLoginCredentials {
@@ -106,10 +111,39 @@ final class GoogleLoginService {
             return nil
         }
 
-        let serverClientID = values["SERVER_CLIENT_ID"] as? String
+        let rawServerClientID = values["SERVER_CLIENT_ID"] as? String
+        let serverClientID = rawServerClientID?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        #if DEBUG
+        let omitServerClientID = ProcessInfo.processInfo.arguments.contains(
+            "-kiri-google-omit-server-client-id"
+        )
+        let bundleID = Bundle.main.bundleIdentifier
+        let plistBundleID = values["BUNDLE_ID"] as? String
+        let reversedClientID = values["REVERSED_CLIENT_ID"] as? String
+        let reversedSchemePresent = Self.urlSchemes().contains {
+            $0 == reversedClientID
+        }
+        print(
+            "[KIRI][Google] configuration: "
+                + "clientIDPresent=true, "
+                + "serverClientIDPresent=\(serverClientID != nil), "
+                + "clientIDMatchesExpected=\(clientID == Self.expectedIOSClientID), "
+                + "serverClientIDMatchesExpected=\(serverClientID == Self.expectedServerClientID), "
+                + "clientIDHasWhitespace=\(clientID != clientID.trimmingCharacters(in: .whitespacesAndNewlines)), "
+                + "serverClientIDHasWhitespace=\(rawServerClientID != serverClientID), "
+                + "bundleIDMatchesPlist=\(bundleID == plistBundleID), "
+                + "reversedURLSchemePresent=\(reversedSchemePresent), "
+                + "omitServerClientID=\(omitServerClientID)"
+        )
+        let effectiveServerClientID = omitServerClientID ? nil : serverClientID
+        #else
+        let effectiveServerClientID = serverClientID
+        #endif
+
         return GIDConfiguration(
             clientID: clientID,
-            serverClientID: serverClientID
+            serverClientID: effectiveServerClientID
         )
     }
 
@@ -159,6 +193,15 @@ final class GoogleLoginService {
 
     private static func safeOAuthErrorSummary(_ error: NSError) -> String {
         var parts: [String] = []
+        if let response = error.userInfo["OIDOAuthErrorResponseErrorKey"]
+            as? [String: Any] {
+            if let value = response["error"] as? String {
+                parts.append("oauthError=\(value)")
+            }
+            if let value = response["error_description"] as? String {
+                parts.append("oauthDescription=\(value)")
+            }
+        }
         if let value = error.userInfo["error"] as? String {
             parts.append("oauthError=\(value)")
         }
@@ -178,6 +221,15 @@ final class GoogleLoginService {
             .sorted()
         parts.append("userInfoKeys=\(keys.joined(separator: ","))")
         return parts.joined(separator: ", ")
+    }
+
+    private static func urlSchemes() -> [String] {
+        let types = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleURLTypes"
+        ) as? [[String: Any]] ?? []
+        return types.flatMap { type in
+            type["CFBundleURLSchemes"] as? [String] ?? []
+        }
     }
     #endif
 }
