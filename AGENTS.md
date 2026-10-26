@@ -1,8 +1,12 @@
 # KIRI iOS 작업 기준
 
 - 프로젝트: KIRI iOS
-- 최신 기능명세서: `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`
-- `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`를 현재 통합 기준으로 사용한다. 날짜 버전 명세서는 참고용이며 최신 통합 명세서를 우선한다.
+- 최신 기능명세서: 10월 17일 기준 ver 1.4 첨부 Markdown 및 상세 CSV
+- 최신 변경 이력: `docs/specs/기능명세서 ver 1 4 (10월 17일 기준) - 최신 기준 3eaca1e217c080d4b44ac526439d3888.md`
+- 상세 기능 행: 위 Markdown과 같은 디렉터리의 `*_all.csv` 파일
+- 기존 `docs/specs/KIRI_FEATURE_SPEC_LATEST.csv`, 10월 10일 명세서, 이전 Notion 문서는 개발 기준으로 사용하지 않는다.
+- 첨부 Markdown의 변경 이력과 상세 CSV가 충돌하면 10월 17일 변경 이력과 최신 상세 행을 우선한다.
+- Notion에는 접근하지 않으며, 첨부 명세서가 없으면 이전 문서로 대체하지 않고 접근 불가로 보고한다.
 - Figma 원본: https://www.figma.com/design/ZU10sjtVuXOwHG9alXyUzZ/UMC-10th-%ED%8C%80-HALO?node-id=7883-11018
 - 기능 및 정책은 최신 명세서, UI 디자인은 Figma를 기준으로 한다.
 - 화면 구현 전 해당 Figma 프레임을 직접 확인한다.
