@@ -2,6 +2,7 @@ import SwiftUI
 import FirebaseCore // firebase 연결
 import KakaoSDKCommon
 import KakaoSDKAuth
+import GoogleSignIn
 
 // AppDelegate 추가
 class AppDelegate: NSObject, UIApplicationDelegate {
@@ -25,7 +26,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
-    AuthController.handleOpenUrl(url: url, options: options)
+    if AuthController.handleOpenUrl(url: url, options: options) {
+      return true
+    }
+
+    return GIDSignIn.sharedInstance.handle(url)
   }
 }
 // 여기까지 AppDelegate
