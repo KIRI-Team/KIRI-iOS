@@ -57,10 +57,38 @@ struct RootView: View {
 
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            #if DEBUG
+            print(
+                "[KIRI][RootView] onAppear: "
+                    + "bundle=\(Bundle.main.bundleIdentifier ?? "unknown"), "
+                    + "appState=\(Self.stateName(router.appState)), "
+                    + "splash=\(isSplashPresented)"
+            )
+            #endif
+        }
+        .onChange(of: router.appState) { oldState, newState in
+            #if DEBUG
+            print(
+                "[KIRI][RootView] appState changed: "
+                    + "\(Self.stateName(oldState)) -> \(Self.stateName(newState))"
+            )
+            #endif
+        }
     }
 
     private func finishSplash() {
-        shouldAnimateLoginEntrance = router.appState == .authentication
+        // 개발·인증 검증 단계에서는 콜드 스타트마다 로그인 화면을 먼저 표시한다.
+        // 세션 복원은 서버 기반 검증을 추가한 뒤 별도 경로로 다시 연결한다.
+        router.showAuthentication()
+        #if DEBUG
+        print(
+            "[KIRI][RootView] finishSplash: "
+                + "forcedAuthentication=true, "
+                + "appState=\(Self.stateName(router.appState))"
+        )
+        #endif
+        shouldAnimateLoginEntrance = true
         isSplashPresented = false
     }
 
@@ -71,6 +99,16 @@ struct RootView: View {
             router.enterFamilyMode(familyName: familyName, inviteCode: inviteCode)
         }
     }
+
+    #if DEBUG
+    private static func stateName(_ state: AppRouter.AppState) -> String {
+        switch state {
+        case .authentication: return "authentication"
+        case .onboarding: return "onboarding"
+        case .main: return "main"
+        }
+    }
+    #endif
 }
 
 #Preview {

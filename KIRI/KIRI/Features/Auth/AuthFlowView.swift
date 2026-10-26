@@ -32,7 +32,7 @@ struct AuthFlowView: View {
                         handleKakaoLogin()
                     },
                     onGoogleLogin: {
-                        authErrorMessage = "Google 로그인 SDK가 아직 프로젝트에 연결되지 않았습니다."
+                        handleGoogleLogin()
                     },
                     onAppleLogin: { identityToken, nonce in
                         handleAppleLogin(identityToken: identityToken, nonce: nonce)
@@ -107,6 +107,32 @@ struct AuthFlowView: View {
                 let result = try await AuthService.shared.login(
                     provider: .kakao,
                     token: credentials.identityToken,
+                    nonce: credentials.nonce
+                )
+
+                if result.isNewUser || !result.termsAgreed {
+                    pendingNewUser = result.isNewUser
+                    loadTermsAndShow()
+                } else {
+                    onAuthenticated(result.isNewUser)
+                }
+            } catch {
+                authErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func handleGoogleLogin() {
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
+
+        Task {
+            defer { isAuthenticating = false }
+            do {
+                let credentials = try await GoogleLoginService.shared.login()
+                let result = try await AuthService.shared.login(
+                    provider: .google,
+                    token: credentials.idToken,
                     nonce: credentials.nonce
                 )
 
