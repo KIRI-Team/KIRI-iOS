@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		950823AB308F68B6008B7BF9 /* FirebaseAILogic in Frameworks */ = {isa = PBXBuildFile; productRef = 950823AA308F68B6008B7BF9 /* FirebaseAILogic */; };
+		950823AD308F68B6008B7BF9 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 950823AC308F68B6008B7BF9 /* FirebaseAnalytics */; };
+		950823AF308F68B6008B7BF9 /* FirebaseAnalyticsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 950823AE308F68B6008B7BF9 /* FirebaseAnalyticsCore */; };
+		950823B1308F68B6008B7BF9 /* FirebaseAnalyticsIdentitySupport in Frameworks */ = {isa = PBXBuildFile; productRef = 950823B0308F68B6008B7BF9 /* FirebaseAnalyticsIdentitySupport */; };
+		950823B3308F68B6008B7BF9 /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 950823B2308F68B6008B7BF9 /* FirebaseAppCheck */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		956720A63066F0B800A000AA /* KIRI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KIRI.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +44,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				950823B1308F68B6008B7BF9 /* FirebaseAnalyticsIdentitySupport in Frameworks */,
+				950823AD308F68B6008B7BF9 /* FirebaseAnalytics in Frameworks */,
+				950823AF308F68B6008B7BF9 /* FirebaseAnalyticsCore in Frameworks */,
+				950823B3308F68B6008B7BF9 /* FirebaseAppCheck in Frameworks */,
+				950823AB308F68B6008B7BF9 /* FirebaseAILogic in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +91,11 @@
 			);
 			name = KIRI;
 			packageProductDependencies = (
+				950823AA308F68B6008B7BF9 /* FirebaseAILogic */,
+				950823AC308F68B6008B7BF9 /* FirebaseAnalytics */,
+				950823AE308F68B6008B7BF9 /* FirebaseAnalyticsCore */,
+				950823B0308F68B6008B7BF9 /* FirebaseAnalyticsIdentitySupport */,
+				950823B2308F68B6008B7BF9 /* FirebaseAppCheck */,
 			);
 			productName = KIRI;
 			productReference = 956720A63066F0B800A000AA /* KIRI.app */;
@@ -107,6 +125,9 @@
 			);
 			mainGroup = 9567209D3066F0B800A000AA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 956720A73066F0B800A000AA /* Products */;
 			projectDirPath = "";
@@ -351,6 +372,45 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.1.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		950823AA308F68B6008B7BF9 /* FirebaseAILogic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAILogic;
+		};
+		950823AC308F68B6008B7BF9 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		950823AE308F68B6008B7BF9 /* FirebaseAnalyticsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsCore;
+		};
+		950823B0308F68B6008B7BF9 /* FirebaseAnalyticsIdentitySupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsIdentitySupport;
+		};
+		950823B2308F68B6008B7BF9 /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 950823A9308F68B6008B7BF9 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9567209E3066F0B800A000AA /* Project object */;
 }
