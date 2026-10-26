@@ -8,9 +8,13 @@ struct AuthFlowView: View {
 
     @State private var step: Step = .login
     @State private var hasConsumedLoginEntrance = false
+    @State private var isAuthenticating = false
+    @State private var authErrorMessage: String?
+    @State private var terms: [Term] = []
+    @State private var pendingNewUser = false
 
     let animateLoginEntrance: Bool
-    let onAuthenticated: () -> Void
+    let onAuthenticated: (Bool) -> Void
 
     var body: some View {
         ZStack {
@@ -25,19 +29,16 @@ struct AuthFlowView: View {
                         hasConsumedLoginEntrance = true
                     },
                     onKakaoLogin: {
-                        handleSocialLogin(
-                            provider: .kakao
-                        )
+                        handleKakaoLogin()
                     },
                     onGoogleLogin: {
-                        handleSocialLogin(
-                            provider: .google
-                        )
+                        authErrorMessage = "Google 로그인 SDK가 아직 프로젝트에 연결되지 않았습니다."
                     },
-                    onAppleLogin: {
-                        handleSocialLogin(
-                            provider: .apple
-                        )
+                    onAppleLogin: { identityToken, nonce in
+                        handleAppleLogin(identityToken: identityToken, nonce: nonce)
+                    },
+                    onLoginFailure: { message in
+                        authErrorMessage = message
                     }
                 )
 
@@ -46,9 +47,10 @@ struct AuthFlowView: View {
                     onBack: {
                         step = .login
                     },
-                    onComplete: {
-                        completeSignUp()
-                    }
+                    onComplete: { agreements in
+                        completeSignUp(agreements: agreements)
+                    },
+                    terms: terms
                 )
             }
         }
@@ -56,85 +58,98 @@ struct AuthFlowView: View {
             .easeInOut(duration: 0.2),
             value: step
         )
+        .alert(
+            "로그인할 수 없습니다",
+            isPresented: Binding(
+                get: { authErrorMessage != nil },
+                set: { if !$0 { authErrorMessage = nil } }
+            )
+        ) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(authErrorMessage ?? "알 수 없는 오류가 발생했습니다.")
+        }
     }
 
-    // MARK: - Social Login
+    private func handleAppleLogin(identityToken: String, nonce: String) {
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
 
-    private func handleSocialLogin(
-        provider: SocialLoginProvider
-    ) {
-        switch provider {
-        case .kakao:
-            // TODO:
-            // Kakao SDK 인증
-            //
-            // 1. Kakao 로그인
-            // 2. Kakao Access Token 획득
-            // 3. KIRI Server 전달
-            // 4. 서버에서 신규/기존 회원 판단
-            break
+        Task {
+            defer { isAuthenticating = false }
+            do {
+                let result = try await AuthService.shared.login(
+                    provider: .apple,
+                    token: identityToken,
+                    nonce: nonce
+                )
 
-        case .google:
-            // TODO:
-            // Google Sign-In 인증
-            //
-            // 1. Google 로그인
-            // 2. Google ID Token 획득
-            // 3. KIRI Server 전달
-            // 4. 서버에서 신규/기존 회원 판단
-            break
-
-        case .apple:
-            // Apple 인증 자체는
-            // LoginView의 SignInWithAppleButton에서 수행한다.
-            //
-            // 추후 LoginView에서 받은 Apple Credential을
-            // AuthService/ViewModel 쪽으로 이동시킬 예정이다.
-            break
+                if result.isNewUser || !result.termsAgreed {
+                    pendingNewUser = result.isNewUser
+                    loadTermsAndShow()
+                } else {
+                    onAuthenticated(result.isNewUser)
+                }
+            } catch {
+                authErrorMessage = error.localizedDescription
+            }
         }
+    }
 
-        // MARK: - Temporary Authentication Flow
-        //
-        // 현재는 서버 인증 API가 연결되지 않았으므로
-        // 로그인에 성공했다고 가정하고 신규 회원 플로우로 이동한다.
-        //
-        // 실제 서버 연결 후에는 다음처럼 처리:
-        //
-        // 신규 회원
-        // → step = .terms
-        //
-        // 기존 회원
-        // → onAuthenticated()
+    private func handleKakaoLogin() {
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
 
-        step = .terms
+        Task {
+            defer { isAuthenticating = false }
+            do {
+                let credentials = try await KakaoLoginService.shared.login()
+                let result = try await AuthService.shared.login(
+                    provider: .kakao,
+                    token: credentials.identityToken,
+                    nonce: credentials.nonce
+                )
+
+                if result.isNewUser || !result.termsAgreed {
+                    pendingNewUser = result.isNewUser
+                    loadTermsAndShow()
+                } else {
+                    onAuthenticated(result.isNewUser)
+                }
+            } catch {
+                authErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func loadTermsAndShow() {
+        Task {
+            do {
+                let terms = try await AuthService.shared.terms()
+                self.terms = terms
+                step = .terms
+            } catch {
+                authErrorMessage = error.localizedDescription
+            }
+        }
     }
 
     // MARK: - Sign Up Complete
 
-    private func completeSignUp() {
-        // TODO:
-        // 약관 동의 API 연결
-        //
-        // 서버에 다음 동의 여부를 전달:
-        //
-        // 1. 서비스 이용약관
-        // 2. 개인정보 수집·이용
-        // 3. 개인정보 처리방침 확인
-        // 4. 위치정보 이용 동의 여부
-        //
-        // 서버 저장 완료 후
-        // KIRI 온보딩으로 이동한다.
+    private func completeSignUp(agreements: [TermAgreement]) {
+        guard !isAuthenticating else { return }
+        isAuthenticating = true
 
-        onAuthenticated()
+        Task {
+            defer { isAuthenticating = false }
+            do {
+                try await AuthService.shared.agree(to: agreements)
+                onAuthenticated(pendingNewUser)
+            } catch {
+                authErrorMessage = error.localizedDescription
+            }
+        }
     }
-}
-
-// MARK: - Social Login Provider
-
-enum SocialLoginProvider {
-    case kakao
-    case google
-    case apple
 }
 
 // MARK: - Preview
@@ -142,6 +157,6 @@ enum SocialLoginProvider {
 #Preview {
     AuthFlowView(
         animateLoginEntrance: false,
-        onAuthenticated: {}
+        onAuthenticated: { _ in }
     )
 }

@@ -9,7 +9,18 @@ struct TermsAgreementView: View {
     @State private var selectedTerm: TermType?
 
     let onBack: () -> Void
-    let onComplete: () -> Void
+    let onComplete: ([TermAgreement]) -> Void
+    let terms: [Term]
+
+    init(
+        onBack: @escaping () -> Void,
+        onComplete: @escaping ([TermAgreement]) -> Void,
+        terms: [Term]
+    ) {
+        self.onBack = onBack
+        self.onComplete = onComplete
+        self.terms = terms
+    }
 
     private var allAgreed: Bool {
         serviceTermsAgreed &&
@@ -19,9 +30,7 @@ struct TermsAgreementView: View {
     }
 
     private var requiredAgreed: Bool {
-        serviceTermsAgreed &&
-        privacyCollectionAgreed &&
-        privacyPolicyConfirmed
+        terms.filter(\.isRequired).allSatisfy { isAgreed(for: $0) }
     }
 
     var body: some View {
@@ -198,8 +207,36 @@ struct TermsAgreementView: View {
         KIRIPrimaryButton(
             title: "동의하고 계속하기",
             isEnabled: requiredAgreed,
-            action: onComplete
+            action: {
+                onComplete(terms.compactMap { term in
+                    guard let isAgreed = agreementValue(for: term) else {
+                        return nil
+                    }
+                    return TermAgreement(termId: term.termId, isAgreed: isAgreed)
+                })
+            }
         )
+    }
+
+    private func agreementValue(for term: Term) -> Bool? {
+        let title = term.title.lowercased()
+        if title.contains("서비스") || title.contains("이용약관") {
+            return serviceTermsAgreed
+        }
+        if title.contains("수집") || title.contains("이용") {
+            return privacyCollectionAgreed
+        }
+        if title.contains("처리방침") {
+            return privacyPolicyConfirmed
+        }
+        if title.contains("위치") {
+            return locationAgreed
+        }
+        return nil
+    }
+
+    private func isAgreed(for term: Term) -> Bool {
+        agreementValue(for: term) == true
     }
 }
 
@@ -496,6 +533,7 @@ private struct TermDetailView: View {
 #Preview {
     TermsAgreementView(
         onBack: {},
-        onComplete: {}
+        onComplete: { _ in },
+        terms: []
     )
 }

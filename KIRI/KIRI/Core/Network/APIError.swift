@@ -7,6 +7,7 @@ enum APIError: LocalizedError {
     case invalidResponse
     case unauthorized
     case httpError(statusCode: Int)
+    case serverError(code: String, message: String)
     case decodingFailed
     case networkError(Error)
 
@@ -26,6 +27,9 @@ enum APIError: LocalizedError {
 
         case .httpError(let statusCode):
             return "서버 요청에 실패했습니다. (HTTP \(statusCode))"
+
+        case .serverError(_, let message):
+            return message
 
         case .decodingFailed:
             return "서버 응답 데이터를 처리할 수 없습니다."

@@ -1,18 +1,21 @@
 
 import SwiftUI
 import AuthenticationServices
+import CryptoKit
 
 struct LoginView: View {
     let animateButtonEntrance: Bool
     let onEntranceAnimationConsumed: (() -> Void)?
     let onKakaoLogin: () -> Void
     let onGoogleLogin: () -> Void
-    let onAppleLogin: () -> Void
+    let onAppleLogin: (_ identityToken: String, _ nonce: String) -> Void
+    let onLoginFailure: (_ message: String) -> Void
 
     @State private var kakaoButtonVisible = false
     @State private var googleButtonVisible = false
     @State private var appleButtonVisible = false
     @State private var hasStartedEntrance = false
+    @State private var appleNonce: String?
 
     var body: some View {
         ZStack {
@@ -161,6 +164,9 @@ struct LoginView: View {
         SignInWithAppleButton(
             .signIn,
             onRequest: { request in
+                let nonce = Self.randomNonce()
+                appleNonce = nonce
+                request.nonce = Self.sha256(nonce)
                 request.requestedScopes = [
                     .fullName,
                     .email
@@ -192,37 +198,37 @@ struct LoginView: View {
                 authorization.credential
                     as? ASAuthorizationAppleIDCredential
             else {
+                onLoginFailure("Apple 인증 정보를 확인할 수 없습니다.")
                 return
             }
 
-            let userIdentifier = credential.user
-            let identityToken = credential.identityToken
-            let authorizationCode = credential.authorizationCode
-            let fullName = credential.fullName
-            let email = credential.email
+            guard let tokenData = credential.identityToken,
+                  let identityToken = String(data: tokenData, encoding: .utf8),
+                  let nonce = appleNonce else {
+                onLoginFailure("Apple 인증 토큰을 확인할 수 없습니다.")
+                return
+            }
 
-            // TODO:
-            // 실제 서버 연동 시 AuthService로 이동한다.
-            //
-            // identityToken / authorizationCode
-            // → KIRI Server
-            //
-            // fullName / email은 최초 Apple 승인 시에만
-            // 전달될 수 있으므로 최초 로그인 시 처리한다.
-
-            _ = userIdentifier
-            _ = identityToken
-            _ = authorizationCode
-            _ = fullName
-            _ = email
-
-            onAppleLogin()
+            onAppleLogin(identityToken, nonce)
 
         case .failure(let error):
-            print(
-                "Apple Sign In Error: \(error.localizedDescription)"
-            )
+            onLoginFailure(error.localizedDescription)
         }
+    }
+
+    private static func randomNonce(length: Int = 32) -> String {
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        result.reserveCapacity(length)
+        for _ in 0..<length {
+            result.append(charset[Int.random(in: 0..<charset.count)])
+        }
+        return result
+    }
+
+    private static func sha256(_ input: String) -> String {
+        let digest = SHA256.hash(data: Data(input.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 
@@ -258,6 +264,7 @@ private struct SocialLoginButtonContent<Logo: View>: View {
         onEntranceAnimationConsumed: nil,
         onKakaoLogin: {},
         onGoogleLogin: {},
-        onAppleLogin: {}
+        onAppleLogin: { _, _ in },
+        onLoginFailure: { _ in }
     )
 }

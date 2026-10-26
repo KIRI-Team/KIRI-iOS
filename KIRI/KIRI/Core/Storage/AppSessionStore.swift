@@ -71,13 +71,5 @@ final class AppSessionStore {
         defaults.removeObject(
             forKey: Key.isAuthenticated
         )
-
-        defaults.removeObject(
-            forKey: Key.isOnboardingCompleted
-        )
-
-        defaults.removeObject(forKey: Key.userMode)
-        defaults.removeObject(forKey: Key.familyName)
-        defaults.removeObject(forKey: Key.familyInviteCode)
     }
 }

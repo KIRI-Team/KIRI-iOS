@@ -43,6 +43,16 @@ final class APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if let envelope = try? decoder.decode(
+                APIEnvelope<EmptyAPIResult>.self,
+                from: data
+            ) {
+                throw APIError.serverError(
+                    code: envelope.code,
+                    message: envelope.message
+                )
+            }
+
             throw APIError.httpError(
                 statusCode: httpResponse.statusCode
             )
@@ -55,14 +65,24 @@ final class APIClient {
         }
     }
 
+    func requestEnvelope<Response: Decodable>(
+        endpoint: APIEndpoint,
+        body: (any Encodable)? = nil,
+        accessToken: String? = nil
+    ) async throws -> APIEnvelope<Response> {
+        try await request(
+            endpoint: endpoint,
+            body: body,
+            accessToken: accessToken
+        )
+    }
+
     private func makeRequest(
         endpoint: APIEndpoint,
         body: (any Encodable)?,
         accessToken: String?
     ) throws -> URLRequest {
-        guard let baseURL = APIConfig.baseURL else {
-            throw APIError.serverNotConfigured
-        }
+        let baseURL = APIConfig.baseURL
 
         let normalizedPath = endpoint.path.hasPrefix("/")
             ? String(endpoint.path.dropFirst())
