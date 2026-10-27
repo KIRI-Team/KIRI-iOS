@@ -31,7 +31,7 @@ final class GoogleLoginService {
     private static let expectedIOSClientID =
         "932646982366-gmqn82k2fqe0b4umi3fskh3p15f662ct.apps.googleusercontent.com"
     private static let expectedServerClientID =
-        "932646982366-u4d2vt0gmg1boulr74jrd21aijiokij2s.apps.googleusercontent.com"
+        "932646982366-u4d2vt0gmg1boulr74jrd21ajjokij2s.apps.googleusercontent.com"
 
     private init() {}
 
