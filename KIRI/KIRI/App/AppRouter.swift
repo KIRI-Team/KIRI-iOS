@@ -29,6 +29,7 @@ final class AppRouter {
     var pendingInvitation: FamilyInvitation?
     var familyName: String?
     var familyInviteCode: String?
+    var nickname: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
     var pendingTerms: [Term]?
     var pendingTermAgreements: [TermAgreement] = []
@@ -50,6 +51,7 @@ final class AppRouter {
         self.tokenStore = tokenStore
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
+        nickname = sessionStore.nickname
 
         #if DEBUG
         print(
@@ -179,6 +181,7 @@ final class AppRouter {
         sessionStore.saveFamily(name: familyName, inviteCode: inviteCode)
         self.familyName = familyName
         self.familyInviteCode = inviteCode
+        self.nickname = sessionStore.nickname
         sessionStore.saveOnboardingCompleted(
             userMode: .family
         )
@@ -189,6 +192,7 @@ final class AppRouter {
     }
 
     func enterBrowseMode() {
+        self.nickname = sessionStore.nickname
         sessionStore.saveOnboardingCompleted(
             userMode: .browse
         )

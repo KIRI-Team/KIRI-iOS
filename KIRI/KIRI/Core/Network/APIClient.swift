@@ -39,7 +39,9 @@ final class APIClient {
         }
 
         #if DEBUG
-        if endpoint.path == "/api/v1/auth/login" {
+        if endpoint.path.contains("/terms")
+            || endpoint.path == "/api/v1/members/nickname"
+            || endpoint.path == "/api/v1/families" {
             print(
                 "[KIRI][API] \(endpoint.method.rawValue) \(endpoint.path) "
                     + "status=\(httpResponse.statusCode)"

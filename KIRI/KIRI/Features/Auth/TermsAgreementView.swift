@@ -44,8 +44,22 @@ struct TermsAgreementView: View {
                 ) {
                     titleSection
 
-                    agreementSection
+                    if terms.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("약관 정보를 불러오지 못했습니다.")
+                                .font(KIRITypography.bodyMedium)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                            Text("잠시 후 다시 로그인해 주세요.")
+                                .font(KIRITypography.caption)
+                                .foregroundStyle(KIRIColor.Text.tertiary)
+                        }
+                        .frame(maxWidth: .infinity)
                         .padding(.top, 72)
+                    } else {
+                        agreementSection
+                            .padding(.top, 72)
+                    }
 
                     Spacer()
 
@@ -166,7 +180,7 @@ struct TermsAgreementView: View {
     private var continueButton: some View {
         KIRIPrimaryButton(
             title: "동의하고 계속하기",
-            isEnabled: requiredAgreed,
+            isEnabled: !terms.isEmpty && requiredAgreed,
             action: {
                 onComplete(terms.compactMap { term in
                     TermAgreement(termId: term.termId, isAgreed: isAgreed(for: term))

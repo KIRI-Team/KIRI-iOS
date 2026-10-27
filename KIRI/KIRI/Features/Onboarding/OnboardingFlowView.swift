@@ -175,7 +175,8 @@ struct OnboardingFlowView: View {
         isSaving = true
         Task { @MainActor in
             do {
-                _ = try await AuthService.shared.updateNickname(nickname)
+                let result = try await AuthService.shared.updateNickname(nickname)
+                AppSessionStore().saveNickname(result.nickname)
                 step = .role
             } catch {
                 familyOperationError = error.localizedDescription
