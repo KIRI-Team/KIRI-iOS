@@ -98,5 +98,19 @@ struct Term: Decodable, Identifiable, Sendable {
     let isRequired: Bool
     let updatedAt: String
 
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        termId = try c.decode(Int.self, forKey: .termId)
+        title = try c.decode(String.self, forKey: .title)
+        shortDescription = try c.decodeIfPresent(String.self, forKey: .shortDescription) ?? ""
+        description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        isRequired = try c.decodeIfPresent(Bool.self, forKey: .isRequired) ?? false
+        updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case termId, title, shortDescription, description, isRequired, updatedAt
+    }
+
     var id: Int { termId }
 }

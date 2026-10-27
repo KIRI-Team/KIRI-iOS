@@ -97,6 +97,9 @@ final class AuthService {
     }
 
     func terms() async throws -> [Term] {
+        #if DEBUG
+        print("[KIRI][Terms] request started")
+        #endif
         let endpoint = APIEndpoint(
             path: "/api/v1/terms",
             method: .GET,
@@ -108,12 +111,21 @@ final class AuthService {
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else {
+            #if DEBUG
+            print("[KIRI][Terms] decoded result missing: success=\(envelope.isSuccess), code=\(envelope.code)")
+            #endif
             throw APIError.decodingFailed
         }
+        #if DEBUG
+        print("[KIRI][Terms] decoded count=\(result.count), success=\(envelope.isSuccess), code=\(envelope.code)")
+        #endif
         return result
     }
 
     func agreementStatus() async throws -> TermsAgreementStatus {
+        #if DEBUG
+        print("[KIRI][Terms] agreement request started")
+        #endif
         let endpoint = APIEndpoint(
             path: "/api/v1/terms/agreements",
             method: .GET,

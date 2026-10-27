@@ -69,7 +69,8 @@ struct AuthFlowView: View {
                         completeSignUp(agreements: agreements)
                     },
                     terms: terms,
-                    initialAgreements: loadedAgreements
+                    initialAgreements: loadedAgreements,
+                    onRetry: loadTermsAndShow
                 )
             }
         }
@@ -186,6 +187,9 @@ struct AuthFlowView: View {
                 print("[KIRI][Auth] terms loaded: count=\(terms.count), agreements=\(status.agreements.count)")
                 #endif
             } catch {
+                #if DEBUG
+                print("[KIRI][Terms] load failed: \(error.localizedDescription)")
+                #endif
                 authErrorMessage = error.localizedDescription
             }
         }

@@ -7,16 +7,19 @@ struct TermsAgreementView: View {
     let onBack: () -> Void
     let onComplete: ([TermAgreement]) -> Void
     let terms: [Term]
+    let onRetry: () -> Void
 
     init(
         onBack: @escaping () -> Void,
         onComplete: @escaping ([TermAgreement]) -> Void,
         terms: [Term],
-        initialAgreements: [TermAgreement] = []
+        initialAgreements: [TermAgreement] = [],
+        onRetry: @escaping () -> Void = {}
     ) {
         self.onBack = onBack
         self.onComplete = onComplete
         self.terms = terms
+        self.onRetry = onRetry
         _agreementsByID = State(initialValue: Dictionary(
             uniqueKeysWithValues: initialAgreements.map { ($0.termId, $0.isAgreed) }
         ))
@@ -53,6 +56,8 @@ struct TermsAgreementView: View {
                             Text("잠시 후 다시 로그인해 주세요.")
                                 .font(KIRITypography.caption)
                                 .foregroundStyle(KIRIColor.Text.tertiary)
+                            Button("다시 시도", action: onRetry)
+                                .foregroundStyle(KIRIColor.Text.accent)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.top, 72)
@@ -71,6 +76,11 @@ struct TermsAgreementView: View {
                 )
                 .padding(.bottom, 10)
             }
+        }
+        .onAppear {
+            #if DEBUG
+            print("[KIRI][Terms] view received count=\(terms.count)")
+            #endif
         }
         .sheet(item: $selectedTerm) { term in
             TermDetailView(term: term)

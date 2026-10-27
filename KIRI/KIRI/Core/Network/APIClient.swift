@@ -61,6 +61,11 @@ final class APIClient {
                 )
             }
             #endif
+            #if DEBUG
+            if endpoint.path.contains("/terms") {
+                print("[KIRI][Terms] response status=401")
+            }
+            #endif
             throw APIError.unauthorized
         }
 
@@ -75,6 +80,11 @@ final class APIClient {
                         "[KIRI][API] auth failure: "
                             + "code=\(envelope.code), message=\(envelope.message)"
                     )
+                }
+                #endif
+                #if DEBUG
+                if endpoint.path.contains("/terms") {
+                    print("[KIRI][Terms] response status=\(httpResponse.statusCode), code=\(envelope.code), message=\(envelope.message)")
                 }
                 #endif
                 throw APIError.serverError(
