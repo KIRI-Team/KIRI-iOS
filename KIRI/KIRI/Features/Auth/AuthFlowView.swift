@@ -11,22 +11,27 @@ struct AuthFlowView: View {
     @State private var isAuthenticating = false
     @State private var authErrorMessage: String?
     @State private var terms: [Term] = []
+    @State private var loadedAgreements: [TermAgreement] = []
     @State private var pendingNewUser = false
 
     let animateLoginEntrance: Bool
     let initialTerms: [Term]?
+    let initialAgreements: [TermAgreement]
     let onAuthenticated: (Bool) -> Void
 
     init(
         animateLoginEntrance: Bool,
         initialTerms: [Term]? = nil,
+        initialAgreements: [TermAgreement] = [],
         onAuthenticated: @escaping (Bool) -> Void
     ) {
         self.animateLoginEntrance = animateLoginEntrance
         self.initialTerms = initialTerms
+        self.initialAgreements = initialAgreements
         self.onAuthenticated = onAuthenticated
         _step = State(initialValue: initialTerms == nil ? .login : .terms)
         _terms = State(initialValue: initialTerms ?? [])
+        _loadedAgreements = State(initialValue: initialAgreements)
     }
 
     var body: some View {
@@ -63,7 +68,9 @@ struct AuthFlowView: View {
                     onComplete: { agreements in
                         completeSignUp(agreements: agreements)
                     },
-                    terms: terms
+                    terms: terms,
+                    initialAgreements: loadedAgreements,
+                    onRetry: loadTermsAndShow
                 )
             }
         }
@@ -165,9 +172,24 @@ struct AuthFlowView: View {
         Task {
             do {
                 let terms = try await AuthService.shared.terms()
+                let status: TermsAgreementStatus
+                do {
+                    status = try await AuthService.shared.agreementStatus()
+                } catch APIError.serverError {
+                    // 신규 사용자는 아직 동의 레코드가 없어 404가 반환될 수 있다.
+                    // 약관 목록 자체를 숨기지 않고 미동의 상태로 표시한다.
+                    status = TermsAgreementStatus(termsAgreed: false, agreements: [])
+                }
                 self.terms = terms
+                self.loadedAgreements = status.agreements
                 step = .terms
+                #if DEBUG
+                print("[KIRI][Auth] terms loaded: count=\(terms.count), agreements=\(status.agreements.count)")
+                #endif
             } catch {
+                #if DEBUG
+                print("[KIRI][Terms] load failed: \(error.localizedDescription)")
+                #endif
                 authErrorMessage = error.localizedDescription
             }
         }

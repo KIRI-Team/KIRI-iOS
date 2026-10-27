@@ -1,32 +1,32 @@
 import SwiftUI
 
 struct TermsAgreementView: View {
-    @State private var serviceTermsAgreed = false
-    @State private var privacyCollectionAgreed = false
-    @State private var privacyPolicyConfirmed = false
-    @State private var locationAgreed = false
-
-    @State private var selectedTerm: TermType?
+    @State private var agreementsByID: [Int: Bool]
+    @State private var selectedTerm: Term?
 
     let onBack: () -> Void
     let onComplete: ([TermAgreement]) -> Void
     let terms: [Term]
+    let onRetry: () -> Void
 
     init(
         onBack: @escaping () -> Void,
         onComplete: @escaping ([TermAgreement]) -> Void,
-        terms: [Term]
+        terms: [Term],
+        initialAgreements: [TermAgreement] = [],
+        onRetry: @escaping () -> Void = {}
     ) {
         self.onBack = onBack
         self.onComplete = onComplete
         self.terms = terms
+        self.onRetry = onRetry
+        _agreementsByID = State(initialValue: Dictionary(
+            uniqueKeysWithValues: initialAgreements.map { ($0.termId, $0.isAgreed) }
+        ))
     }
 
     private var allAgreed: Bool {
-        serviceTermsAgreed &&
-        privacyCollectionAgreed &&
-        privacyPolicyConfirmed &&
-        locationAgreed
+        !terms.isEmpty && terms.allSatisfy { isAgreed(for: $0) }
     }
 
     private var requiredAgreed: Bool {
@@ -47,8 +47,24 @@ struct TermsAgreementView: View {
                 ) {
                     titleSection
 
-                    agreementSection
+                    if terms.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("약관 정보를 불러오지 못했습니다.")
+                                .font(KIRITypography.bodyMedium)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                            Text("잠시 후 다시 로그인해 주세요.")
+                                .font(KIRITypography.caption)
+                                .foregroundStyle(KIRIColor.Text.tertiary)
+                            Button("다시 시도", action: onRetry)
+                                .foregroundStyle(KIRIColor.Text.accent)
+                        }
+                        .frame(maxWidth: .infinity)
                         .padding(.top, 72)
+                    } else {
+                        agreementSection
+                            .padding(.top, 72)
+                    }
 
                     Spacer()
 
@@ -60,6 +76,11 @@ struct TermsAgreementView: View {
                 )
                 .padding(.bottom, 10)
             }
+        }
+        .onAppear {
+            #if DEBUG
+            print("[KIRI][Terms] view received count=\(terms.count)")
+            #endif
         }
         .sheet(item: $selectedTerm) { term in
             TermDetailView(term: term)
@@ -110,49 +131,15 @@ struct TermsAgreementView: View {
         VStack(spacing: 10) {
             allAgreementButton
 
-            TermAgreementRow(
-                title: "[필수] 서비스 이용약관",
-                isChecked: serviceTermsAgreed,
-                onCheck: {
-                    serviceTermsAgreed.toggle()
-                },
-                onDetail: {
-                    selectedTerm = .service
-                }
-            )
-
-            TermAgreementRow(
-                title: "[필수] 개인정보 수집·이용 동의",
-                isChecked: privacyCollectionAgreed,
-                onCheck: {
-                    privacyCollectionAgreed.toggle()
-                },
-                onDetail: {
-                    selectedTerm = .privacyCollection
-                }
-            )
-
-            TermAgreementRow(
-                title: "[필수] 개인정보 처리방침 확인",
-                isChecked: privacyPolicyConfirmed,
-                onCheck: {
-                    privacyPolicyConfirmed.toggle()
-                },
-                onDetail: {
-                    selectedTerm = .privacyPolicy
-                }
-            )
-
-            TermAgreementRow(
-                title: "[선택] 위치정보 이용 동의",
-                isChecked: locationAgreed,
-                onCheck: {
-                    locationAgreed.toggle()
-                },
-                onDetail: {
-                    selectedTerm = .location
-                }
-            )
+            ForEach(terms) { term in
+                let requirement = term.isRequired ? "필수" : "선택"
+                TermAgreementRow(
+                    title: "[\(requirement)] \(term.title)",
+                    isChecked: isAgreed(for: term),
+                    onCheck: { agreementsByID[term.termId] = !isAgreed(for: term) },
+                    onDetail: { selectedTerm = term }
+                )
+            }
         }
     }
 
@@ -162,10 +149,7 @@ struct TermsAgreementView: View {
         Button {
             let newValue = !allAgreed
 
-            serviceTermsAgreed = newValue
-            privacyCollectionAgreed = newValue
-            privacyPolicyConfirmed = newValue
-            locationAgreed = newValue
+            for term in terms { agreementsByID[term.termId] = newValue }
         } label: {
             HStack(spacing: 14) {
                 AgreementCheckbox(
@@ -206,37 +190,17 @@ struct TermsAgreementView: View {
     private var continueButton: some View {
         KIRIPrimaryButton(
             title: "동의하고 계속하기",
-            isEnabled: requiredAgreed,
+            isEnabled: !terms.isEmpty && requiredAgreed,
             action: {
                 onComplete(terms.compactMap { term in
-                    guard let isAgreed = agreementValue(for: term) else {
-                        return nil
-                    }
-                    return TermAgreement(termId: term.termId, isAgreed: isAgreed)
+                    TermAgreement(termId: term.termId, isAgreed: isAgreed(for: term))
                 })
             }
         )
     }
 
-    private func agreementValue(for term: Term) -> Bool? {
-        let title = term.title.lowercased()
-        if title.contains("서비스") || title.contains("이용약관") {
-            return serviceTermsAgreed
-        }
-        if title.contains("수집") || title.contains("이용") {
-            return privacyCollectionAgreed
-        }
-        if title.contains("처리방침") {
-            return privacyPolicyConfirmed
-        }
-        if title.contains("위치") {
-            return locationAgreed
-        }
-        return nil
-    }
-
     private func isAgreed(for term: Term) -> Bool {
-        agreementValue(for: term) == true
+        agreementsByID[term.termId] ?? false
     }
 }
 
@@ -488,12 +452,12 @@ private struct TermDetailView: View {
     @Environment(\.dismiss)
     private var dismiss
 
-    let term: TermType
+    let term: Term
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                Text(term.content)
+                Text(term.description)
                     .font(KIRITypography.subtitle)
                     .foregroundStyle(
                         KIRIColor.Text.primary

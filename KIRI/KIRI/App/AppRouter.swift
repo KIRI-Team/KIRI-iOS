@@ -29,8 +29,12 @@ final class AppRouter {
     var pendingInvitation: FamilyInvitation?
     var familyName: String?
     var familyInviteCode: String?
+    var nickname: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
     var pendingTerms: [Term]?
+    var pendingTermAgreements: [TermAgreement] = []
+    var lastSessionError: String?
+    private(set) var isLoggingOut = false
 
     private let sessionStore: AppSessionStore
     private let tokenStore: AuthTokenStoring
@@ -47,6 +51,7 @@ final class AppRouter {
         self.tokenStore = tokenStore
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
+        nickname = sessionStore.nickname
 
         #if DEBUG
         print(
@@ -146,6 +151,7 @@ final class AppRouter {
     func completeAuthentication(isNewUser: Bool = false) {
         sessionStore.saveAuthenticationCompleted()
         pendingTerms = nil
+        pendingTermAgreements = []
 
         // 신규 회원은 약관 동의 직후 반드시 온보딩을 거친다.
         // 기존 회원은 로컬에 보존된 마지막 온보딩 상태를 복원한다.
@@ -171,10 +177,43 @@ final class AppRouter {
         appState = .onboarding
     }
 
+    /// 온보딩 첫 단계에서 약관으로 돌아갈 때 서버의 최신 목록과 동의 상태를 다시 읽는다.
+    func returnToTerms() async {
+        let terms: [Term]
+        do {
+            terms = try await AuthService.shared.terms()
+        } catch {
+            #if DEBUG
+            print("[KIRI][Router] returnToTerms failed: \(error.localizedDescription)")
+            #endif
+            // 네트워크/API 실패가 뒤로가기를 막지 않도록 빈 상태로 약관 화면을 연다.
+            // 약관 화면의 재시도 버튼으로 최신 목록을 다시 요청할 수 있다.
+            pendingTerms = []
+            pendingTermAgreements = []
+            appState = .authentication
+            return
+        }
+
+        let agreements: [TermAgreement]
+        do {
+            agreements = try await AuthService.shared.agreementStatus().agreements
+        } catch {
+            #if DEBUG
+            print("[KIRI][Router] agreement status unavailable: \(error.localizedDescription)")
+            #endif
+            agreements = []
+        }
+
+        pendingTerms = terms
+        pendingTermAgreements = agreements
+        appState = .authentication
+    }
+
     func enterFamilyMode(familyName: String, inviteCode: String) {
         sessionStore.saveFamily(name: familyName, inviteCode: inviteCode)
         self.familyName = familyName
         self.familyInviteCode = inviteCode
+        self.nickname = sessionStore.nickname
         sessionStore.saveOnboardingCompleted(
             userMode: .family
         )
@@ -185,6 +224,7 @@ final class AppRouter {
     }
 
     func enterBrowseMode() {
+        self.nickname = sessionStore.nickname
         sessionStore.saveOnboardingCompleted(
             userMode: .browse
         )
@@ -218,6 +258,7 @@ final class AppRouter {
             let agreementStatus = try await AuthService.shared.agreementStatus()
             if !agreementStatus.termsAgreed {
                 pendingTerms = try await AuthService.shared.terms()
+                pendingTermAgreements = agreementStatus.agreements
                 appState = .authentication
                 #if DEBUG
                 print("[KIRI][Router] restoreSession: terms required")
@@ -226,6 +267,7 @@ final class AppRouter {
             }
 
             pendingTerms = nil
+            pendingTermAgreements = []
             if !sessionStore.isOnboardingCompleted {
                 appState = .onboarding
                 userMode = .browse
@@ -236,32 +278,52 @@ final class AppRouter {
             #if DEBUG
             print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
             #endif
-        } catch {
+        } catch let error as APIError {
             #if DEBUG
             print("[KIRI][Router] restoreSession: failed \(error.localizedDescription)")
             #endif
-            do {
-                try tokenStore.clear()
-            } catch {
-                #if DEBUG
-                print("[KIRI][Router] restoreSession: token clear failed")
-                #endif
+            lastSessionError = error.localizedDescription
+            // 인증 만료(401)만 세션을 폐기한다. 서버 5xx/네트워크 오류에서는
+            // refresh token을 보존해 재시도할 수 있게 한다.
+            if case .unauthorized = error {
+                do { try tokenStore.clear() } catch {
+                    #if DEBUG
+                    print("[KIRI][Router] restoreSession: token clear failed")
+                    #endif
+                }
+                sessionStore.clearSession()
+                pendingTerms = nil
+                pendingTermAgreements = []
             }
-            sessionStore.clearSession()
-            pendingTerms = nil
+            appState = .authentication
+        } catch {
+            lastSessionError = error.localizedDescription
             appState = .authentication
         }
     }
 
-    func logout() {
+    func logout() async {
+        guard !isLoggingOut else { return }
+        isLoggingOut = true
+        var serverLogoutFailed = false
+        if Self.storedSessionExists(using: tokenStore) {
+            do {
+                try await AuthService.shared.logout()
+            } catch {
+                serverLogoutFailed = true
+                #if DEBUG
+                print("[KIRI][Router] logout: server request failed \(error.localizedDescription)")
+                #endif
+            }
+        }
         do {
-            try AuthService.shared.clearSession()
+            try tokenStore.clear()
         } catch {
             #if DEBUG
             print("[KIRI][Router] logout: local token clear failed")
             #endif
-            // 토큰 삭제에 실패한 경우 인증 화면으로 이동하지 않는다.
-            // 남아 있는 자격 증명을 숨긴 채 세션을 전환하면 계정 혼동이 생길 수 있다.
+            isLoggingOut = false
+            lastSessionError = "기기에서 로그인 정보를 삭제하지 못했습니다."
             return
         }
         sessionStore.clearSession()
@@ -269,6 +331,11 @@ final class AppRouter {
         pendingInvitation = nil
         userMode = .browse
         pendingTerms = nil
+        pendingTermAgreements = []
+        lastSessionError = serverLogoutFailed
+            ? "서버 로그아웃에 실패했지만 이 기기에서는 로그아웃했습니다."
+            : nil
         appState = .authentication
+        isLoggingOut = false
     }
 }

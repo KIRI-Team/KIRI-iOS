@@ -21,6 +21,7 @@ struct RootView: View {
                     AuthFlowView(
                         animateLoginEntrance: shouldAnimateLoginEntrance,
                         initialTerms: router.pendingTerms,
+                        initialAgreements: router.pendingTermAgreements,
                         onAuthenticated: {
                             router.completeAuthentication(isNewUser: $0)
                         }
@@ -37,6 +38,9 @@ struct RootView: View {
                         },
                         onCancelInvitation: {
                             router.clearInvitation()
+                        },
+                        onBackToTerms: {
+                            Task { await router.returnToTerms() }
                         }
                     )
 
@@ -45,12 +49,13 @@ struct RootView: View {
                         userMode: router.userMode,
                         familyName: router.familyName,
                         familyInviteCode: router.familyInviteCode,
+                        nickname: router.nickname,
                         onFamilyCreated: { name, code in
                             enterMain(familyName: name, inviteCode: code)
                         },
                         onLogout: {
                             shouldAnimateLoginEntrance = false
-                            router.logout()
+                            Task { await router.logout() }
                         }
                     )
                 }

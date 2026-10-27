@@ -25,12 +25,15 @@ struct OnboardingFlowView: View {
     @State private var createdFamilyCode: String = ""
     @State private var enteredFamilyCode: String = ""
     @State private var joinedFamilyName: String = ""
+    @State private var familyOperationError: String?
+    @State private var isSaving = false
 
     let invitation: FamilyInvitation?
 
     let onEnterFamily: (String, String) -> Void
     let onBrowse: () -> Void
     let onCancelInvitation: () -> Void
+    let onBackToTerms: () -> Void
 
     var body: some View {
         ZStack {
@@ -41,10 +44,8 @@ struct OnboardingFlowView: View {
             case .nickname:
                 NicknameView(
                     nickname: $nickname,
-                    onBack: {},
-                    onNext: {
-                        step = .role
-                    }
+                    onBack: onBackToTerms,
+                    onNext: { saveNickname() }
                 )
 
             case .role:
@@ -54,9 +55,7 @@ struct OnboardingFlowView: View {
                     onBack: {
                         step = .nickname
                     },
-                    onNext: {
-                        handleRoleSelectionCompleted()
-                    }
+                    onNext: { saveRole() }
                 )
 
             case .familyEntry:
@@ -150,6 +149,14 @@ struct OnboardingFlowView: View {
             )
             #endif
         }
+        .alert("저장할 수 없어요", isPresented: Binding(
+            get: { familyOperationError != nil },
+            set: { if !$0 { familyOperationError = nil } }
+        )) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text(familyOperationError ?? "잠시 후 다시 시도해주세요.")
+        }
     }
 
     // MARK: - Role Completion
@@ -164,28 +171,60 @@ struct OnboardingFlowView: View {
         findInvitedFamily(invitation)
     }
 
-    // MARK: - Mock Family Creation
+    private func saveNickname() {
+        guard !isSaving else { return }
+        isSaving = true
+        Task { @MainActor in
+            do {
+                let result = try await AuthService.shared.updateNickname(nickname)
+                AppSessionStore().saveNickname(result.nickname)
+                step = .role
+            } catch {
+                familyOperationError = error.localizedDescription
+            }
+            isSaving = false
+        }
+    }
+
+    private func saveRole() {
+        guard !isSaving, let selectedRole else { return }
+        isSaving = true
+        Task { @MainActor in
+            do {
+                _ = try await AuthService.shared.updateFamilyRole(selectedRole.apiValue)
+                handleRoleSelectionCompleted()
+            } catch {
+                familyOperationError = error.localizedDescription
+            }
+            isSaving = false
+        }
+    }
+
+    // MARK: - Family Creation
 
     private func createFamily() {
         step = .familyCodeLoading
-
-        // TODO: 가족공간 생성 API 연결 후 제거
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            createdFamilyCode = "KIRI24"
-            step = .familyCode
+        Task { @MainActor in
+            do {
+                let result = try await AuthService.shared.createFamily(name: familyName)
+                createdFamilyCode = result.inviteCode
+                AppSessionStore().saveFamily(
+                    name: result.name,
+                    inviteCode: result.inviteCode,
+                    familyId: result.familyId
+                )
+                step = .familyCode
+            } catch {
+                familyOperationError = error.localizedDescription
+                step = .familyName
+            }
         }
     }
 
     // MARK: - Mock Manual Family Search
 
     private func findFamily() {
-        step = .familyJoinLoading
-
-        // TODO: 가족코드 조회 API 연결 후 제거
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            joinedFamilyName = "끼리가족"
-            step = .familyJoinConfirm
-        }
+        familyOperationError = "가족 초대코드 조회 API가 현재 서버 명세에 없어 참여를 완료할 수 없습니다."
     }
 
     // MARK: - Mock Invitation Family Search
@@ -193,22 +232,13 @@ struct OnboardingFlowView: View {
     private func findInvitedFamily(
         _ invitation: FamilyInvitation
     ) {
-        step = .familyJoinLoading
-
-        // TODO: 초대정보 검증 및 가족공간 조회 API 연결
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            joinedFamilyName =
-                invitation.familyName ?? "끼리가족"
-
-            step = .familyJoinConfirm
-        }
+        familyOperationError = "초대 링크 검증 및 가족공간 참여 API가 현재 서버 명세에 없어 참여를 완료할 수 없습니다."
     }
 
     // MARK: - Family Join
 
     private func joinFamily() {
-        // TODO: 가족공간 참여 API 연결
-        onEnterFamily(joinedFamilyName, enteredFamilyCode)
+        familyOperationError = "가족공간 참여 API가 현재 서버 명세에 없어 참여를 완료할 수 없습니다."
     }
 
     private func handleJoinConfirmBack() {
@@ -244,6 +274,7 @@ struct OnboardingFlowView: View {
         invitation: nil,
         onEnterFamily: { _, _ in },
         onBrowse: {},
-        onCancelInvitation: {}
+        onCancelInvitation: {},
+        onBackToTerms: {}
     )
 }

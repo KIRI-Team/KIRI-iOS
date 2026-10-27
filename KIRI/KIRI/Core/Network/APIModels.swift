@@ -38,6 +38,42 @@ struct TokenReissueResult: Decodable, Sendable {
     let termsAgreed: Bool
 }
 
+struct NicknameUpdateRequest: Encodable, Sendable {
+    let nickname: String
+}
+
+struct NicknameUpdateResult: Decodable, Sendable {
+    let nickname: String
+}
+
+struct FamilyRoleUpdateRequest: Encodable, Sendable {
+    let familyRole: String
+}
+
+struct FamilyRoleUpdateResult: Decodable, Sendable {
+    let familyRole: String
+}
+
+struct CreateFamilyRequest: Encodable, Sendable {
+    let name: String
+}
+
+struct CreateFamilyResult: Decodable, Sendable {
+    let familyId: Int
+    let name: String
+    let inviteCode: String
+    let inviteUrl: String?
+    let inviteExpiresAt: String?
+}
+
+struct TodayQuestionResult: Decodable, Sendable {
+    let hasFamily: Bool
+    let questionId: Int?
+    let question: String?
+    let isAnswered: Bool
+    let answer: String?
+}
+
 struct TermAgreement: Codable, Identifiable, Sendable {
     let termId: Int
     var isAgreed: Bool
@@ -61,6 +97,20 @@ struct Term: Decodable, Identifiable, Sendable {
     let description: String
     let isRequired: Bool
     let updatedAt: String
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        termId = try c.decode(Int.self, forKey: .termId)
+        title = try c.decode(String.self, forKey: .title)
+        shortDescription = try c.decodeIfPresent(String.self, forKey: .shortDescription) ?? ""
+        description = try c.decodeIfPresent(String.self, forKey: .description) ?? ""
+        isRequired = try c.decodeIfPresent(Bool.self, forKey: .isRequired) ?? false
+        updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case termId, title, shortDescription, description, isRequired, updatedAt
+    }
 
     var id: Int { termId }
 }

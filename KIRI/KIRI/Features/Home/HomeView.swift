@@ -88,11 +88,12 @@ struct HomeView: View {
     private var homeContent: some View {
         switch userMode {
         case .family:
-            FamilyHomeView(
-                familyName: familyName ?? "끼리네 가족",
-                familyInviteCode: familyInviteCode,
-                tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil,
-                onExploreMission: onExploreMission
+                FamilyHomeView(
+                    familyName: familyName ?? "끼리네 가족",
+                    familyInviteCode: familyInviteCode,
+                    tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil,
+                    loadsServerQuestion: true,
+                    onExploreMission: onExploreMission
             )
 
         case .browse:
@@ -101,6 +102,7 @@ struct HomeView: View {
                     familyName: "끼리네 가족",
                     familyInviteCode: nil,
                     tutorialStep: tutorialStore.step,
+                    loadsServerQuestion: false,
                     onExploreMission: onExploreMission
                 )
             } else {

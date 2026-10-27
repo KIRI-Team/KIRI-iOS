@@ -132,6 +132,7 @@ private struct BrowseFamilyCreationFlow: View {
     @State private var step: Step = .entry
     @State private var familyName = ""
     @State private var familyCode = ""
+    @State private var errorMessage: String?
 
     let onDismiss: () -> Void
     let onFamilyCreated: (String, String) -> Void
@@ -179,14 +180,30 @@ private struct BrowseFamilyCreationFlow: View {
                 )
             }
         }
+        .alert("가족공간을 만들 수 없어요", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) { Button("확인", role: .cancel) {} } message: {
+            Text(errorMessage ?? "잠시 후 다시 시도해주세요.")
+        }
         .preferredColorScheme(.dark)
     }
 
     private func createFamilyCode() {
-        // 서버 연동 전에는 Figma 플로우를 확인할 수 있는 로컬 코드만 사용한다.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            familyCode = "NWTKYJ"
-            step = .code
+        Task { @MainActor in
+            do {
+                let result = try await AuthService.shared.createFamily(name: familyName)
+                familyCode = result.inviteCode
+                AppSessionStore().saveFamily(
+                    name: result.name,
+                    inviteCode: result.inviteCode,
+                    familyId: result.familyId
+                )
+                step = .code
+            } catch {
+                errorMessage = error.localizedDescription
+                step = .familyName
+            }
         }
     }
 }

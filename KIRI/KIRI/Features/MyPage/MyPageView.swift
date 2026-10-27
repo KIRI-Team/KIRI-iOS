@@ -3,8 +3,9 @@ import SwiftUI
 /// Figma 8213:3062. API 연결 전에는 화면 로컬 상태를 사용한다.
 struct MyPageView: View {
     let onLogout: () -> Void
-    @State private var nickname = "쥬123"
-    @State private var familyName = "끼리네 가족"
+    let nickname: String?
+    let familyName: String?
+    @State private var editedNickname = ""
     @State private var isLogoutAlertPresented = false
 
     var body: some View {
@@ -66,11 +67,11 @@ struct MyPageView: View {
                         .clipShape(Circle())
                 }
             VStack(alignment: .leading, spacing: 4) {
-                Text(nickname).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
-                Text("\(familyName) I 딸").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                Text(nickname ?? "닉네임을 설정해주세요").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
+                Text(familyName.map { "\($0)" } ?? "가족공간 미가입").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
             }
             Spacer()
-            NavigationLink { NicknameEditView(nickname: $nickname) } label: {
+            NavigationLink { NicknameEditView(nickname: Binding(get: { nickname ?? "" }, set: { editedNickname = $0 })) } label: {
                 Image(systemName: "pencil").font(.system(size: 18, weight: .medium))
                     .foregroundStyle(KIRIColor.Icon.secondary).frame(width: 36, height: 36)
             }.buttonStyle(.plain)
@@ -95,4 +96,4 @@ struct MyPageView: View {
     }
 }
 
-#Preview { MyPageView(onLogout: {}) }
+#Preview { MyPageView(onLogout: {}, nickname: "쥬123", familyName: "끼리네 가족") }
