@@ -179,17 +179,34 @@ final class AppRouter {
 
     /// 온보딩 첫 단계에서 약관으로 돌아갈 때 서버의 최신 목록과 동의 상태를 다시 읽는다.
     func returnToTerms() async {
+        let terms: [Term]
         do {
-            let terms = try await AuthService.shared.terms()
-            let status = try await AuthService.shared.agreementStatus()
-            pendingTerms = terms
-            pendingTermAgreements = status.agreements
-            appState = .authentication
+            terms = try await AuthService.shared.terms()
         } catch {
             #if DEBUG
             print("[KIRI][Router] returnToTerms failed: \(error.localizedDescription)")
             #endif
+            // 네트워크/API 실패가 뒤로가기를 막지 않도록 빈 상태로 약관 화면을 연다.
+            // 약관 화면의 재시도 버튼으로 최신 목록을 다시 요청할 수 있다.
+            pendingTerms = []
+            pendingTermAgreements = []
+            appState = .authentication
+            return
         }
+
+        let agreements: [TermAgreement]
+        do {
+            agreements = try await AuthService.shared.agreementStatus().agreements
+        } catch {
+            #if DEBUG
+            print("[KIRI][Router] agreement status unavailable: \(error.localizedDescription)")
+            #endif
+            agreements = []
+        }
+
+        pendingTerms = terms
+        pendingTermAgreements = agreements
+        appState = .authentication
     }
 
     func enterFamilyMode(familyName: String, inviteCode: String) {
