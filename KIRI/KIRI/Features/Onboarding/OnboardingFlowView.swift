@@ -206,6 +206,11 @@ struct OnboardingFlowView: View {
             do {
                 let result = try await AuthService.shared.createFamily(name: familyName)
                 createdFamilyCode = result.inviteCode
+                AppSessionStore().saveFamily(
+                    name: result.name,
+                    inviteCode: result.inviteCode,
+                    familyId: result.familyId
+                )
                 step = .familyCode
             } catch {
                 familyOperationError = error.localizedDescription

@@ -194,6 +194,11 @@ private struct BrowseFamilyCreationFlow: View {
             do {
                 let result = try await AuthService.shared.createFamily(name: familyName)
                 familyCode = result.inviteCode
+                AppSessionStore().saveFamily(
+                    name: result.name,
+                    inviteCode: result.inviteCode,
+                    familyId: result.familyId
+                )
                 step = .code
             } catch {
                 errorMessage = error.localizedDescription

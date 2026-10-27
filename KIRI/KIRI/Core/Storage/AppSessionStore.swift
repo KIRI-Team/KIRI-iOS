@@ -14,6 +14,7 @@ final class AppSessionStore {
         static let userMode = "kiri.userMode"
         static let familyName = "kiri.familyName"
         static let familyInviteCode = "kiri.familyInviteCode"
+        static let familyId = "kiri.familyId"
     }
 
     private let defaults: UserDefaults
@@ -36,10 +37,12 @@ final class AppSessionStore {
 
     var familyName: String? { defaults.string(forKey: Key.familyName) }
     var familyInviteCode: String? { defaults.string(forKey: Key.familyInviteCode) }
+    var familyId: Int? { defaults.object(forKey: Key.familyId) as? Int }
 
-    func saveFamily(name: String, inviteCode: String) {
+    func saveFamily(name: String, inviteCode: String, familyId: Int? = nil) {
         defaults.set(name, forKey: Key.familyName)
         defaults.set(inviteCode, forKey: Key.familyInviteCode)
+        if let familyId { defaults.set(familyId, forKey: Key.familyId) }
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -77,6 +80,7 @@ final class AppSessionStore {
             Key.userMode,
             Key.familyName,
             Key.familyInviteCode
+            , Key.familyId
         ].forEach { defaults.removeObject(forKey: $0) }
     }
 }
