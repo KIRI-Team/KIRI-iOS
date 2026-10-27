@@ -31,6 +31,7 @@ final class AppRouter {
     var familyInviteCode: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
     var pendingTerms: [Term]?
+    var pendingTermAgreements: [TermAgreement] = []
     var lastSessionError: String?
     private(set) var isLoggingOut = false
 
@@ -148,6 +149,7 @@ final class AppRouter {
     func completeAuthentication(isNewUser: Bool = false) {
         sessionStore.saveAuthenticationCompleted()
         pendingTerms = nil
+        pendingTermAgreements = []
 
         // 신규 회원은 약관 동의 직후 반드시 온보딩을 거친다.
         // 기존 회원은 로컬에 보존된 마지막 온보딩 상태를 복원한다.
@@ -220,6 +222,7 @@ final class AppRouter {
             let agreementStatus = try await AuthService.shared.agreementStatus()
             if !agreementStatus.termsAgreed {
                 pendingTerms = try await AuthService.shared.terms()
+                pendingTermAgreements = agreementStatus.agreements
                 appState = .authentication
                 #if DEBUG
                 print("[KIRI][Router] restoreSession: terms required")
@@ -228,6 +231,7 @@ final class AppRouter {
             }
 
             pendingTerms = nil
+            pendingTermAgreements = []
             if !sessionStore.isOnboardingCompleted {
                 appState = .onboarding
                 userMode = .browse
@@ -253,6 +257,7 @@ final class AppRouter {
                 }
                 sessionStore.clearSession()
                 pendingTerms = nil
+                pendingTermAgreements = []
             }
             appState = .authentication
         } catch {
@@ -290,6 +295,7 @@ final class AppRouter {
         pendingInvitation = nil
         userMode = .browse
         pendingTerms = nil
+        pendingTermAgreements = []
         lastSessionError = serverLogoutFailed
             ? "서버 로그아웃에 실패했지만 이 기기에서는 로그아웃했습니다."
             : nil

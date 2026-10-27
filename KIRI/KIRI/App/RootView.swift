@@ -21,6 +21,7 @@ struct RootView: View {
                     AuthFlowView(
                         animateLoginEntrance: shouldAnimateLoginEntrance,
                         initialTerms: router.pendingTerms,
+                        initialAgreements: router.pendingTermAgreements,
                         onAuthenticated: {
                             router.completeAuthentication(isNewUser: $0)
                         }

@@ -11,22 +11,27 @@ struct AuthFlowView: View {
     @State private var isAuthenticating = false
     @State private var authErrorMessage: String?
     @State private var terms: [Term] = []
+    @State private var loadedAgreements: [TermAgreement] = []
     @State private var pendingNewUser = false
 
     let animateLoginEntrance: Bool
     let initialTerms: [Term]?
+    let initialAgreements: [TermAgreement]
     let onAuthenticated: (Bool) -> Void
 
     init(
         animateLoginEntrance: Bool,
         initialTerms: [Term]? = nil,
+        initialAgreements: [TermAgreement] = [],
         onAuthenticated: @escaping (Bool) -> Void
     ) {
         self.animateLoginEntrance = animateLoginEntrance
         self.initialTerms = initialTerms
+        self.initialAgreements = initialAgreements
         self.onAuthenticated = onAuthenticated
         _step = State(initialValue: initialTerms == nil ? .login : .terms)
         _terms = State(initialValue: initialTerms ?? [])
+        _loadedAgreements = State(initialValue: initialAgreements)
     }
 
     var body: some View {
@@ -63,7 +68,8 @@ struct AuthFlowView: View {
                     onComplete: { agreements in
                         completeSignUp(agreements: agreements)
                     },
-                    terms: terms
+                    terms: terms,
+                    initialAgreements: loadedAgreements
                 )
             }
         }
@@ -164,8 +170,10 @@ struct AuthFlowView: View {
     private func loadTermsAndShow() {
         Task {
             do {
+                let status = try await AuthService.shared.agreementStatus()
                 let terms = try await AuthService.shared.terms()
                 self.terms = terms
+                self.loadedAgreements = status.agreements
                 step = .terms
             } catch {
                 authErrorMessage = error.localizedDescription
