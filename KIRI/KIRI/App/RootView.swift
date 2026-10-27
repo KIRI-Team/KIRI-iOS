@@ -50,7 +50,7 @@ struct RootView: View {
                         },
                         onLogout: {
                             shouldAnimateLoginEntrance = false
-                            router.logout()
+                            Task { await router.logout() }
                         }
                     )
                 }

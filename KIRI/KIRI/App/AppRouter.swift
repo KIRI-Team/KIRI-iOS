@@ -31,6 +31,8 @@ final class AppRouter {
     var familyInviteCode: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
     var pendingTerms: [Term]?
+    var lastSessionError: String?
+    private(set) var isLoggingOut = false
 
     private let sessionStore: AppSessionStore
     private let tokenStore: AuthTokenStoring
@@ -236,32 +238,51 @@ final class AppRouter {
             #if DEBUG
             print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
             #endif
-        } catch {
+        } catch let error as APIError {
             #if DEBUG
             print("[KIRI][Router] restoreSession: failed \(error.localizedDescription)")
             #endif
-            do {
-                try tokenStore.clear()
-            } catch {
-                #if DEBUG
-                print("[KIRI][Router] restoreSession: token clear failed")
-                #endif
+            lastSessionError = error.localizedDescription
+            // 인증 만료(401)만 세션을 폐기한다. 서버 5xx/네트워크 오류에서는
+            // refresh token을 보존해 재시도할 수 있게 한다.
+            if case .unauthorized = error {
+                do { try tokenStore.clear() } catch {
+                    #if DEBUG
+                    print("[KIRI][Router] restoreSession: token clear failed")
+                    #endif
+                }
+                sessionStore.clearSession()
+                pendingTerms = nil
             }
-            sessionStore.clearSession()
-            pendingTerms = nil
+            appState = .authentication
+        } catch {
+            lastSessionError = error.localizedDescription
             appState = .authentication
         }
     }
 
-    func logout() {
+    func logout() async {
+        guard !isLoggingOut else { return }
+        isLoggingOut = true
+        var serverLogoutFailed = false
+        if Self.storedSessionExists(using: tokenStore) {
+            do {
+                try await AuthService.shared.logout()
+            } catch {
+                serverLogoutFailed = true
+                #if DEBUG
+                print("[KIRI][Router] logout: server request failed \(error.localizedDescription)")
+                #endif
+            }
+        }
         do {
-            try AuthService.shared.clearSession()
+            try tokenStore.clear()
         } catch {
             #if DEBUG
             print("[KIRI][Router] logout: local token clear failed")
             #endif
-            // 토큰 삭제에 실패한 경우 인증 화면으로 이동하지 않는다.
-            // 남아 있는 자격 증명을 숨긴 채 세션을 전환하면 계정 혼동이 생길 수 있다.
+            isLoggingOut = false
+            lastSessionError = "기기에서 로그인 정보를 삭제하지 못했습니다."
             return
         }
         sessionStore.clearSession()
@@ -269,6 +290,10 @@ final class AppRouter {
         pendingInvitation = nil
         userMode = .browse
         pendingTerms = nil
+        lastSessionError = serverLogoutFailed
+            ? "서버 로그아웃에 실패했지만 이 기기에서는 로그아웃했습니다."
+            : nil
         appState = .authentication
+        isLoggingOut = false
     }
 }
