@@ -47,6 +47,9 @@ final class APIClient {
                     + "status=\(httpResponse.statusCode)"
             )
         }
+        if endpoint.path == "/api/v1/terms" {
+            logTermsResultShape(data)
+        }
         #endif
 
         if httpResponse.statusCode == 401 {
@@ -154,6 +157,9 @@ final class APIClient {
         }
 
         var request = URLRequest(url: finalURL)
+        // Android's OkHttp client has no response cache configured. Avoid reusing
+        // a stale terms response from URLSession's shared cache as well.
+        request.cachePolicy = .reloadIgnoringLocalCacheData
 
         request.httpMethod = endpoint.method.rawValue
         request.timeoutInterval = 30
@@ -186,4 +192,25 @@ final class APIClient {
 
         return request
     }
+
+    #if DEBUG
+    private func logTermsResultShape(_ data: Data) {
+        guard let object = try? JSONSerialization.jsonObject(with: data),
+              let envelope = object as? [String: Any] else {
+            print("[KIRI][Terms] raw result shape=invalid-json")
+            return
+        }
+        guard let result = envelope["result"] else {
+            print("[KIRI][Terms] raw result shape=missing")
+            return
+        }
+        if let array = result as? [Any] {
+            print("[KIRI][Terms] raw result shape=array count=\(array.count)")
+        } else if result is NSNull {
+            print("[KIRI][Terms] raw result shape=null")
+        } else {
+            print("[KIRI][Terms] raw result shape=\(String(describing: type(of: result)))")
+        }
+    }
+    #endif
 }
