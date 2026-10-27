@@ -33,6 +33,7 @@ struct OnboardingFlowView: View {
     let onEnterFamily: (String, String) -> Void
     let onBrowse: () -> Void
     let onCancelInvitation: () -> Void
+    let onBackToTerms: () -> Void
 
     var body: some View {
         ZStack {
@@ -43,7 +44,7 @@ struct OnboardingFlowView: View {
             case .nickname:
                 NicknameView(
                     nickname: $nickname,
-                    onBack: {},
+                    onBack: onBackToTerms,
                     onNext: { saveNickname() }
                 )
 
@@ -273,6 +274,7 @@ struct OnboardingFlowView: View {
         invitation: nil,
         onEnterFamily: { _, _ in },
         onBrowse: {},
-        onCancelInvitation: {}
+        onCancelInvitation: {},
+        onBackToTerms: {}
     )
 }

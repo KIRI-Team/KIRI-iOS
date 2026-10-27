@@ -38,6 +38,9 @@ struct RootView: View {
                         },
                         onCancelInvitation: {
                             router.clearInvitation()
+                        },
+                        onBackToTerms: {
+                            Task { await router.returnToTerms() }
                         }
                     )
 

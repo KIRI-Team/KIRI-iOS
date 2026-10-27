@@ -177,6 +177,21 @@ final class AppRouter {
         appState = .onboarding
     }
 
+    /// 온보딩 첫 단계에서 약관으로 돌아갈 때 서버의 최신 목록과 동의 상태를 다시 읽는다.
+    func returnToTerms() async {
+        do {
+            let terms = try await AuthService.shared.terms()
+            let status = try await AuthService.shared.agreementStatus()
+            pendingTerms = terms
+            pendingTermAgreements = status.agreements
+            appState = .authentication
+        } catch {
+            #if DEBUG
+            print("[KIRI][Router] returnToTerms failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
     func enterFamilyMode(familyName: String, inviteCode: String) {
         sessionStore.saveFamily(name: familyName, inviteCode: inviteCode)
         self.familyName = familyName
