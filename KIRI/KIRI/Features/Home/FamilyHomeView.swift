@@ -5,6 +5,7 @@ struct FamilyHomeView: View {
     var familyName: String = "끼리네 가족"
     var familyInviteCode: String? = nil
     var tutorialStep: Int? = nil
+    var loadsServerQuestion: Bool = true
     var onExploreMission: () -> Void = {}
 
     @State private var isInvitePresented = false
@@ -129,6 +130,10 @@ struct FamilyHomeView: View {
             }
         }
         .task {
+            guard loadsServerQuestion else {
+                didLoadTodayQuestion = true
+                return
+            }
             await loadTodayQuestion()
         }
     }
@@ -316,6 +321,11 @@ struct FamilyHomeView: View {
 
             if !didLoadTodayQuestion {
                 ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 136)
+            } else if let todayQuestionError {
+                Text(todayQuestionError)
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
                     .frame(maxWidth: .infinity, minHeight: 136)
             } else {
                 QuestionMissionFlipCard(
