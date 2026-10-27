@@ -68,8 +68,15 @@ final class AppSessionStore {
     }
 
     func clearSession() {
-        defaults.removeObject(
-            forKey: Key.isAuthenticated
-        )
+        // 인증 토큰과 함께 현재 계정에 귀속된 로컬 상태도 제거한다.
+        // 서버의 회원·가족 데이터는 삭제하지 않으며, 다음 로그인 때 서버 상태를
+        // 다시 조회해 복원해야 한다.
+        [
+            Key.isAuthenticated,
+            Key.isOnboardingCompleted,
+            Key.userMode,
+            Key.familyName,
+            Key.familyInviteCode
+        ].forEach { defaults.removeObject(forKey: $0) }
     }
 }
