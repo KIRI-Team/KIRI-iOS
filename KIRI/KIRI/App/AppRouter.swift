@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 @Observable
 final class AppRouter {
     enum AppState {
@@ -28,6 +29,8 @@ final class AppRouter {
     var pendingInvitation: FamilyInvitation?
     var familyName: String?
     var familyInviteCode: String?
+    /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
+    var pendingTerms: [Term]?
 
     private let sessionStore: AppSessionStore
     private let tokenStore: AuthTokenStoring
@@ -142,6 +145,7 @@ final class AppRouter {
 
     func completeAuthentication(isNewUser: Bool = false) {
         sessionStore.saveAuthenticationCompleted()
+        pendingTerms = nil
 
         // 신규 회원은 약관 동의 직후 반드시 온보딩을 거친다.
         // 기존 회원은 로컬에 보존된 마지막 온보딩 상태를 복원한다.
@@ -193,14 +197,78 @@ final class AppRouter {
         pendingInvitation = nil
     }
 
+    /// 스플래시 이후 저장된 세션을 서버에서 재검증한다.
+    /// refresh token 재발급과 약관 상태 조회가 모두 성공한 경우에만 기존 화면을 복원한다.
+    func restoreSession() async {
+        #if DEBUG
+        print("[KIRI][Router] restoreSession: started")
+        #endif
+
+        guard Self.storedSessionExists(using: tokenStore) else {
+            sessionStore.clearSession()
+            pendingTerms = nil
+            appState = .authentication
+            return
+        }
+
+        do {
+            _ = try await AuthService.shared.reissue()
+            sessionStore.saveAuthenticationCompleted()
+
+            let agreementStatus = try await AuthService.shared.agreementStatus()
+            if !agreementStatus.termsAgreed {
+                pendingTerms = try await AuthService.shared.terms()
+                appState = .authentication
+                #if DEBUG
+                print("[KIRI][Router] restoreSession: terms required")
+                #endif
+                return
+            }
+
+            pendingTerms = nil
+            if !sessionStore.isOnboardingCompleted {
+                appState = .onboarding
+                userMode = .browse
+            } else {
+                userMode = sessionStore.userMode == .family ? .family : .browse
+                appState = .main
+            }
+            #if DEBUG
+            print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
+            #endif
+        } catch {
+            #if DEBUG
+            print("[KIRI][Router] restoreSession: failed \(error.localizedDescription)")
+            #endif
+            do {
+                try tokenStore.clear()
+            } catch {
+                #if DEBUG
+                print("[KIRI][Router] restoreSession: token clear failed")
+                #endif
+            }
+            sessionStore.clearSession()
+            pendingTerms = nil
+            appState = .authentication
+        }
+    }
+
     func logout() {
-        // 인증 토큰만 폐기하고, 서버에 저장된 온보딩·가족 연결 상태의
-        // 로컬 복원 정보는 다음 로그인에서 사용할 수 있도록 보존한다.
-        try? AuthService.shared.clearSession()
+        do {
+            try AuthService.shared.clearSession()
+        } catch {
+            #if DEBUG
+            print("[KIRI][Router] logout: local token clear failed")
+            #endif
+            // 토큰 삭제에 실패한 경우 인증 화면으로 이동하지 않는다.
+            // 남아 있는 자격 증명을 숨긴 채 세션을 전환하면 계정 혼동이 생길 수 있다.
+            return
+        }
         sessionStore.clearSession()
 
         pendingInvitation = nil
         userMode = .browse
+        pendingTerms = nil
         appState = .authentication
     }
 }

@@ -20,6 +20,7 @@ struct RootView: View {
                 case .authentication:
                     AuthFlowView(
                         animateLoginEntrance: shouldAnimateLoginEntrance,
+                        initialTerms: router.pendingTerms,
                         onAuthenticated: {
                             router.completeAuthentication(isNewUser: $0)
                         }
@@ -78,18 +79,18 @@ struct RootView: View {
     }
 
     private func finishSplash() {
-        // 개발·인증 검증 단계에서는 콜드 스타트마다 로그인 화면을 먼저 표시한다.
-        // 세션 복원은 서버 기반 검증을 추가한 뒤 별도 경로로 다시 연결한다.
-        router.showAuthentication()
-        #if DEBUG
-        print(
-            "[KIRI][RootView] finishSplash: "
-                + "forcedAuthentication=true, "
-                + "appState=\(Self.stateName(router.appState))"
-        )
-        #endif
-        shouldAnimateLoginEntrance = true
-        isSplashPresented = false
+        Task { @MainActor in
+            await router.restoreSession()
+            shouldAnimateLoginEntrance = router.appState == .authentication && router.pendingTerms == nil
+            isSplashPresented = false
+            #if DEBUG
+            print(
+                "[KIRI][RootView] finishSplash: "
+                    + "appState=\(Self.stateName(router.appState)), "
+                    + "termsPending=\(router.pendingTerms != nil)"
+            )
+            #endif
+        }
     }
 
     private func enterMain(familyName: String? = nil, inviteCode: String? = nil, browse: Bool = false) {

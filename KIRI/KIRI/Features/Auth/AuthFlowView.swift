@@ -14,7 +14,20 @@ struct AuthFlowView: View {
     @State private var pendingNewUser = false
 
     let animateLoginEntrance: Bool
+    let initialTerms: [Term]?
     let onAuthenticated: (Bool) -> Void
+
+    init(
+        animateLoginEntrance: Bool,
+        initialTerms: [Term]? = nil,
+        onAuthenticated: @escaping (Bool) -> Void
+    ) {
+        self.animateLoginEntrance = animateLoginEntrance
+        self.initialTerms = initialTerms
+        self.onAuthenticated = onAuthenticated
+        _step = State(initialValue: initialTerms == nil ? .login : .terms)
+        _terms = State(initialValue: initialTerms ?? [])
+    }
 
     var body: some View {
         ZStack {
