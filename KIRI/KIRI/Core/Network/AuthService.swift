@@ -144,6 +144,82 @@ final class AuthService {
         )
     }
 
+    func logout() async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/auth/logout",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+    }
+
+    func updateNickname(_ nickname: String) async throws -> NicknameUpdateResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/members/nickname",
+            method: .PATCH,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<NicknameUpdateResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: NicknameUpdateRequest(nickname: nickname),
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func updateFamilyRole(_ role: String) async throws -> FamilyRoleUpdateResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/members/family-role",
+            method: .PATCH,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyRoleUpdateResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: FamilyRoleUpdateRequest(familyRole: role),
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func createFamily(name: String) async throws -> CreateFamilyResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<CreateFamilyResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: CreateFamilyRequest(name: name),
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func todayQuestion() async throws -> TodayQuestionResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/questions/today",
+            method: .GET,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<TodayQuestionResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func clearSession() throws {
         try tokenStore.clear()
     }

@@ -7,6 +7,15 @@ enum FamilyRole: String, CaseIterable, Hashable {
     case daughter
     case son
 
+    var apiValue: String {
+        switch self {
+        case .mom: return "MOTHER"
+        case .dad: return "FATHER"
+        case .daughter: return "DAUGHTER"
+        case .son: return "SON"
+        }
+    }
+
     var koreanName: String {
         switch self {
         case .mom:

@@ -14,6 +14,8 @@ struct FamilyHomeView: View {
     @State private var selectedMember: HomeMockMember?
     @State private var isPlaceBookmarked = false
     @State private var showsMissionFace = false
+    @State private var didLoadTodayQuestion = false
+    @State private var todayQuestionError: String?
 
 
     private enum HomeRoute {
@@ -125,6 +127,9 @@ struct FamilyHomeView: View {
             if let newStep {
                 showsMissionFace = newStep >= 1
             }
+        }
+        .task {
+            await loadTodayQuestion()
         }
     }
 
@@ -309,17 +314,22 @@ struct FamilyHomeView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
 
-            QuestionMissionFlipCard(
-                questionNumber: mockData.question.number,
-                question: mockData.question.text,
-                answer: mockData.question.answer,
-                mission: mockData.weeklyMission,
-                showsMission: $showsMissionFace,
-                onQuestionAnswer: { route = .questionAnswer },
-                onMissionDetail: { route = .missionDetail },
-                onMissionExplore: onExploreMission
-            )
-            .homeTutorialMeasured(.questionMissionCard)
+            if !didLoadTodayQuestion {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 136)
+            } else {
+                QuestionMissionFlipCard(
+                    questionNumber: mockData.question.number,
+                    question: mockData.question.text,
+                    answer: mockData.question.answer,
+                    mission: mockData.weeklyMission,
+                    showsMission: $showsMissionFace,
+                    onQuestionAnswer: { route = .questionAnswer },
+                    onMissionDetail: { route = .missionDetail },
+                    onMissionExplore: onExploreMission
+                )
+                .homeTutorialMeasured(.questionMissionCard)
+            }
         }
         .padding(.horizontal, 18)
     }
@@ -419,6 +429,24 @@ struct FamilyHomeView: View {
         // TODO:
         // 수락 API 연결 후 실제 RecordCalendarView 일정 갱신
         route = .home
+    }
+
+    private func loadTodayQuestion() async {
+        do {
+            let result = try await AuthService.shared.todayQuestion()
+            await MainActor.run {
+                if let question = result.question, !question.isEmpty {
+                    mockData.question.text = question
+                }
+                mockData.question.answer = result.answer
+                didLoadTodayQuestion = true
+            }
+        } catch {
+            await MainActor.run {
+                todayQuestionError = error.localizedDescription
+                didLoadTodayQuestion = true
+            }
+        }
     }
 }
 

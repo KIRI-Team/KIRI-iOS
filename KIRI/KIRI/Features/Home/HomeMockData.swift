@@ -10,7 +10,7 @@ struct HomeMockMember: Identifiable {
 
 struct HomeMockQuestion {
     let number: Int
-    let text: String
+    var text: String
     var answer: String?
 }
 

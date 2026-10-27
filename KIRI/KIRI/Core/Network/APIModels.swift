@@ -38,6 +38,42 @@ struct TokenReissueResult: Decodable, Sendable {
     let termsAgreed: Bool
 }
 
+struct NicknameUpdateRequest: Encodable, Sendable {
+    let nickname: String
+}
+
+struct NicknameUpdateResult: Decodable, Sendable {
+    let nickname: String
+}
+
+struct FamilyRoleUpdateRequest: Encodable, Sendable {
+    let familyRole: String
+}
+
+struct FamilyRoleUpdateResult: Decodable, Sendable {
+    let familyRole: String
+}
+
+struct CreateFamilyRequest: Encodable, Sendable {
+    let name: String
+}
+
+struct CreateFamilyResult: Decodable, Sendable {
+    let familyId: Int
+    let name: String
+    let inviteCode: String
+    let inviteUrl: String?
+    let inviteExpiresAt: String?
+}
+
+struct TodayQuestionResult: Decodable, Sendable {
+    let hasFamily: Bool
+    let questionId: Int?
+    let question: String?
+    let isAnswered: Bool
+    let answer: String?
+}
+
 struct TermAgreement: Codable, Identifiable, Sendable {
     let termId: Int
     var isAgreed: Bool

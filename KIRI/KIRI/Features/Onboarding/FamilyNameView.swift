@@ -109,7 +109,7 @@ struct FamilyNameView: View {
             ) != nil
         }
 
-        return String(filtered.prefix(10))
+        return String(filtered.prefix(20))
     }
 }
 
