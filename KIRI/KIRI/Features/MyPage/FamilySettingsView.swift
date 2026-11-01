@@ -4,19 +4,31 @@ import SwiftUI
 struct FamilySettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
-    @State private var familyName = "끼리네 가족"
-    @State private var nickname = "쥬123"
-    @State private var isOwner = true
+    let familyId: Int?
+    let initialFamilyName: String?
+    let initialNickname: String?
+    let familyRole: String?
+    let onUpdateFamilyName: (String) async -> String?
+
+    @State private var familyName: String
+    @State private var nickname: String
     @State private var isLeaveAlertPresented = false
 
-    private let members: [FamilyMember] = [
-        FamilyMember(role: "딸", nickname: "쥬123", isMe: true),
-        FamilyMember(role: "아들", nickname: "첫째", isMe: false),
-        FamilyMember(role: "엄마", nickname: "마마", isMe: false),
-        FamilyMember(role: "아들", nickname: "첫째", isMe: false),
-        FamilyMember(role: "아들", nickname: "첫째", isMe: false),
-        FamilyMember(role: "엄마", nickname: "마마", isMe: false)
-    ]
+    init(
+        familyId: Int? = nil,
+        familyName: String? = nil,
+        nickname: String? = nil,
+        familyRole: String? = nil,
+        onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
+    ) {
+        self.familyId = familyId
+        self.initialFamilyName = familyName
+        self.initialNickname = nickname
+        self.familyRole = familyRole
+        self.onUpdateFamilyName = onUpdateFamilyName
+        _familyName = State(initialValue: familyName ?? "")
+        _nickname = State(initialValue: nickname ?? "")
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -36,7 +48,7 @@ struct FamilySettingsView: View {
                     familyNameSection
                         .padding(.top, 38)
 
-                familyMemberSection
+                    familyMemberSection
                         .padding(.top, 54)
 
                     Button {
@@ -62,7 +74,7 @@ struct FamilySettingsView: View {
             Button("취소", role: .cancel) {}
             Button("나가기", role: .destructive) {}
         } message: {
-            Text(isOwner ? "소유자가 나가면 남은 구성원에게 소유권이 승계됩니다." : "가족과 함께한 기록은 유지될 수 있습니다.")
+            Text("가족과 함께한 기록은 유지될 수 있습니다.")
         }
     }
 
@@ -105,9 +117,9 @@ struct FamilySettingsView: View {
                     .foregroundStyle(KIRIColor.textPrimary)
 
                 Group {
-                    if isOwner {
+                    if familyId != nil {
                         NavigationLink {
-                            FamilyNameEditView(familyName: $familyName)
+                            FamilyNameEditView(familyName: $familyName, onSave: onUpdateFamilyName)
                         } label: {
                             editIcon
                         }
@@ -143,35 +155,30 @@ struct FamilySettingsView: View {
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(KIRIColor.textPrimary)
 
-            LazyVGrid(
-                columns: columns,
-                spacing: 12
-            ) {
-                ForEach(members) { member in
-                    memberCard(member)
-                }
+            if familyId == nil {
+                Text("가족 구성원 정보를 확인할 수 없습니다.")
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.textSecondary)
+            } else {
+                memberCard(role: familyRole ?? "", nickname: nickname)
             }
         }
     }
 
-    private func memberCard(
-        _ member: FamilyMember
-    ) -> some View {
+    private func memberCard(role: String, nickname: String) -> some View {
         VStack(spacing: 8) {
-            Text("역할 | \(member.role)")
+                Text("역할 | \(role)")
                 .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(KIRIColor.textPrimary)
 
             HStack(spacing: 5) {
                 Text(
-                    member.isMe
-                    ? nickname
-                    : member.nickname
+                    nickname
                 )
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(KIRIColor.textPrimary)
 
-                if member.isMe {
+                if !nickname.isEmpty {
                     NavigationLink {
                         NicknameEditView(
                             nickname: $nickname
@@ -204,17 +211,8 @@ struct FamilySettingsView: View {
     }
 }
 
-// MARK: - Model
-
-private struct FamilyMember: Identifiable {
-    let id = UUID()
-    let role: String
-    let nickname: String
-    let isMe: Bool
-}
-
 #Preview {
     NavigationStack {
-        FamilySettingsView()
+        FamilySettingsView(familyId: 1, familyName: "끼리네 가족", nickname: "쥬123", familyRole: "딸")
     }
 }

@@ -20,6 +20,9 @@ struct MainTabView: View {
     let onRetryFamilyState: () -> Void
     let onFamilyCreated: (String, String) -> Void
     let onLogout: () -> Void
+    let onDeleteAccount: () async -> String?
+    let onUpdateNickname: (String) async -> String?
+    let onUpdateFamilyName: (String) async -> String?
 
     @State private var selectedTab: AppTab = .home
     @State private var homeTutorialStore: HomeTutorialStore
@@ -36,6 +39,9 @@ struct MainTabView: View {
         onRetryFamilyState: @escaping () -> Void = {},
         onFamilyCreated: @escaping (String, String) -> Void,
         onLogout: @escaping () -> Void
+        , onDeleteAccount: @escaping () async -> String? = { nil },
+        onUpdateNickname: @escaping (String) async -> String? = { _ in nil },
+        onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
     ) {
         self.userMode = userMode
         self.familyName = familyName
@@ -48,6 +54,9 @@ struct MainTabView: View {
         self.onRetryFamilyState = onRetryFamilyState
         self.onFamilyCreated = onFamilyCreated
         self.onLogout = onLogout
+        self.onDeleteAccount = onDeleteAccount
+        self.onUpdateNickname = onUpdateNickname
+        self.onUpdateFamilyName = onUpdateFamilyName
         _homeTutorialStore = State(
             initialValue: HomeTutorialStore(
                 mode: {
@@ -115,8 +124,13 @@ struct MainTabView: View {
         case .myPage:
             MyPageView(
                 onLogout: onLogout,
+                onDeleteAccount: onDeleteAccount,
                 nickname: nickname,
-                familyName: familyName
+                familyName: familyName,
+                familyId: familyId,
+                familyRole: familyRole,
+                onUpdateNickname: onUpdateNickname,
+                onUpdateFamilyName: onUpdateFamilyName
             )
         }
     }

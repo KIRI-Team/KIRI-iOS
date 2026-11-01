@@ -5,8 +5,11 @@ struct NicknameEditView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Binding var nickname: String
+    var onSave: ((String) async -> String?)? = nil
 
     @State private var editedNickname = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
 
     private var trimmedNickname: String {
         editedNickname
@@ -57,12 +60,23 @@ struct NicknameEditView: View {
 
                     Spacer()
 
+                    if let errorMessage {
+                        Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                    }
+
                     KIRIPrimaryButton(
                         title: "다음",
-                        isEnabled: isValid
+                        isEnabled: isValid && !isSaving
                     ) {
-                        nickname = trimmedNickname
-                        dismiss()
+                        Task { @MainActor in
+                            isSaving = true
+                            errorMessage = await onSave?(trimmedNickname)
+                            if errorMessage == nil {
+                                nickname = trimmedNickname
+                                dismiss()
+                            }
+                            isSaving = false
+                        }
                     }
                 }
                 .padding(

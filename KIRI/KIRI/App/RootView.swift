@@ -63,6 +63,15 @@ struct RootView: View {
                         onLogout: {
                             shouldAnimateLoginEntrance = false
                             Task { await router.logout() }
+                        },
+                        onDeleteAccount: {
+                            await router.deleteAccount()
+                        },
+                        onUpdateNickname: { value in
+                            await router.updateNickname(value)
+                        },
+                        onUpdateFamilyName: { value in
+                            await router.updateFamilyName(value)
                         }
                     )
                 }

@@ -5,8 +5,11 @@ struct FamilyNameEditView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Binding var familyName: String
+    var onSave: ((String) async -> String?)? = nil
 
     @State private var editedFamilyName = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
 
     private var trimmedFamilyName: String {
         editedFamilyName
@@ -59,10 +62,21 @@ struct FamilyNameEditView: View {
 
                     KIRIPrimaryButton(
                         title: "다음",
-                        isEnabled: isValid
+                        isEnabled: isValid && !isSaving
                     ) {
-                        familyName = trimmedFamilyName
-                        dismiss()
+                        isSaving = true
+                        Task {
+                            let error = await onSave?(trimmedFamilyName)
+                            await MainActor.run {
+                                isSaving = false
+                                if let error {
+                                    errorMessage = error
+                                } else {
+                                    familyName = trimmedFamilyName
+                                    dismiss()
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(
@@ -73,6 +87,11 @@ struct FamilyNameEditView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .alert("가족명 저장 실패", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("확인", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "가족명을 저장하지 못했습니다.")
+        }
         .onAppear {
             editedFamilyName = familyName
         }
