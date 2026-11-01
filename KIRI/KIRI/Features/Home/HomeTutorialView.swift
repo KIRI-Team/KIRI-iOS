@@ -35,6 +35,7 @@ extension View {
 /// Figma 튜토리얼 섹션의 홈 화면 위 안내 레이어를 실제 SwiftUI 컴포넌트에 맞춰 표시합니다.
 /// 전체 화면 PNG를 사용하지 않으며, 강조 위치는 FamilyHomeView가 측정한 bounds를 사용합니다.
 struct HomeTutorialView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     enum Mode: Equatable {
         case browse
         case family
@@ -79,19 +80,19 @@ struct HomeTutorialView: View {
             stepIndex = 0
             onStepChanged(0)
         }
-        .animation(.easeInOut(duration: 0.3), value: stepIndex)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.3),
+            value: stepIndex
+        )
     }
 
     @ViewBuilder
     private var highlights: some View {
         switch stepIndex {
         case 0:
-            highlight(.answerCollection, size: CGSize(width: 105, height: 54))
-            highlight(.invite, size: CGSize(width: 105, height: 54))
-            highlight(.questionMissionCard)
+            highlight(.answerCollection)
         case 1:
             highlight(.questionMissionCard)
-            highlight(.missionRefresh, size: CGSize(width: 33, height: 33))
         default:
             highlight(.recommendationTitle, size: CGSize(width: 160, height: 37))
         }
@@ -102,11 +103,8 @@ struct HomeTutorialView: View {
         switch stepIndex {
         case 0:
             guidanceText("우리 가족들의\n답변을 모아봐요!", anchoredTo: .answerCollection, placement: .below)
-            guidanceText("가족을 초대해서\n방을 만들어요!", anchoredTo: .invite, placement: .below)
-            guidanceText("질문은 매일 하나씩 발행돼요!", anchoredTo: .questionMissionCard, placement: .below)
         case 1:
-            guidanceText("스와이프로 질문카드도 확인할 수 있어요!", anchoredTo: .questionMissionCard, placement: .above)
-            guidanceText("우리 가족의 답변을 바탕으로\n매주 한 개의 미션이 발행돼요!", anchoredTo: .questionMissionCard, placement: .below)
+            guidanceText("질문은 매일 하나씩 발행돼요!", anchoredTo: .questionMissionCard, placement: .below)
         default:
             guidanceText("끼리가 큐레이팅 한 미션 목록!", anchoredTo: .recommendationTitle, placement: .below)
         }
