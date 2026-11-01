@@ -120,7 +120,7 @@ struct RoleSelectionView: View {
         return Button {
             selectedRole = role
         } label: {
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
                 Image(role.assetName)
                     .resizable()
                     .scaledToFit()

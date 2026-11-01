@@ -30,6 +30,10 @@ final class HomeTutorialStore {
     private func migrateLegacyCompletionIfNeeded(familyId: Int?) {
         let defaults = UserDefaults.standard
         guard !defaults.bool(forKey: scopeKey) else { return }
+        // Legacy keys were not account-scoped. Never copy them into a stable
+        // account key, otherwise one account's completion could suppress the
+        // first tutorial for another account.
+        guard identity == nil else { return }
         let legacyFamilyKey = familyId.map { "kiri_family_tutorial_completed.\($0)" }
         if defaults.bool(forKey: Self.legacyBrowseKey)
             || legacyFamilyKey.map({ defaults.bool(forKey: $0) }) == true {
