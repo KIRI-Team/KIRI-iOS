@@ -90,32 +90,47 @@ struct HomeMissionDetailView: View {
 }
 
 struct HomeMemberQuestionView: View {
-    let member: HomeMockMember
+    let member: HomeMember
     let onBack: () -> Void
     @State private var didPoke = false
     var body: some View {
-        ZStack { KIRIColor.Background.base.ignoresSafeArea()
-            VStack(spacing: 0) {
-                HomeInteractionBar(title: member.name, onBack: onBack)
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(member.hasAnswered ? "오늘의 질문에 답변했어요" : "아직 답변하지 않았어요")
-                        .font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong)
-                    if member.hasAnswered {
-                        Text("내가 가장 좋아하는 음식은?").font(KIRITypography.body).foregroundStyle(KIRIColor.Text.secondary)
-                        Text("답변을 확인하려면 가족 답변 조회 API가 필요합니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                    }
-                    if !member.isMe {
-                        Button(didPoke ? "콕 보냄" : "콕 찌르기") { didPoke = true }
-                            .disabled(didPoke)
-                            .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
-                            .frame(maxWidth: .infinity).frame(height: 54)
-                            .background(didPoke ? KIRIColor.Background.tertiary : KIRIColor.Primary.default)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    Spacer()
-                }.padding(18)
+        VStack(spacing: 0) {
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\(member.name)의 가장 좋아하는 음식은")
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                }
+                Rectangle()
+                    .fill(KIRIColor.Border.default)
+                    .frame(width: 1, height: 50)
+                if !member.isMe {
+                    Button(didPoke ? "콕 보냄" : "콕 찌르기") { didPoke = true }
+                        .disabled(didPoke)
+                        .font(KIRITypography.caption)
+                        .overlay(alignment: .top) {
+                            Image("figma_gesture_tap")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 24, height: 24)
+                                .offset(y: -28)
+                        }
+                        .foregroundStyle(didPoke ? KIRIColor.Text.tertiary : KIRIColor.Primary.default)
+                        .frame(width: 55)
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 24)
         }
+        .background(KIRIColor.Background.primary)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 28)
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+        .onTapGesture { onBack() }
+        .accessibilityAddTraits(.isModal)
     }
 }
 

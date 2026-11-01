@@ -71,7 +71,11 @@ struct TodayQuestionResult: Decodable, Sendable {
     let questionId: Int?
     let question: String?
     let isAnswered: Bool
-    let answer: String?
+    var answer: String?
+}
+
+struct WriteAnswerRequest: Encodable, Sendable {
+    let answer: String
 }
 
 struct TermAgreement: Codable, Identifiable, Sendable {

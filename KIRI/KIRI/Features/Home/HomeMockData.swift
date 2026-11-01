@@ -8,6 +8,17 @@ struct HomeMockMember: Identifiable {
     let isMe: Bool
 }
 
+/// 서버에서 확인된 가족 구성원만 홈에 표시하기 위한 모델입니다.
+struct HomeMember: Identifiable, Equatable {
+    let id: String
+    let memberId: Int?
+    let name: String
+    let role: String?
+    let hasAnswered: Bool
+    let answer: String?
+    let isMe: Bool
+}
+
 struct HomeMockQuestion {
     let number: Int
     var text: String

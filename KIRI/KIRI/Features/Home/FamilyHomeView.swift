@@ -2,21 +2,23 @@ import SwiftUI
 
 struct FamilyHomeView: View {
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
-    var familyName: String = "끼리네 가족"
+    var familyName: String?
     var familyInviteCode: String? = nil
+    var nickname: String? = nil
+    var familyRole: String? = nil
     var tutorialStep: Int? = nil
     var loadsServerQuestion: Bool = true
     var onExploreMission: () -> Void = {}
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
-    @State private var mockData = HomeMockData()
     @State private var selectedPlace: HomeMockPlace?
-    @State private var selectedMember: HomeMockMember?
+    @State private var selectedMember: HomeMember?
     @State private var isPlaceBookmarked = false
     @State private var showsMissionFace = false
     @State private var didLoadTodayQuestion = false
     @State private var todayQuestionError: String?
+    @State private var serverQuestion: TodayQuestionResult?
 
 
     private enum HomeRoute {
@@ -85,28 +87,42 @@ struct FamilyHomeView: View {
                 TasteTestView()
 
             case .questionAnswer:
-                HomeQuestionAnswerView(question: mockData.question.text, existingAnswer: mockData.question.answer, onBack: { route = .home }) { savedAnswer in
-                    mockData.question.answer = savedAnswer
-                    if let index = mockData.members.firstIndex(where: { $0.isMe }) { mockData.members[index].hasAnswered = true }
-                    route = .home
+                HomeQuestionAnswerView(
+                    question: serverQuestion?.question ?? "오늘의 질문",
+                    existingAnswer: serverQuestion?.answer,
+                    onBack: { route = .home }
+                ) { savedAnswer in
+                    guard let questionId = serverQuestion?.questionId else { return }
+                    Task { @MainActor in
+                        do {
+                            try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
+                            serverQuestion?.answer = savedAnswer
+                            route = .home
+                        } catch {
+                            todayQuestionError = error.localizedDescription
+                        }
+                    }
                 }
 
             case .missionDetail:
                 HomeMissionDetailView(onBack: { route = .home }) {
-                    mockData.hasSchedule = true
                     route = .home
                 }
 
             case .memberDetail:
-                if let selectedMember {
-                    HomeMemberQuestionView(member: selectedMember, onBack: { route = .home })
+                ZStack {
+                    homeContent.allowsHitTesting(false)
+                    Color.black.opacity(0.56).ignoresSafeArea()
+                    if let selectedMember {
+                        HomeMemberQuestionView(member: selectedMember, onBack: { route = .home })
+                    }
                 }
             }
         }
         .fullScreenCover(isPresented: $isInvitePresented) {
             if let code = familyInviteCode, !code.isEmpty {
                 FamilyCodeView(
-                    familyName: familyName,
+                    familyName: familyName ?? "가족공간",
                     familyCode: code,
                     onBack: { isInvitePresented = false },
                     onComplete: { isInvitePresented = false }
@@ -173,7 +189,7 @@ struct FamilyHomeView: View {
 
     private var homeNavigationBar: some View {
         ZStack {
-            Text(familyName)
+                Text(familyName ?? "가족공간")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -185,16 +201,9 @@ struct FamilyHomeView: View {
                     route = .notification
                 } label: {
                     ZStack(alignment: .topTrailing) {
-                        Image(systemName: "bell")
-                            .font(
-                                .system(
-                                    size: 20,
-                                    weight: .regular
-                                )
-                            )
-                            .foregroundStyle(
-                                KIRIColor.Icon.primary
-                            )
+                        Image("figma_notification")
+                            .resizable()
+                            .scaledToFit()
                             .frame(
                                 width: 24,
                                 height: 24
@@ -230,7 +239,7 @@ struct FamilyHomeView: View {
     private var answerCollectionSection: some View {
         VStack(
             alignment: .leading,
-            spacing: 24
+            spacing: 16
         ) {
             HStack {
                 Text("답변 모아보기")
@@ -277,19 +286,23 @@ struct FamilyHomeView: View {
                 .homeTutorialMeasured(.invite)
             }
 
-            ScrollView(
-                .horizontal,
-                showsIndicators: false
-            ) {
-                HStack(spacing: 18) {
-                    ForEach(displayedMembers) { member in
-                        Button {
-                            selectedMember = member
-                            route = member.isMe ? .questionAnswer : .memberDetail
-                        } label: {
-                            FamilyMemberItem(name: member.name, isMe: member.isMe, hasAnswered: member.hasAnswered)
+            if displayedMembers.isEmpty {
+                Text("가족을 초대하면 답변을 함께 볼 수 있어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(displayedMembers) { member in
+                            Button {
+                                selectedMember = member
+                                route = member.isMe ? .questionAnswer : .memberDetail
+                            } label: {
+                                FamilyMemberItem(name: member.name, isMe: member.isMe, hasAnswered: member.hasAnswered)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -327,18 +340,23 @@ struct FamilyHomeView: View {
                     .font(KIRITypography.bodyMedium)
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .frame(maxWidth: .infinity, minHeight: 136)
-            } else {
+            } else if let serverQuestion, let questionId = serverQuestion.questionId {
                 QuestionMissionFlipCard(
-                    questionNumber: mockData.question.number,
-                    question: mockData.question.text,
-                    answer: mockData.question.answer,
-                    mission: mockData.weeklyMission,
+                    questionNumber: questionId,
+                    question: serverQuestion.question ?? "오늘의 질문",
+                    answer: serverQuestion.answer,
+                    mission: nil,
                     showsMission: $showsMissionFace,
                     onQuestionAnswer: { route = .questionAnswer },
                     onMissionDetail: { route = .missionDetail },
                     onMissionExplore: onExploreMission
                 )
                 .homeTutorialMeasured(.questionMissionCard)
+            } else {
+                Text("오늘의 질문이 아직 없어요")
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: 136)
             }
         }
         .padding(.horizontal, 18)
@@ -363,27 +381,29 @@ struct FamilyHomeView: View {
                 showsIndicators: false
             ) {
                 HStack(spacing: 24) {
-                    ForEach(mockData.places) { place in
-                        Button { selectedPlace = place; route = .placeDetail } label: {
-                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description, imageName: place.mockAssetName, imageURL: place.imageURL)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    Text("추천 장소를 불러오면 이곳에 표시돼요")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
                 }
                 .padding(.horizontal, 18)
             }
         }
     }
 
-    private var displayedMembers: [HomeMockMember] {
-        guard tutorialStep != nil else { return mockData.members }
-        return [
-            HomeMockMember(id: "me", name: "내 답변", role: "딸", hasAnswered: true, isMe: true),
-            HomeMockMember(id: "mama", name: "마마", role: "엄마", hasAnswered: true, isMe: false),
-            HomeMockMember(id: "papa", name: "빠빠", role: "아빠", hasAnswered: false, isMe: false),
-            HomeMockMember(id: "doldoli", name: "돌돌이", role: "아들", hasAnswered: true, isMe: false),
-            HomeMockMember(id: "daughter", name: "딸", role: "딸", hasAnswered: true, isMe: false)
-        ]
+    private var displayedMembers: [HomeMember] {
+        // 현재 OpenAPI에는 가족 구성원 목록 조회 endpoint가 없습니다.
+        // 따라서 서버에서 확보할 수 있는 로그인 사용자만 표시하고,
+        // 확인되지 않은 가족을 Mock으로 추가하지 않습니다.
+        guard let nickname, !nickname.isEmpty else { return [] }
+        return [HomeMember(
+            id: "me",
+            memberId: nil,
+            name: nickname,
+            role: familyRole,
+            hasAnswered: serverQuestion?.isAnswered ?? false,
+            answer: serverQuestion?.answer,
+            isMe: true
+        )]
     }
 
     // MARK: - Mood Recommendation
@@ -404,12 +424,9 @@ struct FamilyHomeView: View {
                 showsIndicators: false
             ) {
                 HStack(spacing: 24) {
-                    ForEach(mockData.places.reversed()) { place in
-                        Button { selectedPlace = place; route = .placeDetail } label: {
-                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description, imageName: place.mockAssetName, imageURL: place.imageURL)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    Text("추천 콘텐츠를 불러오면 이곳에 표시돼요")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
                 }
                 .padding(.horizontal, 18)
             }
@@ -445,10 +462,7 @@ struct FamilyHomeView: View {
         do {
             let result = try await AuthService.shared.todayQuestion()
             await MainActor.run {
-                if let question = result.question, !question.isEmpty {
-                    mockData.question.text = question
-                }
-                mockData.question.answer = result.answer
+                serverQuestion = result
                 didLoadTodayQuestion = true
             }
         } catch {

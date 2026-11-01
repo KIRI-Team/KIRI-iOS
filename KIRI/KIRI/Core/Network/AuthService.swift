@@ -232,6 +232,20 @@ final class AuthService {
         return result
     }
 
+    func writeAnswer(questionId: Int, answer: String) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/questions/\(questionId)/answers/me",
+            method: .PUT,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: WriteAnswerRequest(answer: answer),
+            accessToken: tokens.accessToken
+        )
+    }
+
     func clearSession() throws {
         try tokenStore.clear()
     }
