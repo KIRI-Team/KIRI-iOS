@@ -123,11 +123,18 @@ struct RoleSelectionView: View {
             VStack(spacing: 12) {
                 Image(role.assetName)
                     .resizable()
-                    .renderingMode(.template)
                     .scaledToFit()
                     .frame(width: 48, height: 48)
-                    .foregroundStyle(
-                        isSelected ? KIRIColor.Text.accent : KIRIColor.Text.disabled
+                    // Keep the original facial details. The role PNGs contain
+                    // the eyes, nose and mouth, so template rendering would
+                    // flatten those layers into one solid color.
+                    .grayscale(isSelected ? 0 : 1)
+                    .colorMultiply(
+                        isSelected && role != .daughter
+                            ? KIRIColor.Primitive.green500
+                            : isSelected
+                                ? KIRIColor.Primitive.neutral0
+                                : KIRIColor.Primitive.neutral500
                     )
 
                 Text(role.koreanName)
