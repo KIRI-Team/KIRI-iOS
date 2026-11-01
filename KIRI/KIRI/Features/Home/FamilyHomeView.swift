@@ -13,13 +13,16 @@ struct FamilyHomeView: View {
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
-    @State private var selectedPlace: HomeMockPlace?
+    @State private var selectedMission: MissionFeedItem?
     @State private var selectedMember: HomeMember?
     @State private var isPlaceBookmarked = false
     @State private var showsMissionFace = false
     @State private var didLoadTodayQuestion = false
     @State private var todayQuestionError: String?
     @State private var serverQuestion: TodayQuestionResult?
+    @State private var recommendedMissions: [MissionFeedItem] = []
+    @State private var isLoadingRecommendations = false
+    @State private var recommendationError: String?
 
 
     private enum HomeRoute {
@@ -69,16 +72,16 @@ struct FamilyHomeView: View {
                 )
 
             case .placeDetail:
-                if let selectedPlace {
+                if let selectedMission {
                     MissionActivityDetailView(
-                        title: selectedPlace.title,
-                        placeName: selectedPlace.title,
-                        district: selectedPlace.location,
-                        rating: selectedPlace.rating,
-                        tags: selectedPlace.tags,
+                        title: selectedMission.title,
+                        placeName: selectedMission.placeName,
+                        district: selectedMission.category,
+                        rating: nil,
+                        tags: [selectedMission.missionType],
                         isRecommended: true,
-                        mockAssetName: selectedPlace.mockAssetName,
-                        imageURL: selectedPlace.imageURL,
+                        mockAssetName: nil,
+                        imageURL: selectedMission.imageUrl,
                         isBookmarked: $isPlaceBookmarked,
                         onBack: { route = .home }
                     )
@@ -152,6 +155,9 @@ struct FamilyHomeView: View {
                 return
             }
             await loadTodayQuestion()
+        }
+        .task {
+            await loadRecommendations()
         }
     }
 
@@ -412,17 +418,7 @@ struct FamilyHomeView: View {
                 .padding(.horizontal, 18)
                 .homeTutorialMeasured(.recommendationTitle)
 
-            ScrollView(
-                .horizontal,
-                showsIndicators: false
-            ) {
-                HStack(spacing: 24) {
-                    Text("추천 장소를 불러오면 이곳에 표시돼요")
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.tertiary)
-                }
-                .padding(.horizontal, 18)
-            }
+            recommendationCards
         }
     }
 
@@ -455,14 +451,42 @@ struct FamilyHomeView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
 
-            ScrollView(
-                .horizontal,
-                showsIndicators: false
-            ) {
+            recommendationCards
+        }
+    }
+
+    @ViewBuilder
+    private var recommendationCards: some View {
+        if isLoadingRecommendations {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 144)
+        } else if let recommendationError {
+            Text(recommendationError)
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        } else if recommendedMissions.isEmpty {
+            Text("추천할 미션이 아직 없어요")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 24) {
-                    Text("추천 콘텐츠를 불러오면 이곳에 표시돼요")
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.tertiary)
+                    ForEach(recommendedMissions) { mission in
+                        Button {
+                            selectedMission = mission
+                            route = .placeDetail
+                        } label: {
+                            PlaceCard(
+                                title: mission.title,
+                                location: mission.placeName,
+                                rating: nil,
+                                description: mission.category,
+                                imageURL: mission.imageUrl
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal, 18)
             }
@@ -505,6 +529,25 @@ struct FamilyHomeView: View {
             await MainActor.run {
                 todayQuestionError = error.localizedDescription
                 didLoadTodayQuestion = true
+            }
+        }
+    }
+
+    private func loadRecommendations() async {
+        await MainActor.run {
+            isLoadingRecommendations = true
+            recommendationError = nil
+        }
+        do {
+            let result = try await AuthService.shared.missionFeed()
+            await MainActor.run {
+                recommendedMissions = result.missions
+                isLoadingRecommendations = false
+            }
+        } catch {
+            await MainActor.run {
+                recommendationError = error.localizedDescription
+                isLoadingRecommendations = false
             }
         }
     }

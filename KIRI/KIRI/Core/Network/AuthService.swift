@@ -261,6 +261,22 @@ final class AuthService {
         return result
     }
 
+    func missionFeed(size: Int = 10) async throws -> MissionFeedResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions",
+            method: .GET,
+            queryItems: [URLQueryItem(name: "size", value: String(size))],
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<MissionFeedResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     /// The current API exposes family membership through the question payload.
     /// No member/family profile lookup endpoint is present in the OpenAPI spec.
     func familyMembership() async throws -> Bool {

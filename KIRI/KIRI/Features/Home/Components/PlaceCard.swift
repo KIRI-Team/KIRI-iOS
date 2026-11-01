@@ -3,7 +3,7 @@ import SwiftUI
 struct PlaceCard: View {
     let title: String
     let location: String
-    let rating: Double
+    let rating: Double?
     let description: String
     var imageName: String? = nil
     var imageURL: URL? = nil
@@ -22,26 +22,22 @@ struct PlaceCard: View {
 
                         Spacer()
 
-                        HStack(spacing: 4) {
-                            Image("browse_rating_star")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 12, height: 12)
+                        if let rating {
+                            HStack(spacing: 4) {
+                                Image("browse_rating_star")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 12, height: 12)
 
-                            Text(
-                                rating.formatted(
-                                    .number.precision(
-                                        .fractionLength(1)
-                                    )
-                                )
-                            )
-                            .font(KIRITypography.captionMedium)
+                                Text(rating.formatted(.number.precision(.fractionLength(1))))
+                                    .font(KIRITypography.captionMedium)
+                            }
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                            .padding(.horizontal, 6)
+                            .frame(height: 25)
+                            .background(KIRIColor.Background.tertiary)
+                            .clipShape(Capsule())
                         }
-                        .foregroundStyle(KIRIColor.Text.tertiary)
-                        .padding(.horizontal, 6)
-                        .frame(height: 25)
-                        .background(KIRIColor.Background.tertiary)
-                        .clipShape(Capsule())
                     }
 
                     Text(location)
