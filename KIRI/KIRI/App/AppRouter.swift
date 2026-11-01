@@ -14,6 +14,13 @@ final class AppRouter {
         case browse
     }
 
+    enum FamilyState: Equatable {
+        case loading
+        case hasFamily
+        case noFamily
+        case unknown
+    }
+
     var appState: AppState {
         didSet {
             #if DEBUG
@@ -32,6 +39,7 @@ final class AppRouter {
     var nickname: String?
     var familyId: Int?
     var familyRole: String?
+    var familyState: FamilyState = .unknown
     /// JWT `sub` used only to scope local tutorial completion.
     var tutorialIdentity: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
@@ -171,7 +179,7 @@ final class AppRouter {
         }
     }
 
-    func completeAuthentication(isNewUser: Bool = false) {
+    func completeAuthentication(isNewUser: Bool = false) async {
         sessionStore.saveAuthenticationCompleted()
         tutorialIdentity = Self.tokenSubject(using: tokenStore)
         pendingTerms = nil
@@ -194,6 +202,7 @@ final class AppRouter {
             userMode = .browse
         }
         appState = .main
+        await refreshFamilyState()
     }
 
     func showAuthentication() {
@@ -301,8 +310,8 @@ final class AppRouter {
             // 로컬 완료 상태가 없더라도 기존 회원을 닉네임 온보딩으로
             // 되돌리지 않고 메인으로 복원한다. 서버 회원 상태 조회 API가
             // 추가되면 family/browse 및 미완료 단계만 그 응답으로 보완한다.
-            userMode = sessionStore.userMode == .family ? .family : .browse
             appState = .main
+            await refreshFamilyState()
             #if DEBUG
             print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
             #endif
@@ -327,6 +336,23 @@ final class AppRouter {
         } catch {
             lastSessionError = error.localizedDescription
             appState = .authentication
+        }
+    }
+
+    /// Missing local family data is not evidence that the account has no
+    /// family. Resolve membership from the authenticated server response first.
+    func refreshFamilyState() async {
+        familyState = .loading
+        do {
+            let hasFamily = try await AuthService.shared.familyMembership()
+            familyState = hasFamily ? .hasFamily : .noFamily
+            userMode = hasFamily ? .family : .browse
+        } catch {
+            familyState = .unknown
+            lastSessionError = error.localizedDescription
+            #if DEBUG
+            print("[KIRI][Router] family state unavailable: \(error.localizedDescription)")
+            #endif
         }
     }
 

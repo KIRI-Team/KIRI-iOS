@@ -16,6 +16,8 @@ struct MainTabView: View {
     let familyRole: String?
     let nickname: String?
     let tutorialIdentity: String?
+    let familyState: AppRouter.FamilyState
+    let onRetryFamilyState: () -> Void
     let onFamilyCreated: (String, String) -> Void
     let onLogout: () -> Void
 
@@ -30,6 +32,8 @@ struct MainTabView: View {
         familyRole: String? = nil,
         nickname: String? = nil,
         tutorialIdentity: String? = nil,
+        familyState: AppRouter.FamilyState = .unknown,
+        onRetryFamilyState: @escaping () -> Void = {},
         onFamilyCreated: @escaping (String, String) -> Void,
         onLogout: @escaping () -> Void
     ) {
@@ -40,6 +44,8 @@ struct MainTabView: View {
         self.familyRole = familyRole
         self.nickname = nickname
         self.tutorialIdentity = tutorialIdentity
+        self.familyState = familyState
+        self.onRetryFamilyState = onRetryFamilyState
         self.onFamilyCreated = onFamilyCreated
         self.onLogout = onLogout
         _homeTutorialStore = State(
@@ -93,6 +99,8 @@ struct MainTabView: View {
                 familyId: familyId,
                 nickname: nickname,
                 familyRole: familyRole,
+                familyState: familyState,
+                onRetryFamilyState: onRetryFamilyState,
                 tutorialStore: homeTutorialStore,
                 onFamilyCreated: onFamilyCreated,
                 onExploreMission: { selectedTab = .mission }

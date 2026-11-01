@@ -22,8 +22,8 @@ struct RootView: View {
                         animateLoginEntrance: shouldAnimateLoginEntrance,
                         initialTerms: router.pendingTerms,
                         initialAgreements: router.pendingTermAgreements,
-                        onAuthenticated: {
-                            router.completeAuthentication(isNewUser: $0)
+                        onAuthenticated: { isNewUser in
+                            Task { await router.completeAuthentication(isNewUser: isNewUser) }
                         }
                     )
 
@@ -53,6 +53,10 @@ struct RootView: View {
                         familyRole: router.familyRole,
                         nickname: router.nickname,
                         tutorialIdentity: router.tutorialIdentity,
+                        familyState: router.familyState,
+                        onRetryFamilyState: {
+                            Task { await router.refreshFamilyState() }
+                        },
                         onFamilyCreated: { name, code in
                             enterMain(familyName: name, inviteCode: code)
                         },

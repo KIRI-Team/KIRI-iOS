@@ -49,6 +49,8 @@ struct HomeView: View {
     let familyId: Int?
     let nickname: String?
     let familyRole: String?
+    let familyState: AppRouter.FamilyState
+    let onRetryFamilyState: () -> Void
     let tutorialStore: HomeTutorialStore
     let onFamilyCreated: (String, String) -> Void
     let onExploreMission: () -> Void
@@ -63,6 +65,8 @@ struct HomeView: View {
         familyId: Int? = nil,
         nickname: String? = nil,
         familyRole: String? = nil,
+        familyState: AppRouter.FamilyState = .unknown,
+        onRetryFamilyState: @escaping () -> Void = {},
         tutorialStore: HomeTutorialStore,
         onFamilyCreated: @escaping (String, String) -> Void,
         onExploreMission: @escaping () -> Void
@@ -73,6 +77,8 @@ struct HomeView: View {
         self.familyId = familyId
         self.nickname = nickname
         self.familyRole = familyRole
+        self.familyState = familyState
+        self.onRetryFamilyState = onRetryFamilyState
         self.tutorialStore = tutorialStore
         self.onFamilyCreated = onFamilyCreated
         self.onExploreMission = onExploreMission
@@ -148,7 +154,11 @@ struct HomeView: View {
                     onExploreMission: onExploreMission
                 )
             } else {
-                BrowseHomeView(onFamilyCreated: onFamilyCreated)
+                BrowseHomeView(
+                    familyState: familyState,
+                    onFamilyCreated: onFamilyCreated,
+                    onRetryFamilyState: onRetryFamilyState
+                )
             }
         }
     }

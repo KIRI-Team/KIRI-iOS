@@ -232,6 +232,12 @@ final class AuthService {
         return result
     }
 
+    /// The current API exposes family membership through the question payload.
+    /// No member/family profile lookup endpoint is present in the OpenAPI spec.
+    func familyMembership() async throws -> Bool {
+        try await todayQuestion().hasFamily
+    }
+
     func writeAnswer(questionId: Int, answer: String) async throws {
         let endpoint = APIEndpoint(
             path: "/api/v1/questions/\(questionId)/answers/me",
