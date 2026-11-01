@@ -5,13 +5,28 @@ final class HomeTutorialStore {
     var mode: HomeTutorialView.Mode
     var step: Int = 0
     var isActive: Bool = false
+    private(set) var scopeKey: String
 
-    init(mode: HomeTutorialView.Mode) {
+    init(mode: HomeTutorialView.Mode, familyId: Int? = nil) {
         self.mode = mode
-        let key = mode == .browse
-            ? "kiri_browse_tutorial_completed"
-            : "kiri_family_tutorial_completed"
-        isActive = !UserDefaults.standard.bool(forKey: key)
+        scopeKey = Self.key(for: mode, familyId: familyId)
+        isActive = !UserDefaults.standard.bool(forKey: scopeKey)
+    }
+
+    func updateScope(mode: HomeTutorialView.Mode, familyId: Int?) {
+        self.mode = mode
+        let newKey = Self.key(for: mode, familyId: familyId)
+        guard newKey != scopeKey else { return }
+        scopeKey = newKey
+        step = 0
+        isActive = !UserDefaults.standard.bool(forKey: newKey)
+    }
+
+    private static func key(for mode: HomeTutorialView.Mode, familyId: Int?) -> String {
+        switch mode {
+        case .browse: return "kiri_browse_tutorial_completed"
+        case .family: return "kiri_family_tutorial_completed.\(familyId.map(String.init) ?? "unknown")"
+        }
     }
 }
 
@@ -19,6 +34,9 @@ struct HomeView: View {
     let userMode: AppRouter.UserMode
     let familyName: String?
     let familyInviteCode: String?
+    let familyId: Int?
+    let nickname: String?
+    let familyRole: String?
     let tutorialStore: HomeTutorialStore
     let onFamilyCreated: (String, String) -> Void
     let onExploreMission: () -> Void
@@ -32,6 +50,9 @@ struct HomeView: View {
         userMode: AppRouter.UserMode,
         familyName: String?,
         familyInviteCode: String?,
+        familyId: Int? = nil,
+        nickname: String? = nil,
+        familyRole: String? = nil,
         tutorialStore: HomeTutorialStore,
         onFamilyCreated: @escaping (String, String) -> Void,
         onExploreMission: @escaping () -> Void
@@ -39,6 +60,9 @@ struct HomeView: View {
         self.userMode = userMode
         self.familyName = familyName
         self.familyInviteCode = familyInviteCode
+        self.familyId = familyId
+        self.nickname = nickname
+        self.familyRole = familyRole
         self.tutorialStore = tutorialStore
         self.onFamilyCreated = onFamilyCreated
         self.onExploreMission = onExploreMission
@@ -89,8 +113,10 @@ struct HomeView: View {
         switch userMode {
         case .family:
                 FamilyHomeView(
-                    familyName: familyName ?? "끼리네 가족",
+                    familyName: familyName,
                     familyInviteCode: familyInviteCode,
+                    nickname: nickname,
+                    familyRole: familyRole,
                     tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil,
                     loadsServerQuestion: true,
                     onExploreMission: onExploreMission
@@ -99,8 +125,10 @@ struct HomeView: View {
         case .browse:
             if tutorialStore.isActive {
                 FamilyHomeView(
-                    familyName: "끼리네 가족",
+                    familyName: familyName,
                     familyInviteCode: nil,
+                    nickname: nickname,
+                    familyRole: familyRole,
                     tutorialStep: tutorialStore.step,
                     loadsServerQuestion: false,
                     onExploreMission: onExploreMission
@@ -121,7 +149,7 @@ struct HomeView: View {
             }
         }()
         let modeChanged = tutorialStore.mode != mode
-        tutorialStore.mode = mode
+        tutorialStore.updateScope(mode: mode, familyId: familyId)
 
         if modeChanged {
             tutorialStore.step = 0
@@ -139,7 +167,7 @@ struct HomeView: View {
         }
         #endif
 
-        guard !isTutorialCompleted(for: mode) else {
+        guard !UserDefaults.standard.bool(forKey: tutorialStore.scopeKey) else {
             tutorialStore.isActive = false
             return
         }
@@ -158,18 +186,10 @@ struct HomeView: View {
         case .family:
             familyTutorialCompleted = true
         }
+        UserDefaults.standard.set(true, forKey: tutorialStore.scopeKey)
         tutorialStore.isActive = false
         tutorialStore.step = 0
         debugLog("tutorial completed")
-    }
-
-    private func isTutorialCompleted(for mode: HomeTutorialView.Mode) -> Bool {
-        switch mode {
-        case .browse:
-            return browseTutorialCompleted
-        case .family:
-            return familyTutorialCompleted
-        }
     }
 
     #if DEBUG

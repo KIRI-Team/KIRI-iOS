@@ -191,7 +191,8 @@ struct OnboardingFlowView: View {
         isSaving = true
         Task { @MainActor in
             do {
-                _ = try await AuthService.shared.updateFamilyRole(selectedRole.apiValue)
+                let result = try await AuthService.shared.updateFamilyRole(selectedRole.apiValue)
+                AppSessionStore().saveFamilyRole(result.familyRole)
                 handleRoleSelectionCompleted()
             } catch {
                 familyOperationError = error.localizedDescription

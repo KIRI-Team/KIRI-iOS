@@ -12,6 +12,8 @@ struct MainTabView: View {
     let userMode: AppRouter.UserMode
     let familyName: String?
     let familyInviteCode: String?
+    let familyId: Int?
+    let familyRole: String?
     let nickname: String?
     let onFamilyCreated: (String, String) -> Void
     let onLogout: () -> Void
@@ -23,6 +25,8 @@ struct MainTabView: View {
         userMode: AppRouter.UserMode,
         familyName: String?,
         familyInviteCode: String?,
+        familyId: Int? = nil,
+        familyRole: String? = nil,
         nickname: String? = nil,
         onFamilyCreated: @escaping (String, String) -> Void,
         onLogout: @escaping () -> Void
@@ -30,6 +34,8 @@ struct MainTabView: View {
         self.userMode = userMode
         self.familyName = familyName
         self.familyInviteCode = familyInviteCode
+        self.familyId = familyId
+        self.familyRole = familyRole
         self.nickname = nickname
         self.onFamilyCreated = onFamilyCreated
         self.onLogout = onLogout
@@ -42,7 +48,7 @@ struct MainTabView: View {
                     case .family:
                         return .family
                     }
-                }()
+                }(), familyId: familyId
             )
         )
     }
@@ -81,6 +87,9 @@ struct MainTabView: View {
                 userMode: userMode,
                 familyName: familyName,
                 familyInviteCode: familyInviteCode,
+                familyId: familyId,
+                nickname: nickname,
+                familyRole: familyRole,
                 tutorialStore: homeTutorialStore,
                 onFamilyCreated: onFamilyCreated,
                 onExploreMission: { selectedTab = .mission }
