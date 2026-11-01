@@ -123,23 +123,27 @@ struct RoleSelectionView: View {
             VStack(spacing: 12) {
                 Image(role.assetName)
                     .resizable()
+                    .renderingMode(.template)
                     .scaledToFit()
                     .frame(width: 48, height: 48)
+                    .foregroundStyle(
+                        isSelected ? KIRIColor.Text.accent : KIRIColor.Text.disabled
+                    )
 
                 Text(role.koreanName)
                     .font(KIRITypography.roleKorean)
             }
             .foregroundStyle(
                 isSelected
-                    ? KIRIColor.selectedText
-                    : KIRIColor.textSecondary
+                    ? KIRIColor.Text.accent
+                    : KIRIColor.Text.disabled
             )
             .frame(maxWidth: .infinity)
             .frame(height: 140)
             .background(
                 isSelected
-                    ? KIRIColor.selectedBackground
-                    : KIRIColor.surface
+                    ? KIRIColor.Primitive.alphaGreen16
+                    : KIRIColor.Background.primary
             )
             .clipShape(
                 RoundedRectangle(
