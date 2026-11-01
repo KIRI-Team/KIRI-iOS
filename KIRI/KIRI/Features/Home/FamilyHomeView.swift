@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct FamilyHomeView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
     var familyName: String?
     var familyInviteCode: String? = nil
@@ -160,29 +161,64 @@ struct FamilyHomeView: View {
         VStack(spacing: 0) {
             homeNavigationBar
 
-            ScrollView(showsIndicators: false) {
-                VStack(
-                    alignment: .leading,
-                    spacing: 0
-                ) {
-                    answerCollectionSection
-                        .padding(.top, 23)
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(
+                        alignment: .leading,
+                        spacing: 0
+                    ) {
+                        answerCollectionSection
+                            .id("tutorial-top")
+                            .padding(.top, 23)
 
-                    questionMissionSection
-                        .padding(.top, 48)
+                        questionMissionSection
+                            .id("tutorial-question-card")
+                            .padding(.top, 48)
 
-                    placeRecommendationSection
-                        .padding(.top, 48)
+                        placeRecommendationSection
+                            .padding(.top, 48)
 
-                    moodRecommendationSection
-                        .padding(.top, 36)
+                        moodRecommendationSection
+                            .padding(.top, 36)
 
-                    Spacer()
-                        .frame(height: 120)
+                        Spacer()
+                            .frame(height: 120)
+                    }
+                }
+                .onAppear {
+                    scrollTutorial(to: tutorialStep, using: proxy, animated: false)
+                }
+                .onChange(of: tutorialStep) { _, newStep in
+                    scrollTutorial(to: newStep, using: proxy, animated: true)
                 }
             }
         }
         .background(KIRIColor.Background.base)
+    }
+
+    private func scrollTutorial(
+        to step: Int?,
+        using proxy: ScrollViewProxy,
+        animated: Bool
+    ) {
+        guard step == 1 else {
+            if animated && !reduceMotion {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo("tutorial-top", anchor: .top)
+                }
+            } else {
+                proxy.scrollTo("tutorial-top", anchor: .top)
+            }
+            return
+        }
+
+        if animated && !reduceMotion {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo("tutorial-question-card", anchor: .top)
+            }
+        } else {
+            proxy.scrollTo("tutorial-question-card", anchor: .top)
+        }
     }
 
     // MARK: - Navigation Bar
