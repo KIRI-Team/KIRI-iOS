@@ -58,6 +58,15 @@ struct CreateFamilyRequest: Encodable, Sendable {
     let name: String
 }
 
+struct UpdateFamilyNameRequest: Encodable, Sendable {
+    let name: String
+}
+
+struct FamilyNameUpdateResult: Decodable, Sendable {
+    let familyId: Int
+    let name: String
+}
+
 struct CreateFamilyResult: Decodable, Sendable {
     let familyId: Int
     let name: String

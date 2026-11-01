@@ -169,6 +169,19 @@ final class AuthService {
         )
     }
 
+    func deleteAccount() async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/members/me",
+            method: .DELETE,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+    }
+
     func updateNickname(_ nickname: String) async throws -> NicknameUpdateResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/members/nickname",
@@ -211,6 +224,22 @@ final class AuthService {
         let envelope: APIEnvelope<CreateFamilyResult> = try await client.requestEnvelope(
             endpoint: endpoint,
             body: CreateFamilyRequest(name: name),
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func updateFamilyName(familyId: Int, name: String) async throws -> FamilyNameUpdateResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families/\(familyId)",
+            method: .PATCH,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyNameUpdateResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: UpdateFamilyNameRequest(name: name),
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }

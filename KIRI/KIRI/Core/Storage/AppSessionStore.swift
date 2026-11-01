@@ -85,6 +85,11 @@ final class AppSessionStore {
         return try? JSONDecoder().decode(AccountSnapshot.self, from: data)
     }
 
+    func removeAccountSnapshot(for identity: String) {
+        guard !identity.isEmpty else { return }
+        defaults.removeObject(forKey: accountSnapshotKey(for: identity))
+    }
+
     /// Applies only a snapshot selected with the current authenticated identity.
     func applyAccountSnapshot(_ snapshot: AccountSnapshot) {
         if let nickname = snapshot.nickname { defaults.set(nickname, forKey: Key.nickname) }

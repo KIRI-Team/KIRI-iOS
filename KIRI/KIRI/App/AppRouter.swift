@@ -47,6 +47,7 @@ final class AppRouter {
     var pendingTermAgreements: [TermAgreement] = []
     var lastSessionError: String?
     private(set) var isLoggingOut = false
+    private(set) var isDeletingAccount = false
 
     private let sessionStore: AppSessionStore
     private let tokenStore: AuthTokenStoring
@@ -277,6 +278,32 @@ final class AppRouter {
         pendingInvitation = nil
     }
 
+    func updateNickname(_ value: String) async -> String? {
+        do {
+            let result = try await AuthService.shared.updateNickname(value)
+            sessionStore.saveNickname(result.nickname)
+            nickname = result.nickname
+            saveAccountSnapshot()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func updateFamilyName(_ value: String) async -> String? {
+        guard let familyId else { return "가족공간 정보를 확인할 수 없습니다." }
+        do {
+            let result = try await AuthService.shared.updateFamilyName(familyId: familyId, name: value)
+            sessionStore.saveFamily(name: result.name, inviteCode: sessionStore.familyInviteCode ?? "", familyId: result.familyId)
+            familyName = result.name
+            self.familyId = result.familyId
+            saveAccountSnapshot(hasFamily: true)
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     /// 스플래시 이후 저장된 세션을 서버에서 재검증한다.
     /// refresh token 재발급과 약관 상태 조회가 모두 성공한 경우에만 기존 화면을 복원한다.
     func restoreSession() async {
@@ -461,5 +488,36 @@ final class AppRouter {
             : nil
         appState = .authentication
         isLoggingOut = false
+    }
+
+    /// Deletes the server account first. Local credentials and the account
+    /// snapshot are removed only after the server confirms success.
+    func deleteAccount() async -> String? {
+        guard !isDeletingAccount else { return "탈퇴 요청이 진행 중입니다." }
+        isDeletingAccount = true
+        var failureMessage: String?
+        do {
+            try await AuthService.shared.deleteAccount()
+            let identity = tutorialIdentity
+            try tokenStore.clear()
+            if let identity {
+                sessionStore.removeAccountSnapshot(for: identity)
+                UserDefaults.standard.removeObject(forKey: "kiri_home_tutorial_completed.\(identity)")
+            }
+            sessionStore.clearSession()
+            tutorialIdentity = nil
+            pendingInvitation = nil
+            pendingTerms = nil
+            pendingTermAgreements = []
+            userMode = .browse
+            familyState = .unknown
+            lastSessionError = nil
+            appState = .authentication
+        } catch {
+            lastSessionError = error.localizedDescription
+            failureMessage = error.localizedDescription
+        }
+        isDeletingAccount = false
+        return failureMessage
     }
 }
