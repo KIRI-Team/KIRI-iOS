@@ -378,10 +378,17 @@ struct FamilyHomeView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 136)
             } else if let todayQuestionError {
-                Text(todayQuestionError)
-                    .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 136)
+                VStack(spacing: 10) {
+                    Text(todayQuestionError)
+                        .font(KIRITypography.bodyMedium)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Button("다시 시도") {
+                        Task { await loadTodayQuestion() }
+                    }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+                }
+                .frame(maxWidth: .infinity, minHeight: 136)
             } else if let serverQuestion, let questionId = serverQuestion.questionId {
                 QuestionMissionFlipCard(
                     questionNumber: questionId,
@@ -536,17 +543,27 @@ struct FamilyHomeView: View {
     }
 
     private func loadTodayQuestion() async {
+        #if DEBUG
+        print("[KIRI][Question] request started")
+        #endif
         do {
             let result = try await AuthService.shared.todayQuestion()
             await MainActor.run {
                 serverQuestion = result
                 didLoadTodayQuestion = true
+                todayQuestionError = nil
             }
+            #if DEBUG
+            print("[KIRI][Question] response hasFamily=\(result.hasFamily) questionIdPresent=\(result.questionId != nil) questionPresent=\(result.question?.isEmpty == false) isAnswered=\(result.isAnswered)")
+            #endif
         } catch {
             await MainActor.run {
                 todayQuestionError = error.localizedDescription
                 didLoadTodayQuestion = true
             }
+            #if DEBUG
+            print("[KIRI][Question] load failed: \(error.localizedDescription)")
+            #endif
         }
     }
 
