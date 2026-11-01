@@ -50,15 +50,10 @@ struct HomeTutorialView: View {
     @State private var isAdvancing = false
 
     var body: some View {
-        GeometryReader { _ in
-            ZStack(alignment: .topLeading) {
-                Color(red: 0.102, green: 0.102, blue: 0.102)
-                    .opacity(0.75)
-                    .ignoresSafeArea()
-
-                highlights
-                guidance
-            }
+        // The final Handoff frames are complete home states rather than a
+        // dimmed coach-mark overlay. Keep the home content visible and use a
+        // transparent interaction layer to advance between those states.
+        Color.clear
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 24)
@@ -70,7 +65,6 @@ struct HomeTutorialView: View {
             .onTapGesture {
                 advance()
             }
-        }
         .ignoresSafeArea()
         .onAppear {
             stepIndex = 0

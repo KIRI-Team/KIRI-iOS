@@ -387,7 +387,7 @@ struct FamilyHomeView: View {
                     questionNumber: questionId,
                     question: serverQuestion.question ?? "오늘의 질문",
                     answer: serverQuestion.answer,
-                    mission: nil,
+                    mission: tutorialMission,
                     showsMission: $showsMissionFace,
                     onQuestionAnswer: { route = .questionAnswer },
                     onMissionDetail: { route = .missionDetail },
@@ -436,6 +436,20 @@ struct FamilyHomeView: View {
             answer: serverQuestion?.answer,
             isMe: true
         )]
+    }
+
+    private var tutorialMission: HomeMockMission? {
+        guard let mission = recommendedMissions.first else { return nil }
+        var tags = [mission.category]
+        if let distance = mission.distance {
+            tags.append(String(format: "%.1fkm", distance))
+        }
+        return HomeMockMission(
+            title: mission.title,
+            location: mission.placeName,
+            tags: tags,
+            isComplete: false
+        )
     }
 
     // MARK: - Mood Recommendation
