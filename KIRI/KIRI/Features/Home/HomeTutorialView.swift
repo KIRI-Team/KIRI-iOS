@@ -146,10 +146,10 @@ struct HomeTutorialView: View {
     ) -> some View {
         if let rect = frames[target] {
             Text(text)
-                .font(KIRITypography.bodyMedium)
+                .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(KIRIColor.Text.strong)
+                .multilineTextAlignment(target == .invite ? .trailing : .leading)
+                .foregroundStyle(KIRIColor.Text.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: placement.maxWidth)
                 .position(
