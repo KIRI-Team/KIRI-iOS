@@ -185,6 +185,10 @@ final class AppRouter {
         pendingTerms = nil
         pendingTermAgreements = []
 
+        if !isNewUser {
+            restoreAccountSnapshot()
+        }
+
         // 로그인 응답의 신규 회원 여부는 서버가 확인한 가입 상태다.
         // 기존 회원을 로컬 온보딩 플래그의 유무만으로 신규 흐름에 보내면
         // 로그아웃 후 재로그인 때 닉네임 입력이 반복되므로, 기존 회원은
@@ -255,6 +259,7 @@ final class AppRouter {
         sessionStore.saveOnboardingCompleted(
             userMode: .family
         )
+        saveAccountSnapshot(hasFamily: true)
 
         pendingInvitation = nil
         userMode = .family
@@ -266,6 +271,7 @@ final class AppRouter {
         sessionStore.saveOnboardingCompleted(
             userMode: .browse
         )
+        saveAccountSnapshot(hasFamily: false)
 
         userMode = .browse
         appState = .main
@@ -310,6 +316,7 @@ final class AppRouter {
             // 로컬 완료 상태가 없더라도 기존 회원을 닉네임 온보딩으로
             // 되돌리지 않고 메인으로 복원한다. 서버 회원 상태 조회 API가
             // 추가되면 family/browse 및 미완료 단계만 그 응답으로 보완한다.
+            restoreAccountSnapshot()
             appState = .main
             await refreshFamilyState()
             #if DEBUG
@@ -346,7 +353,23 @@ final class AppRouter {
         do {
             let hasFamily = try await AuthService.shared.familyMembership()
             familyState = hasFamily ? .hasFamily : .noFamily
-            userMode = hasFamily ? .family : .browse
+            if hasFamily {
+                // hasFamily confirms membership only. A cached family id/name is
+                // presentation data and is applied only for this token identity.
+                restoreAccountSnapshot()
+                userMode = .family
+                saveAccountSnapshot(hasFamily: true)
+            } else {
+                // A server-confirmed no-family result invalidates active family
+                // presentation, but never deletes another account's snapshot.
+                sessionStore.clearActiveFamilyState()
+                familyName = nil
+                familyInviteCode = nil
+                familyId = nil
+                familyRole = nil
+                userMode = .browse
+                saveAccountSnapshot(hasFamily: false)
+            }
         } catch {
             familyState = .unknown
             lastSessionError = error.localizedDescription
@@ -354,6 +377,39 @@ final class AppRouter {
             print("[KIRI][Router] family state unavailable: \(error.localizedDescription)")
             #endif
         }
+    }
+
+    private func restoreAccountSnapshot() {
+        guard let identity = tutorialIdentity,
+              let snapshot = sessionStore.accountSnapshot(for: identity)
+        else { return }
+
+        sessionStore.applyAccountSnapshot(snapshot)
+        familyName = sessionStore.familyName
+        familyInviteCode = sessionStore.familyInviteCode
+        nickname = sessionStore.nickname
+        familyId = sessionStore.familyId
+        familyRole = sessionStore.familyRole
+        if snapshot.userMode == .family {
+            userMode = .family
+        } else if snapshot.userMode == .browse {
+            userMode = .browse
+        }
+    }
+
+    private func saveAccountSnapshot(hasFamily: Bool? = nil) {
+        guard let identity = tutorialIdentity else { return }
+        let snapshot = AppSessionStore.AccountSnapshot(
+            identity: identity,
+            nickname: sessionStore.nickname,
+            familyRole: sessionStore.familyRole,
+            familyId: sessionStore.familyId,
+            familyName: sessionStore.familyName,
+            familyInviteCode: sessionStore.familyInviteCode,
+            userMode: sessionStore.userMode,
+            hasFamily: hasFamily
+        )
+        sessionStore.saveAccountSnapshot(snapshot)
     }
 
     func logout() async {
