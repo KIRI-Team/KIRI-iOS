@@ -465,7 +465,10 @@ struct FamilyHomeView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
 
-            recommendationCards
+            Text("추천 콘텐츠가 아직 없어요")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
         }
     }
 
