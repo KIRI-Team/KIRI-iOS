@@ -89,6 +89,13 @@ struct MissionFeedResult: Decodable, Sendable {
     let hasNext: Bool
 }
 
+struct BucketSaveResult: Decodable, Sendable {
+    let bucketItemId: Int
+    let missionId: Int
+    let status: String
+    let savedAt: String
+}
+
 struct MissionFeedItem: Decodable, Identifiable, Sendable {
     let missionId: Int
     let title: String

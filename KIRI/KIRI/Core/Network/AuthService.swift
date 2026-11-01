@@ -261,15 +261,41 @@ final class AuthService {
         return result
     }
 
-    func missionFeed(size: Int = 10) async throws -> MissionFeedResult {
+    func missionFeed(
+        category: String? = nil,
+        regionCode: String? = nil,
+        distance: Int? = nil,
+        cursor: Int? = nil,
+        size: Int = 20
+    ) async throws -> MissionFeedResult {
+        var queryItems = [URLQueryItem(name: "size", value: String(size))]
+        if let category { queryItems.append(URLQueryItem(name: "category", value: category)) }
+        if let regionCode { queryItems.append(URLQueryItem(name: "regionCode", value: regionCode)) }
+        if let distance { queryItems.append(URLQueryItem(name: "distance", value: String(distance)) ) }
+        if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor)) ) }
         let endpoint = APIEndpoint(
             path: "/api/v1/missions",
             method: .GET,
-            queryItems: [URLQueryItem(name: "size", value: String(size))],
+            queryItems: queryItems,
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
         let envelope: APIEnvelope<MissionFeedResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func saveMissionToBucket(missionId: Int) async throws -> BucketSaveResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions/\(missionId)/bucket",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<BucketSaveResult> = try await client.requestEnvelope(
             endpoint: endpoint,
             accessToken: tokens.accessToken
         )
