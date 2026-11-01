@@ -32,6 +32,8 @@ final class AppRouter {
     var nickname: String?
     var familyId: Int?
     var familyRole: String?
+    /// JWT `sub` used only to scope local tutorial completion.
+    var tutorialIdentity: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
     var pendingTerms: [Term]?
     var pendingTermAgreements: [TermAgreement] = []
@@ -56,6 +58,7 @@ final class AppRouter {
         nickname = sessionStore.nickname
         familyId = sessionStore.familyId
         familyRole = sessionStore.familyRole
+        tutorialIdentity = Self.tokenSubject(using: tokenStore)
 
         #if DEBUG
         print(
@@ -136,6 +139,22 @@ final class AppRouter {
         }
     }
 
+    private static func tokenSubject(using tokenStore: AuthTokenStoring) -> String? {
+        guard let token = try? tokenStore.read()?.accessToken else { return nil }
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var encoded = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+        guard let data = Data(base64Encoded: encoded),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let payload = object as? [String: Any],
+              let subject = payload["sub"] as? String,
+              !subject.isEmpty else { return nil }
+        return subject
+    }
+
     func receiveInvitation(
         code: String,
         familyName: String? = nil
@@ -154,12 +173,16 @@ final class AppRouter {
 
     func completeAuthentication(isNewUser: Bool = false) {
         sessionStore.saveAuthenticationCompleted()
+        tutorialIdentity = Self.tokenSubject(using: tokenStore)
         pendingTerms = nil
         pendingTermAgreements = []
 
-        // 신규 회원은 약관 동의 직후 반드시 온보딩을 거친다.
-        // 기존 회원은 로컬에 보존된 마지막 온보딩 상태를 복원한다.
-        if isNewUser || !sessionStore.isOnboardingCompleted {
+        // 로그인 응답의 신규 회원 여부는 서버가 확인한 가입 상태다.
+        // 기존 회원을 로컬 온보딩 플래그의 유무만으로 신규 흐름에 보내면
+        // 로그아웃 후 재로그인 때 닉네임 입력이 반복되므로, 기존 회원은
+        // 저장된 모드가 없더라도 메인으로 복귀시킨다. 회원 프로필·가족
+        // 상태 조회 API가 제공되면 이 분기를 서버 상태 조회로 확장한다.
+        if isNewUser {
             appState = .onboarding
             return
         }
@@ -274,13 +297,12 @@ final class AppRouter {
 
             pendingTerms = nil
             pendingTermAgreements = []
-            if !sessionStore.isOnboardingCompleted {
-                appState = .onboarding
-                userMode = .browse
-            } else {
-                userMode = sessionStore.userMode == .family ? .family : .browse
-                appState = .main
-            }
+            // 재발급 응답에는 프로필·가족 온보딩 상태가 포함되지 않는다.
+            // 로컬 완료 상태가 없더라도 기존 회원을 닉네임 온보딩으로
+            // 되돌리지 않고 메인으로 복원한다. 서버 회원 상태 조회 API가
+            // 추가되면 family/browse 및 미완료 단계만 그 응답으로 보완한다.
+            userMode = sessionStore.userMode == .family ? .family : .browse
+            appState = .main
             #if DEBUG
             print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
             #endif
@@ -333,6 +355,7 @@ final class AppRouter {
             return
         }
         sessionStore.clearSession()
+        tutorialIdentity = nil
 
         pendingInvitation = nil
         userMode = .browse

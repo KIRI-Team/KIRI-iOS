@@ -15,6 +15,7 @@ struct MainTabView: View {
     let familyId: Int?
     let familyRole: String?
     let nickname: String?
+    let tutorialIdentity: String?
     let onFamilyCreated: (String, String) -> Void
     let onLogout: () -> Void
 
@@ -28,6 +29,7 @@ struct MainTabView: View {
         familyId: Int? = nil,
         familyRole: String? = nil,
         nickname: String? = nil,
+        tutorialIdentity: String? = nil,
         onFamilyCreated: @escaping (String, String) -> Void,
         onLogout: @escaping () -> Void
     ) {
@@ -37,6 +39,7 @@ struct MainTabView: View {
         self.familyId = familyId
         self.familyRole = familyRole
         self.nickname = nickname
+        self.tutorialIdentity = tutorialIdentity
         self.onFamilyCreated = onFamilyCreated
         self.onLogout = onLogout
         _homeTutorialStore = State(
@@ -48,7 +51,7 @@ struct MainTabView: View {
                     case .family:
                         return .family
                     }
-                }(), familyId: familyId
+            }(), familyId: familyId, identity: tutorialIdentity
             )
         )
     }

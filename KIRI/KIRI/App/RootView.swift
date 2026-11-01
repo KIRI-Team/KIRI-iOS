@@ -52,6 +52,7 @@ struct RootView: View {
                         familyId: router.familyId,
                         familyRole: router.familyRole,
                         nickname: router.nickname,
+                        tutorialIdentity: router.tutorialIdentity,
                         onFamilyCreated: { name, code in
                             enterMain(familyName: name, inviteCode: code)
                         },
