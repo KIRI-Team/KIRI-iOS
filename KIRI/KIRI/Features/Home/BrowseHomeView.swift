@@ -3,13 +3,25 @@ import SwiftUI
 /// 둘러보기 전용 홈.
 /// 가족공간에 연결되지 않은 사용자는 공개 장소 추천만 볼 수 있다.
 struct BrowseHomeView: View {
+    let familyState: AppRouter.FamilyState
     let onFamilyCreated: (String, String) -> Void
+    let onRetryFamilyState: () -> Void
     private let places = [
         BrowsePlace(imageName: "browse_place_a", title: "경복궁에서 사진찍기", location: "경복궁 종로구"),
         BrowsePlace(imageName: "browse_place_b", title: "경복궁에서 사진찍기", location: "경복궁 종로구")
     ]
 
     @State private var isFamilyCreationPresented = false
+
+    init(
+        familyState: AppRouter.FamilyState = .noFamily,
+        onFamilyCreated: @escaping (String, String) -> Void,
+        onRetryFamilyState: @escaping () -> Void = {}
+    ) {
+        self.familyState = familyState
+        self.onFamilyCreated = onFamilyCreated
+        self.onRetryFamilyState = onRetryFamilyState
+    }
 
     var body: some View {
         ZStack {
@@ -21,7 +33,7 @@ struct BrowseHomeView: View {
 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        familyActionCard
+                        familyStateCard
                             .padding(.top, 18)
 
                         recommendationSection(title: "엄마와 함께라면 여기!")
@@ -43,6 +55,41 @@ struct BrowseHomeView: View {
                 )
             }
         }
+    }
+
+    @ViewBuilder
+    private var familyStateCard: some View {
+        switch familyState {
+        case .noFamily:
+            familyActionCard
+        case .loading:
+            familyStatusCard(title: "가족공간을 확인하고 있어요", actionTitle: nil, action: {})
+        case .unknown:
+            familyStatusCard(title: "가족공간 정보를 확인하지 못했어요", actionTitle: "다시 시도", action: onRetryFamilyState)
+        case .hasFamily:
+            familyStatusCard(title: "가족공간 정보를 불러오고 있어요", actionTitle: nil, action: {})
+        }
+    }
+
+    private func familyStatusCard(
+        title: String,
+        actionTitle: String?,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(KIRITypography.headingSmall)
+                .foregroundStyle(KIRIColor.Text.strong)
+            if let actionTitle {
+                Button(actionTitle, action: action)
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Primary.default)
+            }
+        }
+        .padding(.horizontal, 18)
+        .frame(width: 354, height: 96, alignment: .leading)
+        .background(KIRIColor.Background.primary)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private var navigationBar: some View {
@@ -217,5 +264,5 @@ private struct BrowsePlace: Identifiable {
 }
 
 #Preview {
-    BrowseHomeView(onFamilyCreated: { _, _ in })
+    BrowseHomeView(onFamilyCreated: { _, _ in }, onRetryFamilyState: {})
 }

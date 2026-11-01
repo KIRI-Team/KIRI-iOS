@@ -78,7 +78,8 @@ final class APIClient {
                 from: data
             ) {
                 #if DEBUG
-                if endpoint.path == "/api/v1/auth/login" {
+                if endpoint.path == "/api/v1/auth/login"
+                    || endpoint.path == "/api/v1/families" {
                     print(
                         "[KIRI][API] auth failure: "
                             + "code=\(envelope.code), message=\(envelope.message)"
