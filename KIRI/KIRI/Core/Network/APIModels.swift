@@ -58,6 +58,15 @@ struct CreateFamilyRequest: Encodable, Sendable {
     let name: String
 }
 
+struct UpdateFamilyNameRequest: Encodable, Sendable {
+    let name: String
+}
+
+struct FamilyNameUpdateResult: Decodable, Sendable {
+    let familyId: Int
+    let name: String
+}
+
 struct CreateFamilyResult: Decodable, Sendable {
     let familyId: Int
     let name: String
@@ -71,7 +80,40 @@ struct TodayQuestionResult: Decodable, Sendable {
     let questionId: Int?
     let question: String?
     let isAnswered: Bool
-    let answer: String?
+    var answer: String?
+}
+
+struct MissionFeedResult: Decodable, Sendable {
+    let missions: [MissionFeedItem]
+    let nextCursor: Int?
+    let hasNext: Bool
+}
+
+struct BucketSaveResult: Decodable, Sendable {
+    let bucketItemId: Int
+    let missionId: Int
+    let status: String
+    let savedAt: String
+}
+
+struct MissionFeedItem: Decodable, Identifiable, Sendable {
+    let missionId: Int
+    let title: String
+    let imageUrl: URL?
+    let imageSource: String?
+    let category: String
+    let missionType: String
+    let placeName: String
+    let startDate: String?
+    let endDate: String?
+    let price: Int?
+    let distance: Double?
+
+    var id: Int { missionId }
+}
+
+struct WriteAnswerRequest: Encodable, Sendable {
+    let answer: String
 }
 
 struct TermAgreement: Codable, Identifiable, Sendable {

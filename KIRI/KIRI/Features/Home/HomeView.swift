@@ -2,16 +2,43 @@ import SwiftUI
 
 @Observable
 final class HomeTutorialStore {
+    private let identity: String?
+    private static let legacyBrowseKey = "kiri_browse_tutorial_completed"
+
     var mode: HomeTutorialView.Mode
     var step: Int = 0
     var isActive: Bool = false
+    var scopeKey: String {
+        if let identity, !identity.isEmpty { return "kiri_home_tutorial_completed.\(identity)" }
+        return "kiri_home_tutorial_completed.guest"
+    }
 
-    init(mode: HomeTutorialView.Mode) {
+    init(mode: HomeTutorialView.Mode, familyId: Int? = nil, identity: String? = nil) {
         self.mode = mode
-        let key = mode == .browse
-            ? "kiri_browse_tutorial_completed"
-            : "kiri_family_tutorial_completed"
-        isActive = !UserDefaults.standard.bool(forKey: key)
+        self.identity = identity
+        migrateLegacyCompletionIfNeeded(familyId: familyId)
+        isActive = !UserDefaults.standard.bool(forKey: scopeKey)
+    }
+
+    func updateScope(mode: HomeTutorialView.Mode, familyId: Int?) {
+        self.mode = mode
+        step = 0
+        migrateLegacyCompletionIfNeeded(familyId: familyId)
+        isActive = !UserDefaults.standard.bool(forKey: scopeKey)
+    }
+
+    private func migrateLegacyCompletionIfNeeded(familyId: Int?) {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: scopeKey) else { return }
+        // Legacy keys were not account-scoped. Never copy them into a stable
+        // account key, otherwise one account's completion could suppress the
+        // first tutorial for another account.
+        guard identity == nil else { return }
+        let legacyFamilyKey = familyId.map { "kiri_family_tutorial_completed.\($0)" }
+        if defaults.bool(forKey: Self.legacyBrowseKey)
+            || legacyFamilyKey.map({ defaults.bool(forKey: $0) }) == true {
+            defaults.set(true, forKey: scopeKey)
+        }
     }
 }
 
@@ -19,12 +46,15 @@ struct HomeView: View {
     let userMode: AppRouter.UserMode
     let familyName: String?
     let familyInviteCode: String?
+    let familyId: Int?
+    let nickname: String?
+    let familyRole: String?
+    let familyState: AppRouter.FamilyState
+    let onRetryFamilyState: () -> Void
     let tutorialStore: HomeTutorialStore
     let onFamilyCreated: (String, String) -> Void
     let onExploreMission: () -> Void
 
-    @AppStorage("kiri_browse_tutorial_completed") private var browseTutorialCompleted = false
-    @AppStorage("kiri_family_tutorial_completed") private var familyTutorialCompleted = false
     @State private var didApplyDebugReset = false
     @State private var tutorialFrames: [HomeTutorialTarget: CGRect] = [:]
 
@@ -32,6 +62,11 @@ struct HomeView: View {
         userMode: AppRouter.UserMode,
         familyName: String?,
         familyInviteCode: String?,
+        familyId: Int? = nil,
+        nickname: String? = nil,
+        familyRole: String? = nil,
+        familyState: AppRouter.FamilyState = .unknown,
+        onRetryFamilyState: @escaping () -> Void = {},
         tutorialStore: HomeTutorialStore,
         onFamilyCreated: @escaping (String, String) -> Void,
         onExploreMission: @escaping () -> Void
@@ -39,9 +74,18 @@ struct HomeView: View {
         self.userMode = userMode
         self.familyName = familyName
         self.familyInviteCode = familyInviteCode
+        self.familyId = familyId
+        self.nickname = nickname
+        self.familyRole = familyRole
+        self.familyState = familyState
+        self.onRetryFamilyState = onRetryFamilyState
         self.tutorialStore = tutorialStore
         self.onFamilyCreated = onFamilyCreated
         self.onExploreMission = onExploreMission
+    }
+
+    private var tutorialCompleted: Bool {
+        UserDefaults.standard.bool(forKey: tutorialStore.scopeKey)
     }
 
     var body: some View {
@@ -89,8 +133,10 @@ struct HomeView: View {
         switch userMode {
         case .family:
                 FamilyHomeView(
-                    familyName: familyName ?? "끼리네 가족",
+                    familyName: familyName,
                     familyInviteCode: familyInviteCode,
+                    nickname: nickname,
+                    familyRole: familyRole,
                     tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil,
                     loadsServerQuestion: true,
                     onExploreMission: onExploreMission
@@ -99,14 +145,20 @@ struct HomeView: View {
         case .browse:
             if tutorialStore.isActive {
                 FamilyHomeView(
-                    familyName: "끼리네 가족",
+                    familyName: familyName,
                     familyInviteCode: nil,
+                    nickname: nickname,
+                    familyRole: familyRole,
                     tutorialStep: tutorialStore.step,
                     loadsServerQuestion: false,
                     onExploreMission: onExploreMission
                 )
             } else {
-                BrowseHomeView(onFamilyCreated: onFamilyCreated)
+                BrowseHomeView(
+                    familyState: familyState,
+                    onFamilyCreated: onFamilyCreated,
+                    onRetryFamilyState: onRetryFamilyState
+                )
             }
         }
     }
@@ -120,13 +172,7 @@ struct HomeView: View {
                 return .family
             }
         }()
-        let modeChanged = tutorialStore.mode != mode
-        tutorialStore.mode = mode
-
-        if modeChanged {
-            tutorialStore.step = 0
-            tutorialStore.isActive = false
-        }
+        tutorialStore.updateScope(mode: mode, familyId: familyId)
 
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-force-kiri-home-tutorial") {
@@ -139,7 +185,7 @@ struct HomeView: View {
         }
         #endif
 
-        guard !isTutorialCompleted(for: mode) else {
+        guard !tutorialCompleted else {
             tutorialStore.isActive = false
             return
         }
@@ -152,24 +198,10 @@ struct HomeView: View {
     }
 
     private func completeTutorial() {
-        switch tutorialStore.mode {
-        case .browse:
-            browseTutorialCompleted = true
-        case .family:
-            familyTutorialCompleted = true
-        }
+        UserDefaults.standard.set(true, forKey: tutorialStore.scopeKey)
         tutorialStore.isActive = false
         tutorialStore.step = 0
         debugLog("tutorial completed")
-    }
-
-    private func isTutorialCompleted(for mode: HomeTutorialView.Mode) -> Bool {
-        switch mode {
-        case .browse:
-            return browseTutorialCompleted
-        case .family:
-            return familyTutorialCompleted
-        }
     }
 
     #if DEBUG
@@ -179,8 +211,7 @@ struct HomeView: View {
             "mode=\(String(describing: tutorialStore.mode)) " +
             "active=\(tutorialStore.isActive) " +
             "step=\(tutorialStore.step) " +
-            "browseCompleted=\(browseTutorialCompleted) " +
-            "familyCompleted=\(familyTutorialCompleted)"
+            "completed=\(tutorialCompleted)"
         )
     }
 
@@ -188,8 +219,7 @@ struct HomeView: View {
         guard !didApplyDebugReset else { return }
         didApplyDebugReset = true
         guard ProcessInfo.processInfo.arguments.contains("-reset-kiri-home-tutorial") else { return }
-        browseTutorialCompleted = false
-        familyTutorialCompleted = false
+        UserDefaults.standard.set(false, forKey: tutorialStore.scopeKey)
         tutorialStore.step = 0
         tutorialStore.isActive = true
         print("[KIRI TutorialDebug][HomeContainer] DEBUG tutorial completion reset")

@@ -52,22 +52,7 @@ struct KIRITabBar: View {
             VStack(
                 spacing: isSelected ? 1 : 0.5
             ) {
-                Image(
-                    systemName:
-                        isSelected
-                            ? activeIconName(for: tab)
-                            : iconName(for: tab)
-                )
-                .font(
-                    .system(
-                        size: 18,
-                        weight: .semibold
-                    )
-                )
-                .frame(
-                    width: 24,
-                    height: 28
-                )
+                tabIcon(tab, isSelected: isSelected)
 
                 Text(
                     title(for: tab)
@@ -111,6 +96,32 @@ struct KIRITabBar: View {
                 ? .isSelected
                 : []
         )
+    }
+
+    @ViewBuilder
+    private func tabIcon(_ tab: MainTabView.AppTab, isSelected: Bool) -> some View {
+        if let assetName = figmaAssetName(for: tab, isSelected: isSelected) {
+            Image(assetName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+        } else {
+            Image(systemName: isSelected ? activeIconName(for: tab) : iconName(for: tab))
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 24, height: 28)
+        }
+    }
+
+    private func figmaAssetName(for tab: MainTabView.AppTab, isSelected: Bool) -> String? {
+        switch (tab, isSelected) {
+        case (.home, true): return "figma_home_active"
+        case (.record, true): return "figma_calendar_active"
+        case (.record, false): return "figma_calendar_disabled"
+        case (.myPage, true): return "figma_profile_active"
+        case (.myPage, false): return "figma_profile_disabled"
+        case (.mission, false): return "figma_place_disabled"
+        default: return nil
+        }
     }
 
     // MARK: - Title

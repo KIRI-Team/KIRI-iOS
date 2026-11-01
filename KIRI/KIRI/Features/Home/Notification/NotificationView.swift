@@ -55,36 +55,9 @@ struct NotificationView: View {
         NotificationFilter = .inbox
     @State private var readNotificationIDs:
         Set<Int> = []
-    private let notifications: [NotificationItem] = [
-        NotificationItem(
-            id: 1,
-            kind: .schedule,
-            description: "가족이 함께할 새로운 일정을 확인해보세요.",
-            time: "방금",
-            opensInvitation: true
-        ),
-        NotificationItem(
-            id: 2,
-            kind: .poke,
-            description: "오늘의 질문에 답변을 남겨보세요.",
-            time: "10분 전",
-            opensInvitation: false
-        ),
-        NotificationItem(
-            id: 3,
-            kind: .record,
-            description: "가족이 남긴 새로운 추억을 확인해보세요.",
-            time: "1시간 전",
-            opensInvitation: false
-        ),
-        NotificationItem(
-            id: 4,
-            kind: .mission,
-            description: "가족과 함께할 새로운 미션을 확인해보세요.",
-            time: "어제",
-            opensInvitation: false
-        )
-    ]
+    // 최신 OpenAPI에는 알림함 목록/읽음 처리 endpoint가 없습니다.
+    // 서버 데이터가 없는 상태에서 샘플 알림을 실제 알림처럼 노출하지 않습니다.
+    private let notifications: [NotificationItem] = []
     private var filteredNotifications:
         [NotificationItem] {
         guard selectedFilter != .inbox else {
@@ -225,6 +198,12 @@ struct NotificationView: View {
                             KIRIColor.Border.subtle
                         )
                         .padding(.leading, 78)
+                }
+                if filteredNotifications.isEmpty {
+                    Text("새로운 알림이 없어요")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                        .frame(maxWidth: .infinity, minHeight: 240)
                 }
                 Color.clear
                     .frame(height: 120)

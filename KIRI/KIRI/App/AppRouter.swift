@@ -14,6 +14,13 @@ final class AppRouter {
         case browse
     }
 
+    enum FamilyState: Equatable {
+        case loading
+        case hasFamily
+        case noFamily
+        case unknown
+    }
+
     var appState: AppState {
         didSet {
             #if DEBUG
@@ -30,11 +37,17 @@ final class AppRouter {
     var familyName: String?
     var familyInviteCode: String?
     var nickname: String?
+    var familyId: Int?
+    var familyRole: String?
+    var familyState: FamilyState = .unknown
+    /// JWT `sub` used only to scope local tutorial completion.
+    var tutorialIdentity: String?
     /// 세션 복원 중 약관 미동의가 확인된 경우 AuthFlowView가 표시할 약관 목록.
     var pendingTerms: [Term]?
     var pendingTermAgreements: [TermAgreement] = []
     var lastSessionError: String?
     private(set) var isLoggingOut = false
+    private(set) var isDeletingAccount = false
 
     private let sessionStore: AppSessionStore
     private let tokenStore: AuthTokenStoring
@@ -52,6 +65,9 @@ final class AppRouter {
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
         nickname = sessionStore.nickname
+        familyId = sessionStore.familyId
+        familyRole = sessionStore.familyRole
+        tutorialIdentity = Self.tokenSubject(using: tokenStore)
 
         #if DEBUG
         print(
@@ -132,6 +148,22 @@ final class AppRouter {
         }
     }
 
+    private static func tokenSubject(using tokenStore: AuthTokenStoring) -> String? {
+        guard let token = try? tokenStore.read()?.accessToken else { return nil }
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var encoded = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+        guard let data = Data(base64Encoded: encoded),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let payload = object as? [String: Any],
+              let subject = payload["sub"] as? String,
+              !subject.isEmpty else { return nil }
+        return subject
+    }
+
     func receiveInvitation(
         code: String,
         familyName: String? = nil
@@ -148,14 +180,18 @@ final class AppRouter {
         }
     }
 
-    func completeAuthentication(isNewUser: Bool = false) {
+    func completeAuthentication(isNewUser: Bool = false) async {
         sessionStore.saveAuthenticationCompleted()
+        tutorialIdentity = Self.tokenSubject(using: tokenStore)
         pendingTerms = nil
         pendingTermAgreements = []
 
-        // 신규 회원은 약관 동의 직후 반드시 온보딩을 거친다.
-        // 기존 회원은 로컬에 보존된 마지막 온보딩 상태를 복원한다.
-        if isNewUser || !sessionStore.isOnboardingCompleted {
+        // 로그인 응답의 신규 회원 여부는 서버가 확인한 가입 상태다.
+        // 기존 회원을 로컬 온보딩 플래그의 유무만으로 신규 흐름에 보내면
+        // 로그아웃 후 재로그인 때 닉네임 입력이 반복되므로, 기존 회원은
+        // 저장된 모드가 없더라도 메인으로 복귀시킨다. 회원 프로필·가족
+        // 상태 조회 API가 제공되면 이 분기를 서버 상태 조회로 확장한다.
+        if isNewUser {
             appState = .onboarding
             return
         }
@@ -167,6 +203,7 @@ final class AppRouter {
             userMode = .browse
         }
         appState = .main
+        await refreshFamilyState()
     }
 
     func showAuthentication() {
@@ -214,9 +251,12 @@ final class AppRouter {
         self.familyName = familyName
         self.familyInviteCode = inviteCode
         self.nickname = sessionStore.nickname
+        self.familyId = sessionStore.familyId
+        self.familyRole = sessionStore.familyRole
         sessionStore.saveOnboardingCompleted(
             userMode: .family
         )
+        saveAccountSnapshot(hasFamily: true)
 
         pendingInvitation = nil
         userMode = .family
@@ -228,6 +268,7 @@ final class AppRouter {
         sessionStore.saveOnboardingCompleted(
             userMode: .browse
         )
+        saveAccountSnapshot(hasFamily: false)
 
         userMode = .browse
         appState = .main
@@ -235,6 +276,32 @@ final class AppRouter {
 
     func clearInvitation() {
         pendingInvitation = nil
+    }
+
+    func updateNickname(_ value: String) async -> String? {
+        do {
+            let result = try await AuthService.shared.updateNickname(value)
+            sessionStore.saveNickname(result.nickname)
+            nickname = result.nickname
+            saveAccountSnapshot()
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    func updateFamilyName(_ value: String) async -> String? {
+        guard let familyId else { return "가족공간 정보를 확인할 수 없습니다." }
+        do {
+            let result = try await AuthService.shared.updateFamilyName(familyId: familyId, name: value)
+            sessionStore.saveFamily(name: result.name, inviteCode: sessionStore.familyInviteCode ?? "", familyId: result.familyId)
+            familyName = result.name
+            self.familyId = result.familyId
+            saveAccountSnapshot(hasFamily: true)
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
     }
 
     /// 스플래시 이후 저장된 세션을 서버에서 재검증한다.
@@ -268,13 +335,12 @@ final class AppRouter {
 
             pendingTerms = nil
             pendingTermAgreements = []
-            if !sessionStore.isOnboardingCompleted {
-                appState = .onboarding
-                userMode = .browse
-            } else {
-                userMode = sessionStore.userMode == .family ? .family : .browse
-                appState = .main
-            }
+            // 재발급 응답에는 프로필·가족 온보딩 상태가 포함되지 않는다.
+            // 로컬 완료 상태가 없더라도 기존 회원을 닉네임 온보딩으로
+            // 되돌리지 않고 메인으로 복원한다. 서버 회원 상태 조회 API가
+            // 추가되면 family/browse 및 미완료 단계만 그 응답으로 보완한다.
+            appState = .main
+            await refreshFamilyState()
             #if DEBUG
             print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
             #endif
@@ -302,6 +368,90 @@ final class AppRouter {
         }
     }
 
+    /// Missing local family data is not evidence that the account has no
+    /// family. Resolve membership from the authenticated server response first.
+    func refreshFamilyState() async {
+        familyState = .loading
+        do {
+            let hasFamily = try await AuthService.shared.familyMembership()
+            familyState = hasFamily ? .hasFamily : .noFamily
+            if hasFamily {
+                // hasFamily confirms membership only. A cached family id/name is
+                // presentation data and is applied only for this token identity.
+                restoreAccountSnapshot()
+                userMode = .family
+                saveAccountSnapshot(hasFamily: true)
+            } else {
+                // A server-confirmed no-family result invalidates active family
+                // presentation, but never deletes another account's snapshot.
+                sessionStore.clearActiveFamilyState()
+                familyName = nil
+                familyInviteCode = nil
+                familyId = nil
+                familyRole = nil
+                userMode = .browse
+                // A nickname is still useful in browse mode, but family
+                // identifiers and names are deliberately not restored when
+                // the server confirms that this account has no family.
+                restoreProfileSnapshotOnly()
+                saveAccountSnapshot(hasFamily: false)
+            }
+        } catch {
+            familyState = .unknown
+            lastSessionError = error.localizedDescription
+            #if DEBUG
+            print("[KIRI][Router] family state unavailable: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func restoreAccountSnapshot() {
+        guard let identity = tutorialIdentity,
+              let snapshot = sessionStore.accountSnapshot(for: identity)
+        else { return }
+
+        sessionStore.applyAccountSnapshot(snapshot)
+        familyName = sessionStore.familyName
+        familyInviteCode = sessionStore.familyInviteCode
+        nickname = sessionStore.nickname
+        familyId = sessionStore.familyId
+        familyRole = sessionStore.familyRole
+        if snapshot.userMode == .family {
+            userMode = .family
+        } else if snapshot.userMode == .browse {
+            userMode = .browse
+        }
+    }
+
+    private func restoreProfileSnapshotOnly() {
+        guard let identity = tutorialIdentity,
+              let snapshot = sessionStore.accountSnapshot(for: identity)
+        else { return }
+        if let nickname = snapshot.nickname {
+            sessionStore.saveNickname(nickname)
+            self.nickname = nickname
+        }
+        if let familyRole = snapshot.familyRole {
+            sessionStore.saveFamilyRole(familyRole)
+            self.familyRole = familyRole
+        }
+    }
+
+    private func saveAccountSnapshot(hasFamily: Bool? = nil) {
+        guard let identity = tutorialIdentity else { return }
+        let snapshot = AppSessionStore.AccountSnapshot(
+            identity: identity,
+            nickname: sessionStore.nickname,
+            familyRole: sessionStore.familyRole,
+            familyId: sessionStore.familyId,
+            familyName: sessionStore.familyName,
+            familyInviteCode: sessionStore.familyInviteCode,
+            userMode: sessionStore.userMode,
+            hasFamily: hasFamily
+        )
+        sessionStore.saveAccountSnapshot(snapshot)
+    }
+
     func logout() async {
         guard !isLoggingOut else { return }
         isLoggingOut = true
@@ -327,6 +477,7 @@ final class AppRouter {
             return
         }
         sessionStore.clearSession()
+        tutorialIdentity = nil
 
         pendingInvitation = nil
         userMode = .browse
@@ -337,5 +488,36 @@ final class AppRouter {
             : nil
         appState = .authentication
         isLoggingOut = false
+    }
+
+    /// Deletes the server account first. Local credentials and the account
+    /// snapshot are removed only after the server confirms success.
+    func deleteAccount() async -> String? {
+        guard !isDeletingAccount else { return "탈퇴 요청이 진행 중입니다." }
+        isDeletingAccount = true
+        var failureMessage: String?
+        do {
+            try await AuthService.shared.deleteAccount()
+            let identity = tutorialIdentity
+            try tokenStore.clear()
+            if let identity {
+                sessionStore.removeAccountSnapshot(for: identity)
+                UserDefaults.standard.removeObject(forKey: "kiri_home_tutorial_completed.\(identity)")
+            }
+            sessionStore.clearSession()
+            tutorialIdentity = nil
+            pendingInvitation = nil
+            pendingTerms = nil
+            pendingTermAgreements = []
+            userMode = .browse
+            familyState = .unknown
+            lastSessionError = nil
+            appState = .authentication
+        } catch {
+            lastSessionError = error.localizedDescription
+            failureMessage = error.localizedDescription
+        }
+        isDeletingAccount = false
+        return failureMessage
     }
 }

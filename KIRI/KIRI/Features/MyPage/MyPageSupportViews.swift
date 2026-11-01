@@ -47,6 +47,7 @@ private struct MyPageRows: View {
 
 struct AccountInfoView: View {
     let onLogout: () -> Void
+    let onDeleteAccount: () async -> String?
     @State private var isLogoutAlertPresented = false
 
     var body: some View {
@@ -65,7 +66,7 @@ struct AccountInfoView: View {
                         VStack(spacing: 0) {
                             Button { isLogoutAlertPresented = true } label: { accountRow("로그아웃") }
                                 .buttonStyle(.plain)
-                            NavigationLink { WithdrawalView() } label: { accountRow("회원탈퇴", tint: KIRIColor.Status.error) }
+                            NavigationLink { WithdrawalView(onDeleteAccount: onDeleteAccount) } label: { accountRow("회원탈퇴", tint: KIRIColor.Status.error) }
                         }
                         .background(KIRIColor.Background.secondary)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -142,7 +143,11 @@ struct OpenLicenseView: View {
 }
 
 struct WithdrawalView: View {
+    let onDeleteAccount: () async -> String?
     @State private var confirmed = false
+    @State private var isConfirmPresented = false
+    @State private var isSubmitting = false
+    @State private var errorMessage: String?
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "회원탈퇴") {
@@ -152,15 +157,29 @@ struct WithdrawalView: View {
                     Text("삭제되는 내 정보").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.primary).padding(.top, 24)
                     ToggleRow(title: "탈퇴 내용을 확인했습니다", value: $confirmed)
                         .background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Button("탈퇴 요청") { }
-                        .disabled(!confirmed).frame(maxWidth: .infinity).frame(height: 54)
+                    Button("탈퇴 요청") { isConfirmPresented = true }
+                        .disabled(!confirmed || isSubmitting).frame(maxWidth: .infinity).frame(height: 54)
                         .background(confirmed ? KIRIColor.Status.error : KIRIColor.Background.tertiary)
                         .foregroundStyle(KIRIColor.Text.strong).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Text("탈퇴 API가 연결되기 전까지 계정 삭제를 수행하지 않습니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                    if let errorMessage {
+                        Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                    }
                     Spacer()
                 }.padding(18)
             }
         }.toolbar(.hidden, for: .navigationBar)
+        .alert("정말 탈퇴할까요?", isPresented: $isConfirmPresented) {
+            Button("취소", role: .cancel) {}
+            Button("탈퇴", role: .destructive) {
+                isSubmitting = true
+                Task { @MainActor in
+                    errorMessage = await onDeleteAccount()
+                    isSubmitting = false
+                }
+            }
+        } message: {
+            Text("회원탈퇴 후에는 계정을 복구할 수 없습니다.")
+        }
     }
 }
 

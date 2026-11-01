@@ -18,9 +18,10 @@ struct QuestionCard: View {
 
             if let onFlip {
                 Button(action: onFlip) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Image("figma_refresh")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
                         .frame(width: 33, height: 33)
                 }
                 .buttonStyle(.plain)
@@ -143,9 +144,10 @@ struct QuestionMissionFlipCard: View {
                 .buttonStyle(.plain)
 
                 Button(action: { flip() }) {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 18, weight: .regular))
-                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Image("figma_refresh")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
                         .frame(width: 33, height: 33)
                 }
                 .buttonStyle(.plain)
@@ -179,7 +181,7 @@ struct QuestionMissionFlipCard: View {
                 Button {
                     flip(suppressMissionBodyTap: true)
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    Image("figma_refresh")
                         .font(.system(size: 18, weight: .regular))
                         .foregroundStyle(KIRIColor.Text.secondary)
                         .frame(width: 33, height: 33)

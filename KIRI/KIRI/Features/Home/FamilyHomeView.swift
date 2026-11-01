@@ -1,22 +1,28 @@
 import SwiftUI
 
 struct FamilyHomeView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
-    var familyName: String = "끼리네 가족"
+    var familyName: String?
     var familyInviteCode: String? = nil
+    var nickname: String? = nil
+    var familyRole: String? = nil
     var tutorialStep: Int? = nil
     var loadsServerQuestion: Bool = true
     var onExploreMission: () -> Void = {}
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
-    @State private var mockData = HomeMockData()
-    @State private var selectedPlace: HomeMockPlace?
-    @State private var selectedMember: HomeMockMember?
+    @State private var selectedMission: MissionFeedItem?
+    @State private var selectedMember: HomeMember?
     @State private var isPlaceBookmarked = false
     @State private var showsMissionFace = false
     @State private var didLoadTodayQuestion = false
     @State private var todayQuestionError: String?
+    @State private var serverQuestion: TodayQuestionResult?
+    @State private var recommendedMissions: [MissionFeedItem] = []
+    @State private var isLoadingRecommendations = false
+    @State private var recommendationError: String?
 
 
     private enum HomeRoute {
@@ -66,16 +72,16 @@ struct FamilyHomeView: View {
                 )
 
             case .placeDetail:
-                if let selectedPlace {
+                if let selectedMission {
                     MissionActivityDetailView(
-                        title: selectedPlace.title,
-                        placeName: selectedPlace.title,
-                        district: selectedPlace.location,
-                        rating: selectedPlace.rating,
-                        tags: selectedPlace.tags,
+                        title: selectedMission.title,
+                        placeName: selectedMission.placeName,
+                        district: selectedMission.category,
+                        rating: nil,
+                        tags: [selectedMission.missionType],
                         isRecommended: true,
-                        mockAssetName: selectedPlace.mockAssetName,
-                        imageURL: selectedPlace.imageURL,
+                        mockAssetName: nil,
+                        imageURL: selectedMission.imageUrl,
                         isBookmarked: $isPlaceBookmarked,
                         onBack: { route = .home }
                     )
@@ -85,28 +91,42 @@ struct FamilyHomeView: View {
                 TasteTestView()
 
             case .questionAnswer:
-                HomeQuestionAnswerView(question: mockData.question.text, existingAnswer: mockData.question.answer, onBack: { route = .home }) { savedAnswer in
-                    mockData.question.answer = savedAnswer
-                    if let index = mockData.members.firstIndex(where: { $0.isMe }) { mockData.members[index].hasAnswered = true }
-                    route = .home
+                HomeQuestionAnswerView(
+                    question: serverQuestion?.question ?? "오늘의 질문",
+                    existingAnswer: serverQuestion?.answer,
+                    onBack: { route = .home }
+                ) { savedAnswer in
+                    guard let questionId = serverQuestion?.questionId else { return }
+                    Task { @MainActor in
+                        do {
+                            try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
+                            serverQuestion?.answer = savedAnswer
+                            route = .home
+                        } catch {
+                            todayQuestionError = error.localizedDescription
+                        }
+                    }
                 }
 
             case .missionDetail:
                 HomeMissionDetailView(onBack: { route = .home }) {
-                    mockData.hasSchedule = true
                     route = .home
                 }
 
             case .memberDetail:
-                if let selectedMember {
-                    HomeMemberQuestionView(member: selectedMember, onBack: { route = .home })
+                ZStack {
+                    homeContent.allowsHitTesting(false)
+                    Color.black.opacity(0.56).ignoresSafeArea()
+                    if let selectedMember {
+                        HomeMemberQuestionView(member: selectedMember, onBack: { route = .home })
+                    }
                 }
             }
         }
         .fullScreenCover(isPresented: $isInvitePresented) {
             if let code = familyInviteCode, !code.isEmpty {
                 FamilyCodeView(
-                    familyName: familyName,
+                    familyName: familyName ?? "가족공간",
                     familyCode: code,
                     onBack: { isInvitePresented = false },
                     onComplete: { isInvitePresented = false }
@@ -136,6 +156,9 @@ struct FamilyHomeView: View {
             }
             await loadTodayQuestion()
         }
+        .task {
+            await loadRecommendations()
+        }
     }
 
     // MARK: - Home
@@ -144,36 +167,71 @@ struct FamilyHomeView: View {
         VStack(spacing: 0) {
             homeNavigationBar
 
-            ScrollView(showsIndicators: false) {
-                VStack(
-                    alignment: .leading,
-                    spacing: 0
-                ) {
-                    answerCollectionSection
-                        .padding(.top, 23)
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(
+                        alignment: .leading,
+                        spacing: 0
+                    ) {
+                        answerCollectionSection
+                            .id("tutorial-top")
+                            .padding(.top, 23)
 
-                    questionMissionSection
-                        .padding(.top, 48)
+                        questionMissionSection
+                            .id("tutorial-question-card")
+                            .padding(.top, 48)
 
-                    placeRecommendationSection
-                        .padding(.top, 48)
+                        placeRecommendationSection
+                            .padding(.top, 48)
 
-                    moodRecommendationSection
-                        .padding(.top, 36)
+                        moodRecommendationSection
+                            .padding(.top, 36)
 
-                    Spacer()
-                        .frame(height: 120)
+                        Spacer()
+                            .frame(height: 120)
+                    }
+                }
+                .onAppear {
+                    scrollTutorial(to: tutorialStep, using: proxy, animated: false)
+                }
+                .onChange(of: tutorialStep) { _, newStep in
+                    scrollTutorial(to: newStep, using: proxy, animated: true)
                 }
             }
         }
         .background(KIRIColor.Background.base)
     }
 
+    private func scrollTutorial(
+        to step: Int?,
+        using proxy: ScrollViewProxy,
+        animated: Bool
+    ) {
+        guard step == 1 else {
+            if animated && !reduceMotion {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo("tutorial-top", anchor: .top)
+                }
+            } else {
+                proxy.scrollTo("tutorial-top", anchor: .top)
+            }
+            return
+        }
+
+        if animated && !reduceMotion {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo("tutorial-question-card", anchor: .top)
+            }
+        } else {
+            proxy.scrollTo("tutorial-question-card", anchor: .top)
+        }
+    }
+
     // MARK: - Navigation Bar
 
     private var homeNavigationBar: some View {
         ZStack {
-            Text(familyName)
+                Text(familyName ?? "가족공간")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -185,16 +243,9 @@ struct FamilyHomeView: View {
                     route = .notification
                 } label: {
                     ZStack(alignment: .topTrailing) {
-                        Image(systemName: "bell")
-                            .font(
-                                .system(
-                                    size: 20,
-                                    weight: .regular
-                                )
-                            )
-                            .foregroundStyle(
-                                KIRIColor.Icon.primary
-                            )
+                        Image("figma_notification")
+                            .resizable()
+                            .scaledToFit()
                             .frame(
                                 width: 24,
                                 height: 24
@@ -230,7 +281,7 @@ struct FamilyHomeView: View {
     private var answerCollectionSection: some View {
         VStack(
             alignment: .leading,
-            spacing: 24
+            spacing: 16
         ) {
             HStack {
                 Text("답변 모아보기")
@@ -277,19 +328,23 @@ struct FamilyHomeView: View {
                 .homeTutorialMeasured(.invite)
             }
 
-            ScrollView(
-                .horizontal,
-                showsIndicators: false
-            ) {
-                HStack(spacing: 18) {
-                    ForEach(displayedMembers) { member in
-                        Button {
-                            selectedMember = member
-                            route = member.isMe ? .questionAnswer : .memberDetail
-                        } label: {
-                            FamilyMemberItem(name: member.name, isMe: member.isMe, hasAnswered: member.hasAnswered)
+            if displayedMembers.isEmpty {
+                Text("가족을 초대하면 답변을 함께 볼 수 있어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(displayedMembers) { member in
+                            Button {
+                                selectedMember = member
+                                route = member.isMe ? .questionAnswer : .memberDetail
+                            } label: {
+                                FamilyMemberItem(name: member.name, isMe: member.isMe, hasAnswered: member.hasAnswered)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -323,22 +378,34 @@ struct FamilyHomeView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 136)
             } else if let todayQuestionError {
-                Text(todayQuestionError)
-                    .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 136)
-            } else {
+                VStack(spacing: 10) {
+                    Text(todayQuestionError)
+                        .font(KIRITypography.bodyMedium)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Button("다시 시도") {
+                        Task { await loadTodayQuestion() }
+                    }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+                }
+                .frame(maxWidth: .infinity, minHeight: 136)
+            } else if let serverQuestion, let questionId = serverQuestion.questionId {
                 QuestionMissionFlipCard(
-                    questionNumber: mockData.question.number,
-                    question: mockData.question.text,
-                    answer: mockData.question.answer,
-                    mission: mockData.weeklyMission,
+                    questionNumber: questionId,
+                    question: serverQuestion.question ?? "오늘의 질문",
+                    answer: serverQuestion.answer,
+                    mission: tutorialMission,
                     showsMission: $showsMissionFace,
                     onQuestionAnswer: { route = .questionAnswer },
                     onMissionDetail: { route = .missionDetail },
                     onMissionExplore: onExploreMission
                 )
                 .homeTutorialMeasured(.questionMissionCard)
+            } else {
+                Text("오늘의 질문이 아직 없어요")
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: 136)
             }
         }
         .padding(.horizontal, 18)
@@ -358,32 +425,38 @@ struct FamilyHomeView: View {
                 .padding(.horizontal, 18)
                 .homeTutorialMeasured(.recommendationTitle)
 
-            ScrollView(
-                .horizontal,
-                showsIndicators: false
-            ) {
-                HStack(spacing: 24) {
-                    ForEach(mockData.places) { place in
-                        Button { selectedPlace = place; route = .placeDetail } label: {
-                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description, imageName: place.mockAssetName, imageURL: place.imageURL)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 18)
-            }
+            recommendationCards
         }
     }
 
-    private var displayedMembers: [HomeMockMember] {
-        guard tutorialStep != nil else { return mockData.members }
-        return [
-            HomeMockMember(id: "me", name: "내 답변", role: "딸", hasAnswered: true, isMe: true),
-            HomeMockMember(id: "mama", name: "마마", role: "엄마", hasAnswered: true, isMe: false),
-            HomeMockMember(id: "papa", name: "빠빠", role: "아빠", hasAnswered: false, isMe: false),
-            HomeMockMember(id: "doldoli", name: "돌돌이", role: "아들", hasAnswered: true, isMe: false),
-            HomeMockMember(id: "daughter", name: "딸", role: "딸", hasAnswered: true, isMe: false)
-        ]
+    private var displayedMembers: [HomeMember] {
+        // 현재 OpenAPI에는 가족 구성원 목록 조회 endpoint가 없습니다.
+        // 따라서 서버에서 확보할 수 있는 로그인 사용자만 표시하고,
+        // 확인되지 않은 가족을 Mock으로 추가하지 않습니다.
+        guard let nickname, !nickname.isEmpty else { return [] }
+        return [HomeMember(
+            id: "me",
+            memberId: nil,
+            name: nickname,
+            role: familyRole,
+            hasAnswered: serverQuestion?.isAnswered ?? false,
+            answer: serverQuestion?.answer,
+            isMe: true
+        )]
+    }
+
+    private var tutorialMission: HomeMockMission? {
+        guard let mission = recommendedMissions.first else { return nil }
+        var tags = [mission.category]
+        if let distance = mission.distance {
+            tags.append(String(format: "%.1fkm", distance))
+        }
+        return HomeMockMission(
+            title: mission.title,
+            location: mission.placeName,
+            tags: tags,
+            isComplete: false
+        )
     }
 
     // MARK: - Mood Recommendation
@@ -399,14 +472,42 @@ struct FamilyHomeView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
 
-            ScrollView(
-                .horizontal,
-                showsIndicators: false
-            ) {
+            Text("추천 콘텐츠가 아직 없어요")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        }
+    }
+
+    @ViewBuilder
+    private var recommendationCards: some View {
+        if isLoadingRecommendations {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 144)
+        } else if let recommendationError {
+            Text(recommendationError)
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        } else if recommendedMissions.isEmpty {
+            Text("추천할 미션이 아직 없어요")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 24) {
-                    ForEach(mockData.places.reversed()) { place in
-                        Button { selectedPlace = place; route = .placeDetail } label: {
-                            PlaceCard(title: place.title, location: place.location, rating: place.rating, description: place.description, imageName: place.mockAssetName, imageURL: place.imageURL)
+                    ForEach(recommendedMissions) { mission in
+                        Button {
+                            selectedMission = mission
+                            route = .placeDetail
+                        } label: {
+                            PlaceCard(
+                                title: mission.title,
+                                location: mission.placeName,
+                                rating: nil,
+                                description: mission.category,
+                                imageURL: mission.imageUrl
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -442,19 +543,45 @@ struct FamilyHomeView: View {
     }
 
     private func loadTodayQuestion() async {
+        #if DEBUG
+        print("[KIRI][Question] request started")
+        #endif
         do {
             let result = try await AuthService.shared.todayQuestion()
             await MainActor.run {
-                if let question = result.question, !question.isEmpty {
-                    mockData.question.text = question
-                }
-                mockData.question.answer = result.answer
+                serverQuestion = result
                 didLoadTodayQuestion = true
+                todayQuestionError = nil
             }
+            #if DEBUG
+            print("[KIRI][Question] response hasFamily=\(result.hasFamily) questionIdPresent=\(result.questionId != nil) questionPresent=\(result.question?.isEmpty == false) isAnswered=\(result.isAnswered)")
+            #endif
         } catch {
             await MainActor.run {
                 todayQuestionError = error.localizedDescription
                 didLoadTodayQuestion = true
+            }
+            #if DEBUG
+            print("[KIRI][Question] load failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func loadRecommendations() async {
+        await MainActor.run {
+            isLoadingRecommendations = true
+            recommendationError = nil
+        }
+        do {
+            let result = try await AuthService.shared.missionFeed()
+            await MainActor.run {
+                recommendedMissions = result.missions
+                isLoadingRecommendations = false
+            }
+        } catch {
+            await MainActor.run {
+                recommendationError = error.localizedDescription
+                isLoadingRecommendations = false
             }
         }
     }

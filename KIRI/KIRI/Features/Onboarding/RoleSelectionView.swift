@@ -41,9 +41,19 @@ enum FamilyRole: String, CaseIterable, Hashable {
             return "Son"
         }
     }
+
+    var assetName: String {
+        switch self {
+        case .mom: return "role_mom"
+        case .dad: return "role_dad"
+        case .daughter: return "role_daughter"
+        case .son: return "role_son"
+        }
+    }
 }
 
 struct RoleSelectionView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let nickname: String
 
     @Binding var selectedRole: FamilyRole?
@@ -110,24 +120,37 @@ struct RoleSelectionView: View {
         return Button {
             selectedRole = role
         } label: {
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
+                Image(role.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
+                    // Keep the original facial details. The role PNGs contain
+                    // the eyes, nose and mouth, so template rendering would
+                    // flatten those layers into one solid color.
+                    .grayscale(isSelected ? 0 : 1)
+                    .colorMultiply(
+                        isSelected && role != .daughter
+                            ? KIRIColor.Primitive.green500
+                            : isSelected
+                                ? KIRIColor.Primitive.neutral0
+                                : KIRIColor.Primitive.neutral500
+                    )
+
                 Text(role.koreanName)
                     .font(KIRITypography.roleKorean)
-
-                Text(role.englishName)
-                    .font(KIRITypography.roleEnglish)
             }
             .foregroundStyle(
                 isSelected
-                    ? KIRIColor.selectedText
-                    : KIRIColor.textSecondary
+                    ? KIRIColor.Text.accent
+                    : KIRIColor.Text.disabled
             )
             .frame(maxWidth: .infinity)
             .frame(height: 140)
             .background(
                 isSelected
-                    ? KIRIColor.selectedBackground
-                    : KIRIColor.surface
+                    ? KIRIColor.Primitive.alphaGreen16
+                    : KIRIColor.Background.primary
             )
             .clipShape(
                 RoundedRectangle(
@@ -136,6 +159,10 @@ struct RoleSelectionView: View {
             )
         }
         .buttonStyle(.plain)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.2),
+            value: isSelected
+        )
     }
 }
 

@@ -169,6 +169,19 @@ final class AuthService {
         )
     }
 
+    func deleteAccount() async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/members/me",
+            method: .DELETE,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+    }
+
     func updateNickname(_ nickname: String) async throws -> NicknameUpdateResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/members/nickname",
@@ -217,6 +230,22 @@ final class AuthService {
         return result
     }
 
+    func updateFamilyName(familyId: Int, name: String) async throws -> FamilyNameUpdateResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families/\(familyId)",
+            method: .PATCH,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyNameUpdateResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: UpdateFamilyNameRequest(name: name),
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func todayQuestion() async throws -> TodayQuestionResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/questions/today",
@@ -230,6 +259,68 @@ final class AuthService {
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
         return result
+    }
+
+    func missionFeed(
+        category: String? = nil,
+        regionCode: String? = nil,
+        distance: Int? = nil,
+        cursor: Int? = nil,
+        size: Int = 20
+    ) async throws -> MissionFeedResult {
+        var queryItems = [URLQueryItem(name: "size", value: String(size))]
+        if let category { queryItems.append(URLQueryItem(name: "category", value: category)) }
+        if let regionCode { queryItems.append(URLQueryItem(name: "regionCode", value: regionCode)) }
+        if let distance { queryItems.append(URLQueryItem(name: "distance", value: String(distance)) ) }
+        if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor)) ) }
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions",
+            method: .GET,
+            queryItems: queryItems,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<MissionFeedResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func saveMissionToBucket(missionId: Int) async throws -> BucketSaveResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions/\(missionId)/bucket",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<BucketSaveResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    /// The current API exposes family membership through the question payload.
+    /// No member/family profile lookup endpoint is present in the OpenAPI spec.
+    func familyMembership() async throws -> Bool {
+        try await todayQuestion().hasFamily
+    }
+
+    func writeAnswer(questionId: Int, answer: String) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/questions/\(questionId)/answers/me",
+            method: .PUT,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: WriteAnswerRequest(answer: answer),
+            accessToken: tokens.accessToken
+        )
     }
 
     func clearSession() throws {

@@ -12,24 +12,24 @@ struct FamilyMemberItem: View {
     }
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 8) {
             ZStack {
                 Circle()
                     .stroke(
                         borderColor,
-                        lineWidth: 1.5
+                        lineWidth: 1
                     )
                     .frame(width: 44, height: 44)
 
                 Image(imageName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 38, height: 38)
+                    .frame(width: 40, height: 40)
                     .clipShape(Circle())
             }
 
             Text(name)
-                .font(.system(size: 14, weight: .medium))
+                .font(KIRITypography.bodyMedium)
                 .foregroundStyle(KIRIColor.textPrimary)
                 .lineLimit(1)
         }

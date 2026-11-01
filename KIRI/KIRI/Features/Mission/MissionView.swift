@@ -1,291 +1,109 @@
 import SwiftUI
+
 struct MissionView: View {
     private enum Category: String, CaseIterable, Hashable {
-        case all = "전체"
-        case exhibition = "전시·문화"
-        case popup = "팝업·행사"
-        case experience = "체험·놀거리"
-        case outdoor = "산책·야외"
-        case performance = "공연"
-        case food = "맛집·카페"
+        case all = "전체", exhibition = "전시·문화", popup = "팝업·행사"
+        case experience = "체험·놀거리", outdoor = "산책·야외", performance = "공연", food = "맛집·카페"
+        var apiValue: String? {
+            switch self {
+            case .all: return nil
+            case .exhibition: return "EXHIBITION"
+            case .popup: return "POPUP"
+            case .experience: return "EXPERIENCE"
+            case .outdoor: return "OUTDOOR"
+            case .performance: return "PERFORMANCE"
+            case .food: return "FOOD_CAFE"
+            }
+        }
     }
-    private struct PlaceItem: Identifiable {
-        let id = UUID()
-        let title: String
-        let placeName: String
-        let district: String
-        let rating: Double?
-        let tags: [String]
-        let isRecommended: Bool
-        let category: Category
-        let mockAssetName: String?
-        let imageURL: URL?
-        var isBookmarked: Bool
-    }
-    @StateObject private var bucketStore = MissionBucketStore.shared
-    @State private var selectedPlace: PlaceItem?
-
+    private struct MissionRow: Identifiable { let id: Int; let mission: MissionFeedItem; var isBookmarked: Bool }
+    @State private var rows: [MissionRow] = []
+    @State private var selectedMission: MissionRow?
     @State private var searchText = ""
     @State private var selectedCategory: Category = .all
-    @State private var places: [PlaceItem] = [
-        PlaceItem(
-            title: "광장시장에서 시장음식 먹어보기",
-            placeName: "광장시장",
-            district: "종로구",
-            rating: nil,
-            tags: [
-                "혼잡도 높음"
-            ],
-            isRecommended: true,
-            category: .food,
-            mockAssetName: "mission_gyeongbok",
-            imageURL: nil,
-            isBookmarked: true
-        ),
-        PlaceItem(
-            title: "광장시장에서 시장음식 먹어보기",
-            placeName: "광장시장",
-            district: "종로구",
-            rating: 4.6,
-            tags: [
-                "대중교통 편리",
-                "혼잡도 높음"
-            ],
-            isRecommended: false,
-            category: .food,
-            mockAssetName: "mission_namsan",
-            imageURL: nil,
-            isBookmarked: true
-        ),
-        PlaceItem(
-            title: "광장시장에서 시장음식 먹어보기",
-            placeName: "광장시장",
-            district: "종로구",
-            rating: 4.6,
-            tags: [
-                "대중교통 편리",
-                "혼잡도 높음"
-            ],
-            isRecommended: false,
-            category: .food,
-            mockAssetName: "mission_gyeongbok",
-            imageURL: nil,
-            isBookmarked: false
-        ),
-        PlaceItem(
-            title: "한강공원에서 산책하기",
-            placeName: "뚝섬한강공원",
-            district: "광진구",
-            rating: 4.8,
-            tags: [
-                "좌석충분",
-                "계단 없음"
-            ],
-            isRecommended: false,
-            category: .outdoor,
-            mockAssetName: "mission_namsan",
-            imageURL: nil,
-            isBookmarked: false
-        ),
-        PlaceItem(
-            title: "가족과 함께 전시 관람하기",
-            placeName: "국립현대미술관",
-            district: "종로구",
-            rating: 4.7,
-            tags: [
-                "실내",
-                "대중교통 편리"
-            ],
-            isRecommended: false,
-            category: .exhibition,
-            mockAssetName: "mission_gyeongbok",
-            imageURL: nil,
-            isBookmarked: false
-        )
-    ]
-    private var filteredPlaces: [PlaceItem] {
-        places.filter { place in
-            let matchesCategory =
-                selectedCategory == .all ||
-                place.category == selectedCategory
-            let keyword = searchText.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            )
-            let matchesSearch =
-                keyword.isEmpty ||
-                place.title.localizedCaseInsensitiveContains(keyword) ||
-                place.placeName.localizedCaseInsensitiveContains(keyword) ||
-                place.district.localizedCaseInsensitiveContains(keyword)
-            return matchesCategory && matchesSearch
-        }
+    @State private var nextCursor: Int?
+    @State private var hasNext = false
+    @State private var isLoading = false
+    @State private var isLoadingMore = false
+    @State private var errorMessage: String?
+    @State private var savingMissionID: Int?
+
+    private var filteredRows: [MissionRow] {
+        let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else { return rows }
+        return rows.filter { $0.mission.title.localizedCaseInsensitiveContains(keyword) || $0.mission.placeName.localizedCaseInsensitiveContains(keyword) }
     }
+
     var body: some View {
         ZStack {
-            KIRIColor.Background.base
-                .ignoresSafeArea()
+            KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
-                appBar
-                ScrollView(
-                    .vertical,
-                    showsIndicators: false
-                ) {
+                Text("미션").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong).frame(maxWidth: .infinity).frame(height: 62)
+                ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
-                        searchSection
-                        categorySection
-                            .padding(.top, 13)
-                        filterHeader
-                            .padding(.horizontal, 18)
-                            .padding(.top, 24)
-                        placeList
-                            .padding(.horizontal, 18)
-                            .padding(.top, 16)
-                        Color.clear
-                            .frame(height: 100)
+                        KIRISearchField(text: $searchText).padding(.horizontal, 18).padding(.top, 6)
+                        categorySection.padding(.top, 13)
+                        HStack { Text("활동 \(filteredRows.count)개").font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.secondary); Spacer(); if isLoading { ProgressView().controlSize(.small) } }.frame(height: 20).padding(.horizontal, 18).padding(.top, 24)
+                        content.padding(.horizontal, 18).padding(.top, 16)
+                        Color.clear.frame(height: 100)
                     }
                 }
+                .refreshable { await load(reset: true) }
             }
         }
-        .fullScreenCover(item: $selectedPlace) { place in
-            MissionActivityDetailView(
-                title: place.title,
-                placeName: place.placeName,
-                district: place.district,
-                rating: place.rating,
-                tags: place.tags,
-                isRecommended: place.isRecommended,
-                mockAssetName: place.mockAssetName,
-                imageURL: place.imageURL,
-                isBookmarked: bookmarkBinding(for: place.id),
-                onBack: { selectedPlace = nil }
-            )
+        .task { await load(reset: true) }
+        .fullScreenCover(item: $selectedMission) { row in
+            MissionActivityDetailView(title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
         }
     }
 
-    // MARK: - App Bar
-    private var appBar: some View {
-        ZStack {
-            Text("미션")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
-                .foregroundStyle(KIRIColor.Text.strong)
-        }
-        .frame(height: 62)
-    }
-    // MARK: - Search
-    private var searchSection: some View {
-        KIRISearchField(
-            text: $searchText
-        )
-        .padding(.horizontal, 18)
-        .padding(.top, 6)
-    }
-    // MARK: - Categories
     private var categorySection: some View {
-        ScrollView(
-            .horizontal,
-            showsIndicators: false
-        ) {
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(
-                    Category.allCases,
-                    id: \.self
-                ) { category in
-                    KIRIChip(
-                        title: category.rawValue,
-                        isSelected: selectedCategory == category
-                    ) {
-                        withAnimation(
-                            .easeOut(duration: 0.15)
-                        ) {
-                            selectedCategory = category
-                        }
-                    }
+                ForEach(Category.allCases, id: \.self) { category in
+                    KIRIChip(title: category.rawValue, isSelected: selectedCategory == category) { selectedCategory = category; Task { await load(reset: true) } }
                 }
-            }
-            .padding(.horizontal, 18)
+            }.padding(.horizontal, 18)
         }
     }
-    // MARK: - Filter
-    private var filterHeader: some View {
-        HStack(spacing: 0) {
-            Text("활동 \(filteredPlaces.count)개")
-                .font(KIRITypography.bodySmallMedium)
-                .tracking(-0.56)
-                .foregroundStyle(KIRIColor.Text.secondary)
-            Spacer()
-            HStack(spacing: 12) {
-                filterButton(
-                    title: "날짜·시간"
-                )
-                filterButton(
-                    title: "지역·거리"
-                )
-            }
-        }
-        .frame(height: 20)
-    }
-    private func filterButton(
-        title: String
-    ) -> some View {
-        Button {
-            // TODO: 필터 화면 연결
-        } label: {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(KIRITypography.bodySmallMedium)
-                    .tracking(-0.56)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                Image(systemName: "chevron.down")
-                    .font(
-                        .system(
-                            size: 8,
-                            weight: .bold
-                        )
-                    )
-                    .foregroundStyle(KIRIColor.Icon.disabled)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-    // MARK: - Places
-    private var placeList: some View {
-        LazyVStack(spacing: 16) {
-            ForEach(filteredPlaces) { place in
-                MissionPlaceCard(
-                    title: place.title,
-                    placeName: place.placeName,
-                    district: place.district,
-                    rating: place.rating,
-                    tags: place.tags,
-                    isRecommended: place.isRecommended,
-                    mockAssetName: place.mockAssetName,
-                    imageURL: place.imageURL,
-                    isBookmarked: bookmarkBinding(
-                        for: place.id
-                    )
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    selectedPlace = place
+
+    @ViewBuilder private var content: some View {
+        if let errorMessage, rows.isEmpty {
+            VStack(spacing: 12) { Text(errorMessage).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary); Button("다시 시도") { Task { await load(reset: true) } }.foregroundStyle(KIRIColor.Text.accent) }.frame(maxWidth: .infinity, minHeight: 260)
+        } else if isLoading && rows.isEmpty {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 260)
+        } else if rows.isEmpty {
+            Text("아직 진행할 미션이 없어요").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary).frame(maxWidth: .infinity, minHeight: 260)
+        } else {
+            LazyVStack(spacing: 16) {
+                ForEach(filteredRows) { row in
+                    MissionPlaceCard(title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }))
+                        .contentShape(Rectangle()).onTapGesture { selectedMission = row }
+                        .onAppear { if row.id == rows.last?.id, hasNext, !isLoadingMore { Task { await load(reset: false) } } }
                 }
+                if isLoadingMore { ProgressView().padding() }
             }
         }
     }
-    // MARK: - Bookmark
-    private func bookmarkBinding(for id: UUID) -> Binding<Bool> {
-        Binding(
-            get: {
-                guard let place = places.first(where: { $0.id == id }) else { return false }
-                return bucketStore.contains(title: place.title, placeName: place.placeName)
-            },
-            set: { isSaved in
-                guard let place = places.first(where: { $0.id == id }) else { return }
-                bucketStore.setSaved(isSaved, title: place.title, placeName: place.placeName)
-            }
-        )
+
+    private func load(reset: Bool) async {
+        if reset { guard !isLoading else { return }; isLoading = true; errorMessage = nil } else { guard hasNext, !isLoadingMore else { return }; isLoadingMore = true }
+        do {
+            let result = try await AuthService.shared.missionFeed(category: selectedCategory.apiValue, cursor: reset ? nil : nextCursor)
+            let newRows = result.missions.map { MissionRow(id: $0.missionId, mission: $0, isBookmarked: false) }
+            if reset { rows = newRows } else { rows.append(contentsOf: newRows) }
+            nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
+        isLoading = false; isLoadingMore = false
+    }
+
+    private func save(_ missionID: Int, value: Bool) async {
+        guard value, savingMissionID == nil, let index = rows.firstIndex(where: { $0.id == missionID }), !rows[index].isBookmarked else { return }
+        savingMissionID = missionID
+        do { _ = try await AuthService.shared.saveMissionToBucket(missionId: missionID); rows[index].isBookmarked = true }
+        catch { errorMessage = error.localizedDescription }
+        savingMissionID = nil
     }
 }
-// MARK: - Preview
-#Preview {
-    MissionView()
-}
+
+#Preview { MissionView() }

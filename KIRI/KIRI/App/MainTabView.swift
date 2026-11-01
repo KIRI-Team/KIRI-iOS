@@ -12,9 +12,17 @@ struct MainTabView: View {
     let userMode: AppRouter.UserMode
     let familyName: String?
     let familyInviteCode: String?
+    let familyId: Int?
+    let familyRole: String?
     let nickname: String?
+    let tutorialIdentity: String?
+    let familyState: AppRouter.FamilyState
+    let onRetryFamilyState: () -> Void
     let onFamilyCreated: (String, String) -> Void
     let onLogout: () -> Void
+    let onDeleteAccount: () async -> String?
+    let onUpdateNickname: (String) async -> String?
+    let onUpdateFamilyName: (String) async -> String?
 
     @State private var selectedTab: AppTab = .home
     @State private var homeTutorialStore: HomeTutorialStore
@@ -23,16 +31,32 @@ struct MainTabView: View {
         userMode: AppRouter.UserMode,
         familyName: String?,
         familyInviteCode: String?,
+        familyId: Int? = nil,
+        familyRole: String? = nil,
         nickname: String? = nil,
+        tutorialIdentity: String? = nil,
+        familyState: AppRouter.FamilyState = .unknown,
+        onRetryFamilyState: @escaping () -> Void = {},
         onFamilyCreated: @escaping (String, String) -> Void,
         onLogout: @escaping () -> Void
+        , onDeleteAccount: @escaping () async -> String? = { nil },
+        onUpdateNickname: @escaping (String) async -> String? = { _ in nil },
+        onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
     ) {
         self.userMode = userMode
         self.familyName = familyName
         self.familyInviteCode = familyInviteCode
+        self.familyId = familyId
+        self.familyRole = familyRole
         self.nickname = nickname
+        self.tutorialIdentity = tutorialIdentity
+        self.familyState = familyState
+        self.onRetryFamilyState = onRetryFamilyState
         self.onFamilyCreated = onFamilyCreated
         self.onLogout = onLogout
+        self.onDeleteAccount = onDeleteAccount
+        self.onUpdateNickname = onUpdateNickname
+        self.onUpdateFamilyName = onUpdateFamilyName
         _homeTutorialStore = State(
             initialValue: HomeTutorialStore(
                 mode: {
@@ -42,7 +66,7 @@ struct MainTabView: View {
                     case .family:
                         return .family
                     }
-                }()
+            }(), familyId: familyId, identity: tutorialIdentity
             )
         )
     }
@@ -81,6 +105,11 @@ struct MainTabView: View {
                 userMode: userMode,
                 familyName: familyName,
                 familyInviteCode: familyInviteCode,
+                familyId: familyId,
+                nickname: nickname,
+                familyRole: familyRole,
+                familyState: familyState,
+                onRetryFamilyState: onRetryFamilyState,
                 tutorialStore: homeTutorialStore,
                 onFamilyCreated: onFamilyCreated,
                 onExploreMission: { selectedTab = .mission }
@@ -95,8 +124,13 @@ struct MainTabView: View {
         case .myPage:
             MyPageView(
                 onLogout: onLogout,
+                onDeleteAccount: onDeleteAccount,
                 nickname: nickname,
-                familyName: familyName
+                familyName: familyName,
+                familyId: familyId,
+                familyRole: familyRole,
+                onUpdateNickname: onUpdateNickname,
+                onUpdateFamilyName: onUpdateFamilyName
             )
         }
     }
