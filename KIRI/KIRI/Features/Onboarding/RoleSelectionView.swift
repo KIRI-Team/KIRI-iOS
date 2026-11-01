@@ -41,9 +41,19 @@ enum FamilyRole: String, CaseIterable, Hashable {
             return "Son"
         }
     }
+
+    var assetName: String {
+        switch self {
+        case .mom: return "role_mom"
+        case .dad: return "role_dad"
+        case .daughter: return "role_daughter"
+        case .son: return "role_son"
+        }
+    }
 }
 
 struct RoleSelectionView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let nickname: String
 
     @Binding var selectedRole: FamilyRole?
@@ -111,11 +121,13 @@ struct RoleSelectionView: View {
             selectedRole = role
         } label: {
             VStack(spacing: 14) {
+                Image(role.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
+
                 Text(role.koreanName)
                     .font(KIRITypography.roleKorean)
-
-                Text(role.englishName)
-                    .font(KIRITypography.roleEnglish)
             }
             .foregroundStyle(
                 isSelected
@@ -136,6 +148,10 @@ struct RoleSelectionView: View {
             )
         }
         .buttonStyle(.plain)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.2),
+            value: isSelected
+        )
     }
 }
 
