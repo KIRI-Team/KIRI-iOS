@@ -181,7 +181,7 @@ struct QuestionMissionFlipCard: View {
                 Button {
                     flip(suppressMissionBodyTap: true)
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    Image("figma_refresh")
                         .font(.system(size: 18, weight: .regular))
                         .foregroundStyle(KIRIColor.Text.secondary)
                         .frame(width: 33, height: 33)
