@@ -265,6 +265,10 @@ final class AuthService {
         category: String? = nil,
         regionCode: String? = nil,
         distance: Int? = nil,
+        date: String? = nil,
+        time: String? = nil,
+        isFree: Bool? = nil,
+        maxPrice: Int? = nil,
         cursor: Int? = nil,
         size: Int = 20
     ) async throws -> MissionFeedResult {
@@ -272,6 +276,10 @@ final class AuthService {
         if let category { queryItems.append(URLQueryItem(name: "category", value: category)) }
         if let regionCode { queryItems.append(URLQueryItem(name: "regionCode", value: regionCode)) }
         if let distance { queryItems.append(URLQueryItem(name: "distance", value: String(distance)) ) }
+        if let date { queryItems.append(URLQueryItem(name: "date", value: date)) }
+        if let time { queryItems.append(URLQueryItem(name: "time", value: time)) }
+        if let isFree { queryItems.append(URLQueryItem(name: "isFree", value: String(isFree))) }
+        if let maxPrice { queryItems.append(URLQueryItem(name: "maxPrice", value: String(maxPrice))) }
         if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor)) ) }
         let endpoint = APIEndpoint(
             path: "/api/v1/missions",
@@ -285,6 +293,9 @@ final class AuthService {
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
+#if DEBUG
+        print("[KIRI][Mission] response count=\(result.missions.count) hasNext=\(result.hasNext) nextCursorPresent=\(result.nextCursor != nil)")
+#endif
         return result
     }
 
