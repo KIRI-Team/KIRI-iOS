@@ -66,6 +66,9 @@ struct MissionView: View {
                             ZStack(alignment: .topTrailing) {
                                 Image("mission_filter")
                                     .resizable()
+                                    // Figma 원본 SVG의 회색을 유지합니다. 시스템 tint가 적용되면
+                                    // 아이콘이 배경과 섞여 보일 수 있으므로 원본 렌더링을 사용합니다.
+                                    .renderingMode(.original)
                                     .scaledToFit()
                                     .frame(width: 24, height: 24)
                                 if appliedFilter.count > 0 {
@@ -76,6 +79,8 @@ struct MissionView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .zIndex(1)
+                        .accessibilityIdentifier("mission.filter.button")
                         .accessibilityLabel("미션 필터")
                     }
                     .padding(.horizontal, 12)
