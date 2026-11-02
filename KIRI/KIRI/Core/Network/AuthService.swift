@@ -288,6 +288,29 @@ final class AuthService {
         return result
     }
 
+    func missionDetail(missionId: Int) async throws -> MissionDetailResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions/\(missionId)",
+            method: .GET,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<MissionDetailResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else {
+            throw APIError.decodingFailed
+        }
+        #if DEBUG
+        print(
+            "[KIRI][Mission] detail decoded: missionId=\(result.missionId), "
+                + "bucketState=\(result.bucketState), steps=\(result.steps.count)"
+        )
+        #endif
+        return result
+    }
+
     func saveMissionToBucket(missionId: Int) async throws -> BucketSaveResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/missions/\(missionId)/bucket",
