@@ -142,6 +142,58 @@ struct MissionFeedItem: Decodable, Identifiable, Sendable {
     var id: Int { missionId }
 }
 
+struct MissionDetailResult: Decodable, Sendable {
+    let missionId: Int
+    let title: String
+    let description: String?
+    let category: String
+    let missionType: String
+    let status: String
+    let indoorOutdoor: String?
+    let imageUrl: URL?
+    let imageSource: String?
+    let startDate: String?
+    let endDate: String?
+    let openingTime: String?
+    let closingTime: String?
+    let price: Int?
+    let durationMinMinutes: Int?
+    let durationMaxMinutes: Int?
+    let estimatedStepsMin: Int?
+    let estimatedStepsMax: Int?
+    let sourceUrl: URL?
+    let place: MissionDetailPlace
+    let prepareItems: [MissionDetailItem]
+    let steps: [MissionDetailItem]
+    let bucketSaved: Bool
+    let bucketState: String
+    let averageRating: Double?
+    let reviewCount: Int
+
+    var tags: [String] {
+        [category, missionType].filter { !$0.isEmpty }
+    }
+
+    var district: String {
+        place.address.split(separator: " ").first.map(String.init) ?? place.address
+    }
+}
+
+struct MissionDetailPlace: Decodable, Sendable {
+    let placeId: Int
+    let name: String
+    let address: String
+    let latitude: Double?
+    let longitude: Double?
+}
+
+struct MissionDetailItem: Decodable, Sendable, Identifiable {
+    let title: String
+    let description: String
+
+    var id: String { "\(title)-\(description)" }
+}
+
 struct WriteAnswerRequest: Encodable, Sendable {
     let answer: String
 }

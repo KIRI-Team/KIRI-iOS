@@ -78,6 +78,7 @@ struct FamilyHomeView: View {
             case .placeDetail:
                 if let selectedMission {
                     MissionActivityDetailView(
+                        missionId: selectedMission.missionId,
                         title: selectedMission.title,
                         placeName: selectedMission.placeName,
                         district: selectedMission.category,
