@@ -1,4 +1,11 @@
 
+//
+// MARK: - 파일 가이드
+// 담당 화면: 기록탭 월간 캘린더. 월 이동·날짜 그리드·일정/리뷰 상태를 렌더링합니다.
+// UI 수정 위치: columns, calendarCell(_:) frame, monthHeader padding, stateContent(_:) 색상.
+// API: GET /api/v1/schedules/calendar, GET /api/v1/schedules/upcoming.
+// Figma: 기록탭 9898:18872 주변 캘린더 프레임. 날짜 ID는 CalendarGridItem에서 관리합니다.
+//
 import SwiftUI
 import UIKit
 
