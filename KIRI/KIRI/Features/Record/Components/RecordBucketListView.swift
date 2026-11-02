@@ -75,7 +75,6 @@ struct RecordBucketListView: View {
 
 
 
-    @ObservedObject private var bucketStore = MissionBucketStore.shared
     @State private var selectedFilter: FamilyFilter = .all
     @State private var serverItems: [BucketItemResult] = []
     @State private var isLoading = false
@@ -99,85 +98,7 @@ struct RecordBucketListView: View {
 
 
 
-    private let items: [BucketItem] = [
-
-        BucketItem(
-
-            title: "광장시장에서 시장음식 먹어보기",
-
-            savedBy: "아빠가 저장했어요!",
-
-            owner: .dad,
-
-            isCompleted: true,
-
-            invitation: nil
-
-        ),
-
-        BucketItem(
-
-            title: "실리카겔 콘서트 관람하기",
-
-            savedBy: "아빠가 저장했어요!",
-
-            owner: .dad,
-
-            isCompleted: false,
-
-            invitation: InvitationData(
-
-                title: "한강 뚜벅뚜벅 축제",
-
-                dateTime: "26.10.07·16:30분",
-
-                participants: "엄마, 아빠, 나",
-
-                description: """
-
-                2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
-
-                """,
-
-                familyMessage: "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??"
-
-            )
-
-        ),
-
-        BucketItem(
-
-            title: "실리카겔 콘서트 관람하기",
-
-            savedBy: "아빠가 저장했어요!",
-
-            owner: .dad,
-
-            isCompleted: false,
-
-            invitation: InvitationData(
-
-                title: "한강 뚜벅뚜벅 축제",
-
-                dateTime: "26.10.07·16:30분",
-
-                participants: "엄마, 아빠, 나",
-
-                description: """
-
-                2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
-
-                """,
-
-                familyMessage: "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??"
-
-            )
-
-        )
-
-    ]
-
-
+    // 운영 화면에서는 GET /api/v1/bucket-items 응답만 사용합니다.
 
     private var filteredItems: [BucketItem] {
         let mapped = serverItems.map { item in

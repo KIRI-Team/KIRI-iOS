@@ -53,40 +53,6 @@ struct RecordView: View {
     @State private var selectedReviewSchedule: RecordCalendarView.ScheduleDetailData?
     @State private var reviewStore = ActivityReviewStore()
 
-    private var demoTodaySchedule: RecordCalendarView.ScheduleDetailData {
-
-        let now = Date()
-
-        let formatter = DateFormatter()
-
-        formatter.locale = Locale(identifier: "ko_KR")
-
-        formatter.dateFormat = "yyyy.MM.dd"
-
-        return .init(day: Calendar.current.component(.day, from: now),
-
-                     month: Calendar.current.component(.month, from: now),
-
-                     status: .confirmedSchedule,
-
-                     title: "한강 뚜벅뚜벅 축제 방문",
-
-                     date: formatter.string(from: now),
-
-                     startTime: "오후 2시 50분", location: "여의도 한강 공원",
-
-                     expectedSteps: "정보 없음", duration: "정보 없음")
-
-    }
-
-    private var mockTodayContent: TodayActivityView.Content {
-
-        .init(isCurrentUserConfirmed: true, participantNames: ["나"],
-
-              requiredActivities: [], requiredItems: [], nearbyRecommendations: [])
-
-    }
-
     private func reviewKey(_ schedule: RecordCalendarView.ScheduleDetailData) -> String {
 
         "\(schedule.date)|\(schedule.title)"
@@ -153,9 +119,8 @@ struct RecordView: View {
 
                     },
 
-                    todayContent: schedule.date == demoTodaySchedule.date &&
-
-                        schedule.title == demoTodaySchedule.title ? mockTodayContent : nil,
+                    // 서버 일정 상세가 제공하는 데이터만 표시합니다.
+                    todayContent: nil,
 
                     savedReview: reviewStore.reviews[reviewKey(schedule)],
 
@@ -251,12 +216,6 @@ struct RecordView: View {
                             selectedReview = review
 
                         },
-
-                        demoTodaySchedule: demoTodaySchedule,
-
-                        savedReviewSchedules: reviewStore.reviews.keys.contains(reviewKey(demoTodaySchedule))
-
-                            ? [demoTodaySchedule] : [],
 
                         savedReviewDrafts: reviewStore.reviews,
 
