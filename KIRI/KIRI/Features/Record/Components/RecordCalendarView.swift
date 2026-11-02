@@ -177,19 +177,24 @@ struct RecordCalendarView: View {
 
     private enum CalendarGridItem: Identifiable {
         case empty(index: Int)
-        case day(Int)
+        case day(year: Int, month: Int, day: Int)
 
         var id: String {
             switch self {
             case .empty(let index): return "empty-\(index)"
-            case .day(let day): return "day-\(day)"
+            case .day(let year, let month, let day):
+                // 월을 전환해도 이전 달의 day-1과 identity가 재사용되지 않도록
+                // 연·월·일을 모두 포함합니다. 빈 셀은 별도 prefix를 사용합니다.
+                return "day-\(year)-\(month)-\(day)"
             }
         }
     }
 
     private var calendarGridItems: [CalendarGridItem] {
         let empty = (0..<leadingEmptyDays).map { CalendarGridItem.empty(index: $0) }
-        let days = (1...numberOfDays).map { CalendarGridItem.day($0) }
+        let days = (1...numberOfDays).map {
+            CalendarGridItem.day(year: displayedYear, month: displayedMonth, day: $0)
+        }
         return empty + days
     }
 
@@ -407,7 +412,7 @@ struct RecordCalendarView: View {
                     switch item {
                     case .empty:
                         Color.clear.frame(height: 45)
-                    case .day(let day):
+                    case .day(_, _, let day):
                         calendarCell(day)
                     }
                 }
