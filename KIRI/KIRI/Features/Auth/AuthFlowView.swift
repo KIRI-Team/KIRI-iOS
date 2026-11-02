@@ -87,7 +87,7 @@ struct AuthFlowView: View {
         ) {
             Button("확인", role: .cancel) {}
         } message: {
-            Text(authErrorMessage ?? "알 수 없는 오류가 발생했습니다.")
+            Text(authErrorMessage ?? "알 수 없는 오류가 발생했습니다.(unknown error)")
         }
     }
 
