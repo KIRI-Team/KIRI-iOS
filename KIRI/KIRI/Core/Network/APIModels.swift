@@ -126,6 +126,29 @@ struct BucketSaveResult: Decodable, Sendable {
     let savedAt: String
 }
 
+struct PresignedURLRequest: Encodable, Sendable {
+    let contentType: String
+    let contentLength: Int64
+}
+
+struct PresignedURLResult: Decodable, Sendable {
+    let presignedUrl: URL
+    let imageKey: String
+    let expiresAt: String
+}
+
+struct ReviewCreateRequest: Encodable, Sendable {
+    let starRating: Int
+    let imageKeys: [String]
+    let content: String
+    let isRejoinIntended: Bool
+}
+
+struct ReviewCreateResult: Decodable, Sendable {
+    let reviewId: Int
+    let scheduleId: Int
+}
+
 struct MissionFeedItem: Decodable, Identifiable, Sendable {
     let missionId: Int
     let title: String
