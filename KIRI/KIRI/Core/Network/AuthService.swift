@@ -393,6 +393,37 @@ final class AuthService {
         }
     }
 
+    func issuePresignedURL(contentType: String, contentLength: Int64) async throws -> PresignedURLResult {
+        let endpoint = APIEndpoint(path: "/api/v1/images/presigned-url", method: .POST, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let body = PresignedURLRequest(contentType: contentType, contentLength: contentLength)
+        let envelope: APIEnvelope<PresignedURLResult> = try await client.requestEnvelope(endpoint: endpoint, body: body, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func uploadImage(data: Data, to presignedURL: URL, contentType: String) async throws {
+        var request = URLRequest(url: presignedURL)
+        request.httpMethod = "PUT"
+        request.httpBody = data
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        let response: URLResponse
+        do { response = try await URLSession.shared.data(for: request).1 }
+        catch { throw APIError.networkError(error) }
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIError.httpError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0)
+        }
+    }
+
+    func createReview(scheduleId: Int, request: ReviewCreateRequest) async throws -> ReviewCreateResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/reviews", method: .POST, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ReviewCreateResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+
     /// The current API exposes family membership through the question payload.
     /// No member/family profile lookup endpoint is present in the OpenAPI spec.
     func familyMembership() async throws -> Bool {
