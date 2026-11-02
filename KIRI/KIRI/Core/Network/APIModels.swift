@@ -128,48 +128,65 @@ struct BucketSaveResult: Decodable, Sendable {
     let savedAt: String
 }
 
-struct BucketListResult: Decodable, Sendable {
-    let savers: [BucketSaver]
-    let bucketItems: [BucketItemResult]
-    let nextCursor: Int?
-    let hasNext: Bool
+struct CreateScheduleRequest: Encodable, Sendable {
+    let scheduleDate: String
+    let scheduleTime: String
+    let participantMemberIds: [Int]
+    let requestMessage: String?
 }
 
-struct BucketSaver: Decodable, Sendable, Identifiable {
-    let memberId: Int
-    let nickname: String
-    let familyRole: String?
-    let bucketCount: Int
-    var id: Int { memberId }
-}
-
-struct BucketItemResult: Decodable, Sendable, Identifiable {
-    let bucketItemId: Int
+struct ScheduleResult: Decodable, Sendable {
+    let scheduleId: Int
+    let bucketItemId: Int?
+    let scheduleDate: String?
+    let scheduleTime: String?
     let status: String
-    let savedAt: String
-    let completedAt: String?
-    let mission: BucketMission
-    let saver: BucketSaverResult
-    let schedulable: Bool
-    let deletable: Bool
-    let scheduleId: Int?
-    let scheduledDate: String?
-    var id: Int { bucketItemId }
+    let responseDeadline: String?
+    let proposerId: Int?
+    let participantMemberIds: [Int]?
+    let myStatus: String?
 }
 
-struct BucketMission: Decodable, Sendable {
-    let missionId: Int
+struct CalendarScheduleResult: Decodable, Sendable, Identifiable {
+    let scheduleId: Int
+    let date: String
+    let time: String
+    let status: String
+    let myStatus: String
+    var id: Int { scheduleId }
+}
+
+struct CalendarResult: Decodable, Sendable {
+    let year: Int
+    let month: Int
+    let schedules: [CalendarScheduleResult]
+}
+
+struct UpcomingScheduleResult: Decodable, Sendable {
+    let responseRequired: UpcomingSchedule?
+    let upcoming: UpcomingSchedule?
+}
+
+struct UpcomingSchedule: Decodable, Sendable {
+    let scheduleId: Int
+    let date: String
+    let time: String
+    let status: String
+    let myStatus: String
+    let dDay: Int
+    let type: String
     let title: String
-    let imageUrl: URL?
-    let imageSource: String?
-    let status: String
 }
 
-struct BucketSaverResult: Decodable, Sendable {
-    let memberId: Int
-    let nickname: String
-    let familyRole: String?
-    let withdrawn: Bool
+struct UpdateScheduleRequest: Encodable, Sendable {
+    let scheduleDate: String
+    let scheduleTime: String
+    let participantMemberIds: [Int]
+    let requestMessage: String?
+}
+
+struct ScheduleResponseRequest: Encodable, Sendable {
+    let action: String
 }
 
 struct MissionFeedItem: Decodable, Identifiable, Sendable {

@@ -393,6 +393,57 @@ final class AuthService {
         }
     }
 
+    func createSchedule(bucketItemId: Int, request: CreateScheduleRequest) async throws -> ScheduleResult {
+        let endpoint = APIEndpoint(path: "/api/v1/bucket-items/\(bucketItemId)/schedules", method: .POST, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func calendar(year: Int, month: Int) async throws -> CalendarResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/calendar", queryItems: [
+            URLQueryItem(name: "year", value: String(year)), URLQueryItem(name: "month", value: String(month))
+        ], requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<CalendarResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func upcomingSchedules() async throws -> UpcomingScheduleResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/upcoming", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<UpcomingScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func updateSchedule(scheduleId: Int, request: UpdateScheduleRequest) async throws -> ScheduleResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)", method: .PATCH, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func respondToSchedule(scheduleId: Int, action: String) async throws -> ScheduleResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/response", method: .PATCH, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: ScheduleResponseRequest(action: action), accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func cancelSchedule(scheduleId: Int) async throws -> ScheduleResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/cancel", method: .PATCH, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+
     func issuePresignedURL(contentType: String, contentLength: Int64) async throws -> PresignedURLResult {
         let endpoint = APIEndpoint(path: "/api/v1/images/presigned-url", method: .POST, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
