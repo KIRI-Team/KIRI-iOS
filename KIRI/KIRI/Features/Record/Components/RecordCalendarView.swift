@@ -146,12 +146,10 @@ struct RecordCalendarView: View {
     }
 
     private var leadingEmptyDays: Int {
-        let weekday = calendar.component(
-            .weekday,
-            from: displayedMonthDate
-        )
-
-        return (weekday + 5) % 7
+        let weekday = calendar.component(.weekday, from: displayedMonthDate)
+        // Calendar.weekday is 1-based (Sunday = 1). Convert it to the
+        // configured firstWeekday instead of relying on a fixed Sunday offset.
+        return (weekday - calendar.firstWeekday + 7) % 7
     }
 
     private let weekDays = [
