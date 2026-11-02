@@ -43,7 +43,9 @@ final class APIClient {
             || endpoint.path == "/api/v1/members/nickname"
             || endpoint.path == "/api/v1/families"
             || endpoint.path.contains("/api/v1/questions")
-            || endpoint.path.contains("/api/v1/missions") {
+            || endpoint.path.contains("/api/v1/missions")
+            || endpoint.path.contains("/api/v1/bucket-items")
+            || endpoint.path.contains("/api/v1/schedules") {
             print(
                 "[KIRI][API] \(endpoint.method.rawValue) \(endpoint.path) "
                     + "status=\(httpResponse.statusCode)"
