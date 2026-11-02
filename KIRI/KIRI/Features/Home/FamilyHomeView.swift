@@ -590,11 +590,17 @@ struct FamilyHomeView: View {
                 recommendedMissions = result.missions
                 isLoadingRecommendations = false
             }
+            #if DEBUG
+            print("[KIRI][Recommendation] response count=\(result.missions.count) hasNext=\(result.hasNext)")
+            #endif
         } catch {
             await MainActor.run {
                 recommendationError = error.localizedDescription
                 isLoadingRecommendations = false
             }
+            #if DEBUG
+            print("[KIRI][Recommendation] load failed: \(error.localizedDescription)")
+            #endif
         }
     }
 }
