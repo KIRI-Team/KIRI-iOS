@@ -1,3 +1,10 @@
+//
+// MARK: - 파일 가이드
+// 담당 화면: 기록탭 버킷리스트. 가족 필터와 서버 목록의 로딩·빈 상태·오류를 관리합니다.
+// UI 수정 위치: filterSection spacing, bucketCard(_:) padding/반경, 빈 상태 문구.
+// API: GET /api/v1/bucket-items, DELETE /api/v1/bucket-items/{bucketItemId}.
+// Figma: 기록탭 9898:18872의 버킷리스트 화면.
+//
 import SwiftUI
 
 
@@ -36,6 +43,8 @@ struct RecordBucketListView: View {
 
         case daughter = "딸 1"
 
+        case son = "아들 1"
+
     }
 
 
@@ -68,6 +77,9 @@ struct RecordBucketListView: View {
 
     @ObservedObject private var bucketStore = MissionBucketStore.shared
     @State private var selectedFilter: FamilyFilter = .all
+    @State private var serverItems: [BucketItemResult] = []
+    @State private var isLoading = false
+    @State private var loadError: String?
 
 
 
@@ -168,18 +180,24 @@ struct RecordBucketListView: View {
 
 
     private var filteredItems: [BucketItem] {
-        let savedItems = bucketStore.activities.map { activity in
-            BucketItem(
-                title: activity.title,
-                savedBy: "내가 저장했어요!",
-                owner: .daughter,
-                isCompleted: false,
-                invitation: nil
-            )
+        let mapped = serverItems.map { item in
+            BucketItem(title: item.mission.title,
+                       savedBy: "\(item.saver.nickname)이 저장했어요!",
+                       owner: familyFilter(for: item.saver.familyRole),
+                       isCompleted: item.status == "COMPLETED",
+                       invitation: nil)
         }
-        let combined = savedItems + items
-        guard selectedFilter != .all else { return combined }
-        return combined.filter { $0.owner == selectedFilter }
+        guard selectedFilter != .all else { return mapped }
+        return mapped.filter { $0.owner == selectedFilter }
+    }
+
+    private func familyFilter(for role: String?) -> FamilyFilter {
+        switch role {
+        case "MOTHER": return .mom
+        case "FATHER": return .dad
+        case "SON": return .son
+        default: return .daughter
+        }
     }
 
     var body: some View {
@@ -202,9 +220,19 @@ struct RecordBucketListView: View {
 
 
 
-                    bucketList
-
-                        .padding(.top, 29)
+                    Group {
+                        if isLoading {
+                            ProgressView().frame(maxWidth: .infinity).padding(.top, 48)
+                        } else if let loadError {
+                            VStack(spacing: 12) {
+                                Text(loadError).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.secondary)
+                                Button("다시 시도") { Task { await loadBuckets() } }
+                            }.frame(maxWidth: .infinity).padding(.top, 48)
+                        } else if filteredItems.isEmpty {
+                            Text("저장한 버킷리스트가 없어요.").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.secondary).frame(maxWidth: .infinity).padding(.top, 48)
+                        } else { bucketList }
+                    }
+                    .padding(.top, 29)
 
 
 
@@ -239,10 +267,27 @@ struct RecordBucketListView: View {
             }
 
         }
+        .task { await loadBuckets() }
 
     }
 
 
+
+    private func loadBuckets() async {
+        guard !isLoading else { return }
+        isLoading = true
+        loadError = nil
+        do {
+            serverItems = try await AuthService.shared.bucketItems().bucketItems
+        } catch {
+            serverItems = []
+            loadError = "버킷리스트를 불러오지 못했어요."
+            #if DEBUG
+            print("[KIRI][Record] bucket load failed: \(error)")
+            #endif
+        }
+        isLoading = false
+    }
 
     // MARK: - Invitation Sent Banner
 

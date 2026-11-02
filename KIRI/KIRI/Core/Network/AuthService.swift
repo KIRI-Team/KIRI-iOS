@@ -355,54 +355,42 @@ final class AuthService {
         return result
     }
 
-    func createSchedule(bucketItemId: Int, request: CreateScheduleRequest) async throws -> ScheduleResult {
-        let endpoint = APIEndpoint(path: "/api/v1/bucket-items/\(bucketItemId)/schedules", method: .POST, requiresAuthentication: true)
+    func bucketItems(memberId: Int? = nil, cursor: Int? = nil, size: Int = 20) async throws -> BucketListResult {
+        var queryItems = [URLQueryItem(name: "size", value: String(size))]
+        if let memberId { queryItems.append(URLQueryItem(name: "memberId", value: String(memberId))) }
+        if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor))) }
+        let endpoint = APIEndpoint(
+            path: "/api/v1/bucket-items",
+            method: .GET,
+            queryItems: queryItems,
+            requiresAuthentication: true
+        )
         let tokens = try authenticatedTokens()
-        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
+        let envelope: APIEnvelope<BucketListResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
         guard let result = envelope.result else { throw APIError.decodingFailed }
+        #if DEBUG
+        print("[KIRI][Record] bucket response count=\(result.bucketItems.count) hasNext=\(result.hasNext)")
+        #endif
         return result
     }
 
-    func calendar(year: Int, month: Int) async throws -> CalendarResult {
-        let endpoint = APIEndpoint(path: "/api/v1/schedules/calendar", queryItems: [
-            URLQueryItem(name: "year", value: String(year)), URLQueryItem(name: "month", value: String(month))
-        ], requiresAuthentication: true)
+    func deleteBucketItem(bucketItemId: Int) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/bucket-items/\(bucketItemId)",
+            method: .DELETE,
+            requiresAuthentication: true
+        )
         let tokens = try authenticatedTokens()
-        let envelope: APIEnvelope<CalendarResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
-        guard let result = envelope.result else { throw APIError.decodingFailed }
-        return result
-    }
-
-    func upcomingSchedules() async throws -> UpcomingScheduleResult {
-        let endpoint = APIEndpoint(path: "/api/v1/schedules/upcoming", requiresAuthentication: true)
-        let tokens = try authenticatedTokens()
-        let envelope: APIEnvelope<UpcomingScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
-        guard let result = envelope.result else { throw APIError.decodingFailed }
-        return result
-    }
-
-    func updateSchedule(scheduleId: Int, request: UpdateScheduleRequest) async throws -> ScheduleResult {
-        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)", method: .PATCH, requiresAuthentication: true)
-        let tokens = try authenticatedTokens()
-        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
-        guard let result = envelope.result else { throw APIError.decodingFailed }
-        return result
-    }
-
-    func respondToSchedule(scheduleId: Int, action: String) async throws -> ScheduleResult {
-        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/response", method: .PATCH, requiresAuthentication: true)
-        let tokens = try authenticatedTokens()
-        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: ScheduleResponseRequest(action: action), accessToken: tokens.accessToken)
-        guard let result = envelope.result else { throw APIError.decodingFailed }
-        return result
-    }
-
-    func cancelSchedule(scheduleId: Int) async throws -> ScheduleResult {
-        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/cancel", method: .PATCH, requiresAuthentication: true)
-        let tokens = try authenticatedTokens()
-        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
-        guard let result = envelope.result else { throw APIError.decodingFailed }
-        return result
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
     }
 
     /// The current API exposes family membership through the question payload.
