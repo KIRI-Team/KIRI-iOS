@@ -161,6 +161,24 @@ struct RecordCalendarView: View {
         count: 7
     )
 
+    private enum CalendarGridItem: Identifiable {
+        case empty(index: Int)
+        case day(Int)
+
+        var id: String {
+            switch self {
+            case .empty(let index): return "empty-\(index)"
+            case .day(let day): return "day-\(day)"
+            }
+        }
+    }
+
+    private var calendarGridItems: [CalendarGridItem] {
+        let empty = (0..<leadingEmptyDays).map { CalendarGridItem.empty(index: $0) }
+        let days = (1...numberOfDays).map { CalendarGridItem.day($0) }
+        return empty + days
+    }
+
     // MARK: - Data
 
     private var visibleSchedules: [ScheduleDetailData] {
@@ -380,19 +398,13 @@ struct RecordCalendarView: View {
             weekHeader
 
             LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(
-                    0..<leadingEmptyDays,
-                    id: \.self
-                ) { _ in
-                    Color.clear
-                        .frame(height: 45)
-                }
-
-                ForEach(
-                    1...numberOfDays,
-                    id: \.self
-                ) { day in
-                    calendarCell(day)
+                ForEach(calendarGridItems) { item in
+                    switch item {
+                    case .empty:
+                        Color.clear.frame(height: 45)
+                    case .day(let day):
+                        calendarCell(day)
+                    }
                 }
             }
         }
