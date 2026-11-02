@@ -166,40 +166,37 @@ struct FamilySettingsView: View {
     }
 
     private func memberCard(role: String, nickname: String) -> some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 12) {
+            Image(roleAssetName(for: role))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 44)
+                .opacity(role.isEmpty ? 0.45 : 1)
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text("역할 | \(role)")
                 .font(.system(size: 15, weight: .regular))
                 .foregroundStyle(KIRIColor.textPrimary)
 
-            HStack(spacing: 5) {
-                Text(
-                    nickname
-                )
+                Text(nickname)
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(KIRIColor.textPrimary)
+            }
 
-                if !nickname.isEmpty {
-                    NavigationLink {
-                        NicknameEditView(
-                            nickname: $nickname
-                        )
-                    } label: {
-                        Image(systemName: "pencil")
-                            .font(
-                                .system(
-                                    size: 14,
-                                    weight: .semibold
-                                )
-                            )
-                            .foregroundStyle(
-                                Color.white.opacity(0.5)
-                            )
-                    }
-                    .buttonStyle(.plain)
+            Spacer()
+
+            if !nickname.isEmpty {
+                NavigationLink {
+                    NicknameEditView(nickname: $nickname)
+                } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.5))
                 }
+                .buttonStyle(.plain)
             }
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
         .frame(height: 74)
         .background(
             RoundedRectangle(
@@ -208,6 +205,16 @@ struct FamilySettingsView: View {
             )
             .fill(Color.white.opacity(0.07))
         )
+    }
+
+    private func roleAssetName(for role: String) -> String {
+        switch role.uppercased() {
+        case "MOTHER", "엄마": return "role_mom"
+        case "FATHER", "아빠": return "role_dad"
+        case "SON", "아들": return "role_son"
+        case "DAUGHTER", "딸": return "role_daughter"
+        default: return "family-me"
+        }
     }
 }
 
