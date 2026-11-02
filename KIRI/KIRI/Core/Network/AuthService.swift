@@ -355,6 +355,44 @@ final class AuthService {
         return result
     }
 
+    func bucketItems(memberId: Int? = nil, cursor: Int? = nil, size: Int = 20) async throws -> BucketListResult {
+        var queryItems = [URLQueryItem(name: "size", value: String(size))]
+        if let memberId { queryItems.append(URLQueryItem(name: "memberId", value: String(memberId))) }
+        if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor))) }
+        let endpoint = APIEndpoint(
+            path: "/api/v1/bucket-items",
+            method: .GET,
+            queryItems: queryItems,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<BucketListResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        #if DEBUG
+        print("[KIRI][Record] bucket response count=\(result.bucketItems.count) hasNext=\(result.hasNext)")
+        #endif
+        return result
+    }
+
+    func deleteBucketItem(bucketItemId: Int) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/bucket-items/\(bucketItemId)",
+            method: .DELETE,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+    }
+
     /// The current API exposes family membership through the question payload.
     /// No member/family profile lookup endpoint is present in the OpenAPI spec.
     func familyMembership() async throws -> Bool {
