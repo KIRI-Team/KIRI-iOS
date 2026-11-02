@@ -126,27 +126,48 @@ struct BucketSaveResult: Decodable, Sendable {
     let savedAt: String
 }
 
-struct PresignedURLRequest: Encodable, Sendable {
-    let contentType: String
-    let contentLength: Int64
+struct BucketListResult: Decodable, Sendable {
+    let savers: [BucketSaver]
+    let bucketItems: [BucketItemResult]
+    let nextCursor: Int?
+    let hasNext: Bool
 }
 
-struct PresignedURLResult: Decodable, Sendable {
-    let presignedUrl: URL
-    let imageKey: String
-    let expiresAt: String
+struct BucketSaver: Decodable, Sendable, Identifiable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let bucketCount: Int
+    var id: Int { memberId }
 }
 
-struct ReviewCreateRequest: Encodable, Sendable {
-    let starRating: Int
-    let imageKeys: [String]
-    let content: String
-    let isRejoinIntended: Bool
+struct BucketItemResult: Decodable, Sendable, Identifiable {
+    let bucketItemId: Int
+    let status: String
+    let savedAt: String
+    let completedAt: String?
+    let mission: BucketMission
+    let saver: BucketSaverResult
+    let schedulable: Bool
+    let deletable: Bool
+    let scheduleId: Int?
+    let scheduledDate: String?
+    var id: Int { bucketItemId }
 }
 
-struct ReviewCreateResult: Decodable, Sendable {
-    let reviewId: Int
-    let scheduleId: Int
+struct BucketMission: Decodable, Sendable {
+    let missionId: Int
+    let title: String
+    let imageUrl: URL?
+    let imageSource: String?
+    let status: String
+}
+
+struct BucketSaverResult: Decodable, Sendable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let withdrawn: Bool
 }
 
 struct MissionFeedItem: Decodable, Identifiable, Sendable {

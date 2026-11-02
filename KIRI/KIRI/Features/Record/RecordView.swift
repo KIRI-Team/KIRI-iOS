@@ -1,3 +1,9 @@
+//
+// MARK: - 파일 가이드
+// 담당 화면: 기록탭 컨테이너. 캘린더·버킷리스트와 선택된 일정/리뷰를 전환합니다.
+// UI 수정 위치: RecordTab, selectedTab, 하위 뷰의 padding/spacing.
+// Figma: 기록탭 9898:18872. 하위 API 상태는 각 컴포넌트에서 관리합니다.
+//
 import SwiftUI
 
 struct RecordView: View {
@@ -366,4 +372,3 @@ struct RecordView: View {
     RecordView()
 
 }
-
