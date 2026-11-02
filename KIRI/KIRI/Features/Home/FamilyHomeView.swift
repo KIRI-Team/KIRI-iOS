@@ -556,6 +556,18 @@ struct FamilyHomeView: View {
             #if DEBUG
             print("[KIRI][Question] response hasFamily=\(result.hasFamily) questionIdPresent=\(result.questionId != nil) questionPresent=\(result.question?.isEmpty == false) isAnswered=\(result.isAnswered)")
             #endif
+        } catch let APIError.serverError(code, _) where code == "QUESTION404_1" {
+            // A family can temporarily have no question assigned. Keep the
+            // family home visible and render its empty state instead of an
+            // API error or a fake question.
+            await MainActor.run {
+                serverQuestion = nil
+                todayQuestionError = nil
+                didLoadTodayQuestion = true
+            }
+            #if DEBUG
+            print("[KIRI][Question] no question assigned")
+            #endif
         } catch {
             await MainActor.run {
                 todayQuestionError = error.localizedDescription

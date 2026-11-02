@@ -306,7 +306,17 @@ final class AuthService {
     /// The current API exposes family membership through the question payload.
     /// No member/family profile lookup endpoint is present in the OpenAPI spec.
     func familyMembership() async throws -> Bool {
-        try await todayQuestion().hasFamily
+        do {
+            return try await todayQuestion().hasFamily
+        } catch let APIError.serverError(code, _) where code == "QUESTION404_1" {
+            // The API uses QUESTION404_1 when the authenticated family has no
+            // question assigned today. This is distinct from a successful
+            // hasFamily=false response and must not route the user to Browse.
+            #if DEBUG
+            print("[KIRI][Question] membership confirmed; no question assigned")
+            #endif
+            return true
+        }
     }
 
     func writeAnswer(questionId: Int, answer: String) async throws {
