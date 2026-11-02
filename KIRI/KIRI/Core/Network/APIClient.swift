@@ -84,7 +84,8 @@ final class APIClient {
                 if endpoint.path == "/api/v1/auth/login"
                     || endpoint.path == "/api/v1/families"
                     || endpoint.path.contains("/api/v1/questions")
-                    || endpoint.path.contains("/api/v1/missions") {
+                    || endpoint.path.contains("/api/v1/missions")
+            || endpoint.path.contains("/api/v1/schedules") {
                     print(
                         "[KIRI][API] auth failure: "
                             + "code=\(envelope.code), message=\(envelope.message)"
