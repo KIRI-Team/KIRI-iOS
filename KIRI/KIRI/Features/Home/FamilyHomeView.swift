@@ -341,7 +341,7 @@ struct FamilyHomeView: View {
                                 selectedMember = member
                                 route = member.isMe ? .questionAnswer : .memberDetail
                             } label: {
-                                FamilyMemberItem(name: member.name, isMe: member.isMe, hasAnswered: member.hasAnswered)
+                                FamilyMemberItem(name: member.name, role: member.role, isMe: member.isMe, hasAnswered: member.hasAnswered)
                             }
                             .buttonStyle(.plain)
                         }
