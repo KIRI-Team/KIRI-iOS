@@ -1,3 +1,10 @@
+//
+// MARK: - 파일 가이드
+// 담당 화면: 기록탭 버킷리스트. 가족 필터와 서버 목록의 로딩·빈 상태·오류를 관리합니다.
+// UI 수정 위치: filterSection spacing, bucketCard(_:) padding/반경, 빈 상태 문구.
+// API: GET /api/v1/bucket-items, DELETE /api/v1/bucket-items/{bucketItemId}.
+// Figma: 기록탭 9898:18872의 버킷리스트 화면.
+//
 import SwiftUI
 
 
