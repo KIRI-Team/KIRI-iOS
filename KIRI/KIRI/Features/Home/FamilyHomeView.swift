@@ -4,6 +4,7 @@ struct FamilyHomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
     var familyName: String?
+    var familyId: Int? = nil
     var familyInviteCode: String? = nil
     var nickname: String? = nil
     var familyRole: String? = nil
@@ -433,11 +434,11 @@ struct FamilyHomeView: View {
         // 현재 OpenAPI에는 가족 구성원 목록 조회 endpoint가 없습니다.
         // 따라서 서버에서 확보할 수 있는 로그인 사용자만 표시하고,
         // 확인되지 않은 가족을 Mock으로 추가하지 않습니다.
-        guard let nickname, !nickname.isEmpty else { return [] }
+        guard familyId != nil else { return [] }
         return [HomeMember(
             id: "me",
             memberId: nil,
-            name: nickname,
+            name: (nickname?.isEmpty == false ? nickname! : "나"),
             role: familyRole,
             hasAnswered: serverQuestion?.isAnswered ?? false,
             answer: serverQuestion?.answer,

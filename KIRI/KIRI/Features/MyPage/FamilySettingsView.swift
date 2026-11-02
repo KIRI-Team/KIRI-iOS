@@ -155,7 +155,7 @@ struct FamilySettingsView: View {
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(KIRIColor.textPrimary)
 
-            if familyId == nil || nickname.isEmpty {
+            if familyId == nil {
                 Text("가족 구성원 정보를 확인할 수 없습니다.")
                     .font(KIRITypography.bodyMedium)
                     .foregroundStyle(KIRIColor.Text.secondary)
@@ -189,7 +189,7 @@ struct FamilySettingsView: View {
                 }
             }
 
-            Text(memberNickname)
+            Text(memberNickname.isEmpty ? "닉네임 미설정" : memberNickname)
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(KIRIColor.Text.strong)
                 .lineLimit(1)
