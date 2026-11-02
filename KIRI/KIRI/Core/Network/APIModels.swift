@@ -126,6 +126,67 @@ struct BucketSaveResult: Decodable, Sendable {
     let savedAt: String
 }
 
+struct CreateScheduleRequest: Encodable, Sendable {
+    let scheduleDate: String
+    let scheduleTime: String
+    let participantMemberIds: [Int]
+    let requestMessage: String?
+}
+
+struct ScheduleResult: Decodable, Sendable {
+    let scheduleId: Int
+    let bucketItemId: Int?
+    let scheduleDate: String?
+    let scheduleTime: String?
+    let status: String
+    let responseDeadline: String?
+    let proposerId: Int?
+    let participantMemberIds: [Int]?
+    let myStatus: String?
+}
+
+struct CalendarScheduleResult: Decodable, Sendable, Identifiable {
+    let scheduleId: Int
+    let date: String
+    let time: String
+    let status: String
+    let myStatus: String
+    var id: Int { scheduleId }
+}
+
+struct CalendarResult: Decodable, Sendable {
+    let year: Int
+    let month: Int
+    let schedules: [CalendarScheduleResult]
+}
+
+struct UpcomingScheduleResult: Decodable, Sendable {
+    let responseRequired: UpcomingSchedule?
+    let upcoming: UpcomingSchedule?
+}
+
+struct UpcomingSchedule: Decodable, Sendable {
+    let scheduleId: Int
+    let date: String
+    let time: String
+    let status: String
+    let myStatus: String
+    let dDay: Int
+    let type: String
+    let title: String
+}
+
+struct UpdateScheduleRequest: Encodable, Sendable {
+    let scheduleDate: String
+    let scheduleTime: String
+    let participantMemberIds: [Int]
+    let requestMessage: String?
+}
+
+struct ScheduleResponseRequest: Encodable, Sendable {
+    let action: String
+}
+
 struct MissionFeedItem: Decodable, Identifiable, Sendable {
     let missionId: Int
     let title: String
