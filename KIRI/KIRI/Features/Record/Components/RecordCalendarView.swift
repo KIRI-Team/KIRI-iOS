@@ -94,8 +94,7 @@ struct RecordCalendarView: View {
     let onSelectSchedule: (ScheduleDetailData) -> Void
     let onSelectReview: (ReviewDetailData) -> Void
 
-    // API 연동 전 화면 연결을 위한 내부 데이터
-    var demoTodaySchedule: ScheduleDetailData? = nil
+    // 서버에서 조회한 일정만 표시합니다. Preview는 기본 init의 빈 상태를 사용합니다.
     var savedReviewSchedules: [ScheduleDetailData] = []
     var savedReviewDrafts: [String: ActivityReviewWriteView.Draft] = [:]
     var onSelectSavedReview: (ScheduleDetailData) -> Void = { _ in }
@@ -110,14 +109,12 @@ struct RecordCalendarView: View {
     init(
         onSelectSchedule: @escaping (ScheduleDetailData) -> Void = { _ in },
         onSelectReview: @escaping (ReviewDetailData) -> Void = { _ in },
-        demoTodaySchedule: ScheduleDetailData? = nil,
         savedReviewSchedules: [ScheduleDetailData] = [],
         savedReviewDrafts: [String: ActivityReviewWriteView.Draft] = [:],
         onSelectSavedReview: @escaping (ScheduleDetailData) -> Void = { _ in }
     ) {
         self.onSelectSchedule = onSelectSchedule
         self.onSelectReview = onSelectReview
-        self.demoTodaySchedule = demoTodaySchedule
         self.savedReviewSchedules = savedReviewSchedules
         self.savedReviewDrafts = savedReviewDrafts
         self.onSelectSavedReview = onSelectSavedReview
@@ -199,17 +196,8 @@ struct RecordCalendarView: View {
     // MARK: - Data
 
     private var visibleSchedules: [ScheduleDetailData] {
-        var schedules = savedReviewSchedules
-
-        if let demoTodaySchedule,
-           !schedules.contains(where: {
-               $0.date == demoTodaySchedule.date &&
-               $0.title == demoTodaySchedule.title
-           }) {
-            schedules.append(demoTodaySchedule)
-        }
-
-        return schedules
+        // API 응답이 없는 경우 빈 상태를 유지하고 데모 일정을 추가하지 않습니다.
+        savedReviewSchedules
     }
 
     private func reviewKey(_ schedule: ScheduleDetailData) -> String {
