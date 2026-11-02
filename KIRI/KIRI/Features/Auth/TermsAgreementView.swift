@@ -151,7 +151,7 @@ struct TermsAgreementView: View {
 
             for term in terms { agreementsByID[term.termId] = newValue }
         } label: {
-            HStack(spacing: 14) {
+            HStack(spacing: 8) {
                 AgreementCheckbox(
                     isChecked: allAgreed
                 )
@@ -163,6 +163,16 @@ struct TermsAgreementView: View {
                     )
 
                 Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(
+                        .system(
+                            size: 15,
+                            weight: .regular
+                        )
+                    )
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+                    .frame(width: 24, height: 44)
             }
             .padding(
                 .horizontal,
@@ -214,7 +224,7 @@ private struct TermAgreementRow: View {
     let onDetail: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 8) {
             Button(action: onCheck) {
                 AgreementCheckbox(
                     isChecked: isChecked
@@ -289,32 +299,22 @@ private struct AgreementCheckbox: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(
-                cornerRadius: 4
-            )
-            .fill(
-                isChecked
-                ? KIRIColor.Primary.default
-                : KIRIColor.Background.transparent
-            )
-            .frame(
-                width: 20,
-                height: 20
-            )
+            Circle()
+                .fill(
+                    isChecked
+                    ? KIRIColor.Icon.primary
+                    : KIRIColor.Background.transparent
+                )
+                .frame(width: 24, height: 24)
 
-            RoundedRectangle(
-                cornerRadius: 4
-            )
-            .stroke(
-                isChecked
-                ? KIRIColor.Primary.default
-                : KIRIColor.Border.default,
-                lineWidth: 1
-            )
-            .frame(
-                width: 20,
-                height: 20
-            )
+            Circle()
+                .stroke(
+                    isChecked
+                    ? KIRIColor.Icon.primary
+                    : KIRIColor.Border.default,
+                    lineWidth: 1
+                )
+                .frame(width: 24, height: 24)
 
             if isChecked {
                 Image(systemName: "checkmark")
@@ -324,9 +324,7 @@ private struct AgreementCheckbox: View {
                             weight: .bold
                         )
                     )
-                    .foregroundStyle(
-                        KIRIColor.Icon.onGreen
-                    )
+                    .foregroundStyle(KIRIColor.Icon.onGreen)
             }
         }
     }
