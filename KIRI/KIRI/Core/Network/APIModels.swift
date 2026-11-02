@@ -93,6 +93,36 @@ struct TodayQuestionResult: Decodable, Sendable {
     var answer: String?
 }
 
+struct FamilyAnswersResult: Decodable, Sendable {
+    let question: String
+    let answers: [FamilyAnswer]
+}
+
+struct FamilyAnswer: Decodable, Identifiable, Sendable {
+    let isMe: Bool
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let isAnswered: Bool
+    let answer: String?
+
+    var id: Int { memberId }
+
+    private enum CodingKeys: String, CodingKey {
+        case isMe, memberId, nickname, familyRole, isAnswered, answer
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isMe = try container.decode(Bool.self, forKey: .isMe)
+        memberId = try container.decode(Int.self, forKey: .memberId)
+        nickname = try container.decode(String.self, forKey: .nickname)
+        familyRole = try container.decodeIfPresent(String.self, forKey: .familyRole)
+        isAnswered = try container.decode(Bool.self, forKey: .isAnswered)
+        answer = try container.decodeIfPresent(String.self, forKey: .answer)
+    }
+}
+
 struct MissionFeedResult: Decodable, Sendable {
     let missions: [MissionFeedItem]
     let nextCursor: Int?
@@ -104,6 +134,50 @@ struct BucketSaveResult: Decodable, Sendable {
     let missionId: Int
     let status: String
     let savedAt: String
+}
+
+struct BucketListResult: Decodable, Sendable {
+    let savers: [BucketSaver]
+    let bucketItems: [BucketItemResult]
+    let nextCursor: Int?
+    let hasNext: Bool
+}
+
+struct BucketSaver: Decodable, Sendable, Identifiable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let bucketCount: Int
+    var id: Int { memberId }
+}
+
+struct BucketItemResult: Decodable, Sendable, Identifiable {
+    let bucketItemId: Int
+    let status: String
+    let savedAt: String
+    let completedAt: String?
+    let mission: BucketMission
+    let saver: BucketSaverResult
+    let schedulable: Bool
+    let deletable: Bool
+    let scheduleId: Int?
+    let scheduledDate: String?
+    var id: Int { bucketItemId }
+}
+
+struct BucketMission: Decodable, Sendable {
+    let missionId: Int
+    let title: String
+    let imageUrl: URL?
+    let imageSource: String?
+    let status: String
+}
+
+struct BucketSaverResult: Decodable, Sendable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let withdrawn: Bool
 }
 
 struct MissionFeedItem: Decodable, Identifiable, Sendable {

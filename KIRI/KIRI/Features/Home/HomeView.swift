@@ -144,6 +144,7 @@ struct HomeView: View {
         case .family:
                 FamilyHomeView(
                     familyName: familyName,
+                    familyId: familyId,
                     familyInviteCode: familyInviteCode,
                     nickname: nickname,
                     familyRole: familyRole,
@@ -156,6 +157,7 @@ struct HomeView: View {
             if tutorialStore.isActive {
                 FamilyHomeView(
                     familyName: familyName,
+                    familyId: nil,
                     familyInviteCode: nil,
                     nickname: nickname,
                     familyRole: familyRole,

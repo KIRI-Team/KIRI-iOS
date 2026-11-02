@@ -271,10 +271,32 @@ final class AuthService {
         return result
     }
 
+    func familyAnswers(questionId: Int) async throws -> FamilyAnswersResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/questions/\(questionId)/answers",
+            method: .GET,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyAnswersResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        #if DEBUG
+        print("[KIRI][Question] family answers response count=\(result.answers.count)")
+        #endif
+        return result
+    }
+
     func missionFeed(
         category: String? = nil,
         regionCode: String? = nil,
         distance: Int? = nil,
+        date: String? = nil,
+        time: String? = nil,
+        isFree: Bool? = nil,
+        maxPrice: Int? = nil,
         cursor: Int? = nil,
         size: Int = 20
     ) async throws -> MissionFeedResult {
@@ -282,6 +304,10 @@ final class AuthService {
         if let category { queryItems.append(URLQueryItem(name: "category", value: category)) }
         if let regionCode { queryItems.append(URLQueryItem(name: "regionCode", value: regionCode)) }
         if let distance { queryItems.append(URLQueryItem(name: "distance", value: String(distance)) ) }
+        if let date { queryItems.append(URLQueryItem(name: "date", value: date)) }
+        if let time { queryItems.append(URLQueryItem(name: "time", value: time)) }
+        if let isFree { queryItems.append(URLQueryItem(name: "isFree", value: String(isFree))) }
+        if let maxPrice { queryItems.append(URLQueryItem(name: "maxPrice", value: String(maxPrice))) }
         if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor)) ) }
         let endpoint = APIEndpoint(
             path: "/api/v1/missions",
@@ -295,6 +321,32 @@ final class AuthService {
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
+#if DEBUG
+        print("[KIRI][Mission] response count=\(result.missions.count) hasNext=\(result.hasNext) nextCursorPresent=\(result.nextCursor != nil)")
+#endif
+        return result
+    }
+
+    func missionDetail(missionId: Int) async throws -> MissionDetailResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions/\(missionId)",
+            method: .GET,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<MissionDetailResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else {
+            throw APIError.decodingFailed
+        }
+        #if DEBUG
+        print(
+            "[KIRI][Mission] detail decoded: missionId=\(result.missionId), "
+                + "bucketState=\(result.bucketState), steps=\(result.steps.count)"
+        )
+        #endif
         return result
     }
 
@@ -334,6 +386,44 @@ final class AuthService {
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
         return result
+    }
+
+    func bucketItems(memberId: Int? = nil, cursor: Int? = nil, size: Int = 20) async throws -> BucketListResult {
+        var queryItems = [URLQueryItem(name: "size", value: String(size))]
+        if let memberId { queryItems.append(URLQueryItem(name: "memberId", value: String(memberId))) }
+        if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor))) }
+        let endpoint = APIEndpoint(
+            path: "/api/v1/bucket-items",
+            method: .GET,
+            queryItems: queryItems,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<BucketListResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        #if DEBUG
+        print("[KIRI][Record] bucket response count=\(result.bucketItems.count) hasNext=\(result.hasNext)")
+        #endif
+        return result
+    }
+
+    func deleteBucketItem(bucketItemId: Int) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/bucket-items/\(bucketItemId)",
+            method: .DELETE,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
     }
 
     /// The current API exposes family membership through the question payload.
