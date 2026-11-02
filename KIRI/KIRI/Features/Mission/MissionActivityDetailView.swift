@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// 미션 목록에서 선택한 활동의 상세 화면.
-/// 현재 데이터는 MissionView의 로컬 예시 데이터이며 서버 연동 전 단계입니다.
 struct MissionActivityDetailView: View {
+    let missionId: Int?
     let title: String
     let placeName: String
     let district: String
@@ -13,8 +12,12 @@ struct MissionActivityDetailView: View {
     let imageURL: URL?
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
+    @State private var detail: MissionDetailResult?
+    @State private var isLoadingDetail = false
+    @State private var detailError: String?
 
     init(
+        missionId: Int? = nil,
         title: String,
         placeName: String,
         district: String,
@@ -26,6 +29,7 @@ struct MissionActivityDetailView: View {
         isBookmarked: Binding<Bool>,
         onBack: @escaping () -> Void
     ) {
+        self.missionId = missionId
         self.title = title
         self.placeName = placeName
         self.district = district
@@ -47,9 +51,12 @@ struct MissionActivityDetailView: View {
 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 24) {
+                        detailStatus
                         cover
                         titleSection
+                        descriptionSection
                         placeSection
+                        scheduleSection
                         tagsSection
                         Color.clear.frame(height: 24)
                     }
@@ -59,6 +66,34 @@ struct MissionActivityDetailView: View {
 
                 bottomBar
             }
+        }
+        .task { await loadDetail() }
+    }
+
+    @ViewBuilder
+    private var detailStatus: some View {
+        if isLoadingDetail && detail == nil {
+            HStack(spacing: 8) {
+                ProgressView()
+                Text("미션 상세 정보를 불러오는 중이에요")
+                    .font(KIRITypography.captionMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+        } else if let detailError {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(detailError)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                Button("다시 시도") {
+                    Task { await loadDetail() }
+                }
+                .font(KIRITypography.captionMedium)
+                .foregroundStyle(KIRIColor.Text.accent)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -86,7 +121,7 @@ struct MissionActivityDetailView: View {
 
     private var cover: some View {
         ZStack {
-            KIRIContentImage(imageURL: imageURL, mockAssetName: mockAssetName) {
+            KIRIContentImage(imageURL: detail?.imageUrl ?? imageURL, mockAssetName: mockAssetName) {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(KIRIColor.Background.elevated)
             }
@@ -108,7 +143,7 @@ struct MissionActivityDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
-            Text(title)
+            Text(detail?.title ?? title)
                 .font(KIRITypography.headingSmall)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .fixedSize(horizontal: false, vertical: true)
@@ -116,17 +151,32 @@ struct MissionActivityDetailView: View {
             HStack(spacing: 8) {
                 Image(systemName: "mappin.and.ellipse")
                     .foregroundStyle(KIRIColor.Icon.secondary)
-                Text("\(placeName) · \(district)")
+                Text("\(detail?.place.name ?? placeName) · \(detail?.district ?? district)")
                     .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.secondary)
                 Spacer(minLength: 0)
-                if let rating {
+                if let rating = detail?.averageRating ?? rating {
                     Image(systemName: "star.fill")
                         .foregroundStyle(KIRIColor.Text.accent)
                     Text(rating.formatted(.number.precision(.fractionLength(1))))
                         .font(KIRITypography.bodySmall)
                         .foregroundStyle(KIRIColor.Text.secondary)
                 }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var descriptionSection: some View {
+        if let description = detail?.description, !description.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("미션 소개")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Text(description)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -138,13 +188,38 @@ struct MissionActivityDetailView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
 
             VStack(alignment: .leading, spacing: 12) {
-                informationRow("장소", value: placeName)
-                informationRow("지역", value: district)
+                informationRow("장소", value: detail?.place.name ?? placeName)
+                informationRow("주소", value: detail?.place.address ?? district)
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(KIRIColor.Background.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    @ViewBuilder
+    private var scheduleSection: some View {
+        if let detail {
+            let time = [detail.openingTime, detail.closingTime]
+                .compactMap { $0 }
+                .joined(separator: " - ")
+            let price = detail.price.map { $0 == 0 ? "무료" : "\($0)원" }
+            if !time.isEmpty || price != nil {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("이용 정보")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                    VStack(alignment: .leading, spacing: 12) {
+                        if !time.isEmpty { informationRow("운영시간", value: time) }
+                        if let price { informationRow("이용요금", value: price) }
+                    }
+                    .padding(18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
         }
     }
 
@@ -170,7 +245,7 @@ struct MissionActivityDetailView: View {
                     .foregroundStyle(KIRIColor.Text.strong)
 
                 HStack(spacing: 8) {
-                    ForEach(tags, id: \.self) { tag in
+                    ForEach(detail?.tags ?? tags, id: \.self) { tag in
                         Text(tag)
                             .font(KIRITypography.captionMedium)
                             .foregroundStyle(KIRIColor.Text.tertiary)
@@ -186,11 +261,13 @@ struct MissionActivityDetailView: View {
 
     private var bottomBar: some View {
         Button {
-            isBookmarked.toggle()
+            guard !isBookmarked, detail?.bucketSaved != true else { return }
+            isBookmarked = true
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
-                Text(isBookmarked ? "버킷에서 제거" : "버킷에 저장")
+                let saved = isBookmarked || detail?.bucketSaved == true
+                Image(systemName: saved ? "bookmark.fill" : "bookmark")
+                Text(saved ? "저장됨" : "버킷에 저장")
             }
             .font(KIRITypography.headingSmall)
             .foregroundStyle(KIRIColor.Text.strong)
@@ -204,5 +281,28 @@ struct MissionActivityDetailView: View {
         .padding(.top, 12)
         .padding(.bottom, 10)
         .background(KIRIColor.Background.base)
+    }
+
+    private func loadDetail() async {
+        guard let missionId else { return }
+        await MainActor.run {
+            isLoadingDetail = true
+            detailError = nil
+        }
+        do {
+            let result = try await AuthService.shared.missionDetail(missionId: missionId)
+            await MainActor.run {
+                detail = result
+                isLoadingDetail = false
+            }
+        } catch {
+            await MainActor.run {
+                detailError = error.localizedDescription
+                isLoadingDetail = false
+            }
+            #if DEBUG
+            print("[KIRI][Mission] detail load failed: missionId=\(missionId), error=\(error.localizedDescription)")
+            #endif
+        }
     }
 }

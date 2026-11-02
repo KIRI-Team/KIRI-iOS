@@ -53,7 +53,7 @@ struct MissionView: View {
         }
         .task { await load(reset: true) }
         .fullScreenCover(item: $selectedMission) { row in
-            MissionActivityDetailView(title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
+            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
         }
     }
 
