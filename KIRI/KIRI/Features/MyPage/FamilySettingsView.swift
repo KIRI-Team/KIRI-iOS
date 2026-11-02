@@ -46,10 +46,10 @@ struct FamilySettingsView: View {
                     header
 
                     familyNameSection
-                        .padding(.top, 38)
+                        .padding(.top, 36)
 
                     familyMemberSection
-                        .padding(.top, 54)
+                        .padding(.top, 52)
 
                     Button {
                         isLeaveAlertPresented = true
@@ -107,14 +107,14 @@ struct FamilySettingsView: View {
 
             HStack {
                 Text("현재 가족 이름")
-                    .font(.system(size: 15, weight: .regular))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(KIRIColor.Text.primary)
 
                 Spacer()
 
                 Text(familyName)
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(KIRIColor.textPrimary)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(KIRIColor.Text.strong)
 
                 Group {
                     if familyId != nil {
@@ -129,13 +129,13 @@ struct FamilySettingsView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .frame(height: 58)
+            .frame(height: 60)
             .background(
                 RoundedRectangle(
                     cornerRadius: 8,
                     style: .continuous
                 )
-                .fill(Color.white.opacity(0.07))
+                .fill(KIRIColor.Background.primary)
             )
         }
     }
@@ -150,7 +150,7 @@ struct FamilySettingsView: View {
     // MARK: - Family Members
 
     private var familyMemberSection: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("가족 구성원 관리")
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(KIRIColor.textPrimary)
@@ -158,57 +158,62 @@ struct FamilySettingsView: View {
             if familyId == nil {
                 Text("가족 구성원 정보를 확인할 수 없습니다.")
                     .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.textSecondary)
+                    .foregroundStyle(KIRIColor.Text.secondary)
             } else {
-                memberCard(role: familyRole ?? "", nickname: nickname)
+                LazyVGrid(columns: columns, spacing: 12) {
+                    memberCard(role: familyRole ?? "", nickname: nickname, isCurrentUser: true)
+                }
             }
         }
     }
 
-    private func memberCard(role: String, nickname: String) -> some View {
+    private func memberCard(role: String, nickname memberNickname: String, isCurrentUser: Bool) -> some View {
         VStack(spacing: 8) {
-                Text("역할 | \(role)")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(KIRIColor.textPrimary)
-
-            HStack(spacing: 5) {
-                Text(
-                    nickname
-                )
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(KIRIColor.textPrimary)
-
-                if !nickname.isEmpty {
+            HStack(spacing: 4) {
+                Text("역할 I \(localizedRole(role))")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(KIRIColor.Text.primary)
+                    .lineLimit(1)
+                if isCurrentUser {
                     NavigationLink {
-                        NicknameEditView(
-                            nickname: $nickname
-                        )
+                        NicknameEditView(nickname: Binding(
+                            get: { self.nickname },
+                            set: { self.nickname = $0 }
+                        ))
                     } label: {
                         Image(systemName: "pencil")
-                            .font(
-                                .system(
-                                    size: 14,
-                                    weight: .semibold
-                                )
-                            )
-                            .foregroundStyle(
-                                Color.white.opacity(0.5)
-                            )
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(KIRIColor.Icon.secondary)
                     }
                     .buttonStyle(.plain)
                 }
             }
+
+            Text(memberNickname.isEmpty ? "닉네임 미설정" : memberNickname)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(KIRIColor.Text.strong)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 74)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .frame(minHeight: 73)
         .background(
-            RoundedRectangle(
-                cornerRadius: 8,
-                style: .continuous
-            )
-            .fill(Color.white.opacity(0.07))
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(KIRIColor.Background.primary)
         )
     }
+
+    private func localizedRole(_ role: String) -> String {
+        switch role.uppercased() {
+        case "MOTHER": return "엄마"
+        case "FATHER": return "아빠"
+        case "SON": return "아들"
+        case "DAUGHTER": return "딸"
+        default: return role.isEmpty ? "미설정" : role
+        }
+    }
+
 }
 
 #Preview {

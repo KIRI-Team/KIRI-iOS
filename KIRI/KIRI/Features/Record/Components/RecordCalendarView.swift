@@ -146,12 +146,10 @@ struct RecordCalendarView: View {
     }
 
     private var leadingEmptyDays: Int {
-        let weekday = calendar.component(
-            .weekday,
-            from: displayedMonthDate
-        )
-
-        return (weekday + 5) % 7
+        let weekday = calendar.component(.weekday, from: displayedMonthDate)
+        // Calendar.weekday is 1-based (Sunday = 1). Convert it to the
+        // configured firstWeekday instead of relying on a fixed Sunday offset.
+        return (weekday - calendar.firstWeekday + 7) % 7
     }
 
     private let weekDays = [
@@ -162,6 +160,24 @@ struct RecordCalendarView: View {
         repeating: GridItem(.flexible(), spacing: 6),
         count: 7
     )
+
+    private enum CalendarGridItem: Identifiable {
+        case empty(index: Int)
+        case day(Int)
+
+        var id: String {
+            switch self {
+            case .empty(let index): return "empty-\(index)"
+            case .day(let day): return "day-\(day)"
+            }
+        }
+    }
+
+    private var calendarGridItems: [CalendarGridItem] {
+        let empty = (0..<leadingEmptyDays).map { CalendarGridItem.empty(index: $0) }
+        let days = (1...numberOfDays).map { CalendarGridItem.day($0) }
+        return empty + days
+    }
 
     // MARK: - Data
 
@@ -382,19 +398,13 @@ struct RecordCalendarView: View {
             weekHeader
 
             LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(
-                    0..<leadingEmptyDays,
-                    id: \.self
-                ) { _ in
-                    Color.clear
-                        .frame(height: 45)
-                }
-
-                ForEach(
-                    1...numberOfDays,
-                    id: \.self
-                ) { day in
-                    calendarCell(day)
+                ForEach(calendarGridItems) { item in
+                    switch item {
+                    case .empty:
+                        Color.clear.frame(height: 45)
+                    case .day(let day):
+                        calendarCell(day)
+                    }
                 }
             }
         }
