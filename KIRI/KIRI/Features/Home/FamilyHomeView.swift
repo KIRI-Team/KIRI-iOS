@@ -21,6 +21,9 @@ struct FamilyHomeView: View {
     @State private var didLoadTodayQuestion = false
     @State private var todayQuestionError: String?
     @State private var serverQuestion: TodayQuestionResult?
+    @State private var familyAnswers: [FamilyAnswer] = []
+    @State private var isLoadingFamilyAnswers = false
+    @State private var familyAnswersError: String?
     @State private var recommendedMissions: [MissionFeedItem] = []
     @State private var isLoadingRecommendations = false
     @State private var recommendationError: String?
@@ -101,7 +104,7 @@ struct FamilyHomeView: View {
                     Task { @MainActor in
                         do {
                             try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
-                            serverQuestion?.answer = savedAnswer
+                            await loadTodayQuestion()
                             route = .home
                         } catch {
                             todayQuestionError = error.localizedDescription
@@ -329,7 +332,23 @@ struct FamilyHomeView: View {
                 .homeTutorialMeasured(.invite)
             }
 
-            if displayedMembers.isEmpty {
+            if isLoadingFamilyAnswers && displayedMembers.isEmpty {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let familyAnswersError, displayedMembers.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("가족 답변을 불러오지 못했어요")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                    Button("다시 시도") {
+                        guard let questionId = serverQuestion?.questionId else { return }
+                        Task { await loadFamilyAnswers(questionId: questionId) }
+                    }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+                    .accessibilityHint(familyAnswersError)
+                }
+            } else if displayedMembers.isEmpty {
                 Text("가족을 초대하면 답변을 함께 볼 수 있어요")
                     .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.tertiary)
@@ -431,9 +450,24 @@ struct FamilyHomeView: View {
     }
 
     private var displayedMembers: [HomeMember] {
-        // 현재 OpenAPI에는 가족 구성원 목록 조회 endpoint가 없습니다.
-        // 따라서 서버에서 확보할 수 있는 로그인 사용자만 표시하고,
-        // 확인되지 않은 가족을 Mock으로 추가하지 않습니다.
+        if !familyAnswers.isEmpty {
+            return familyAnswers.map { member in
+                HomeMember(
+                    id: String(member.memberId),
+                    memberId: member.memberId,
+                    name: member.nickname,
+                    role: member.isMe ? (member.familyRole ?? familyRole) : member.familyRole,
+                    hasAnswered: member.isAnswered,
+                    answer: member.answer,
+                    isMe: member.isMe
+                )
+            }
+        }
+
+        // The server response identifies the authenticated user through the
+        // question payload even when the family answer list is empty. Do not
+        // invent other family members, but keep the authenticated member
+        // visible when the family itself is known.
         guard familyId != nil else { return [] }
         return [HomeMember(
             id: "me",
@@ -551,18 +585,24 @@ struct FamilyHomeView: View {
             let result = try await AuthService.shared.todayQuestion()
             await MainActor.run {
                 serverQuestion = result
+                familyAnswers = []
                 didLoadTodayQuestion = true
                 todayQuestionError = nil
             }
             #if DEBUG
             print("[KIRI][Question] response hasFamily=\(result.hasFamily) questionIdPresent=\(result.questionId != nil) questionPresent=\(result.question?.isEmpty == false) isAnswered=\(result.isAnswered)")
             #endif
+            if let questionId = result.questionId {
+                await loadFamilyAnswers(questionId: questionId)
+            }
         } catch let APIError.serverError(code, _) where code == "QUESTION404_1" {
             // A family can temporarily have no question assigned. Keep the
             // family home visible and render its empty state instead of an
             // API error or a fake question.
             await MainActor.run {
                 serverQuestion = nil
+                familyAnswers = []
+                familyAnswersError = nil
                 todayQuestionError = nil
                 didLoadTodayQuestion = true
             }
@@ -571,11 +611,35 @@ struct FamilyHomeView: View {
             #endif
         } catch {
             await MainActor.run {
+                familyAnswers = []
                 todayQuestionError = error.localizedDescription
                 didLoadTodayQuestion = true
             }
             #if DEBUG
             print("[KIRI][Question] load failed: \(error.localizedDescription)")
+            #endif
+        }
+    }
+
+    private func loadFamilyAnswers(questionId: Int) async {
+        await MainActor.run {
+            isLoadingFamilyAnswers = true
+            familyAnswersError = nil
+        }
+        do {
+            let result = try await AuthService.shared.familyAnswers(questionId: questionId)
+            await MainActor.run {
+                familyAnswers = result.answers
+                isLoadingFamilyAnswers = false
+            }
+        } catch {
+            await MainActor.run {
+                familyAnswers = []
+                familyAnswersError = error.localizedDescription
+                isLoadingFamilyAnswers = false
+            }
+            #if DEBUG
+            print("[KIRI][Question] family answers load failed: \(error.localizedDescription)")
             #endif
         }
     }

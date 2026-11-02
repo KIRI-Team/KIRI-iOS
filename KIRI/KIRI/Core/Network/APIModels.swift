@@ -83,6 +83,36 @@ struct TodayQuestionResult: Decodable, Sendable {
     var answer: String?
 }
 
+struct FamilyAnswersResult: Decodable, Sendable {
+    let question: String
+    let answers: [FamilyAnswer]
+}
+
+struct FamilyAnswer: Decodable, Identifiable, Sendable {
+    let isMe: Bool
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let isAnswered: Bool
+    let answer: String?
+
+    var id: Int { memberId }
+
+    private enum CodingKeys: String, CodingKey {
+        case isMe, memberId, nickname, familyRole, isAnswered, answer
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isMe = try container.decode(Bool.self, forKey: .isMe)
+        memberId = try container.decode(Int.self, forKey: .memberId)
+        nickname = try container.decode(String.self, forKey: .nickname)
+        familyRole = try container.decodeIfPresent(String.self, forKey: .familyRole)
+        isAnswered = try container.decode(Bool.self, forKey: .isAnswered)
+        answer = try container.decodeIfPresent(String.self, forKey: .answer)
+    }
+}
+
 struct MissionFeedResult: Decodable, Sendable {
     let missions: [MissionFeedItem]
     let nextCursor: Int?

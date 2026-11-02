@@ -261,6 +261,24 @@ final class AuthService {
         return result
     }
 
+    func familyAnswers(questionId: Int) async throws -> FamilyAnswersResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/questions/\(questionId)/answers",
+            method: .GET,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyAnswersResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        #if DEBUG
+        print("[KIRI][Question] family answers response count=\(result.answers.count)")
+        #endif
+        return result
+    }
+
     func missionFeed(
         category: String? = nil,
         regionCode: String? = nil,
