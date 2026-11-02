@@ -57,6 +57,7 @@ struct MissionActivityDetailView: View {
                         descriptionSection
                         placeSection
                         scheduleSection
+                        activityStepsSection
                         tagsSection
                         Color.clear.frame(height: 24)
                     }
@@ -220,6 +221,45 @@ struct MissionActivityDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var activityStepsSection: some View {
+        if let detail, !detail.prepareItems.isEmpty || !detail.steps.isEmpty {
+            VStack(alignment: .leading, spacing: 18) {
+                if !detail.prepareItems.isEmpty {
+                    detailList(title: "준비물", items: detail.prepareItems)
+                }
+                if !detail.steps.isEmpty {
+                    detailList(title: "활동 단계", items: detail.steps)
+                }
+            }
+        }
+    }
+
+    private func detailList(title: String, items: [MissionDetailItem]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(KIRITypography.headingSmall)
+                .foregroundStyle(KIRIColor.Text.strong)
+
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(items) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.title)
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                        Text(item.description)
+                            .font(KIRITypography.captionMedium)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                    }
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
