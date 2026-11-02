@@ -85,14 +85,12 @@ struct MissionView: View {
             }
         }
         .task { await load(reset: true) }
-        .sheet(isPresented: $isFilterPresented) {
+        .fullScreenCover(isPresented: $isFilterPresented) {
             MissionFilterView(initial: appliedFilter) { newFilter in
                 appliedFilter = newFilter
                 isFilterPresented = false
                 Task { await load(reset: true) }
             }
-            .presentationDetents([.height(620)])
-            .presentationDragIndicator(.hidden)
         }
         .fullScreenCover(item: $selectedMission) { row in
             MissionActivityDetailView(title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
