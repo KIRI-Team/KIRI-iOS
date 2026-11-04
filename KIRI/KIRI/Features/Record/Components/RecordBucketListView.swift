@@ -15,7 +15,7 @@ struct RecordBucketListView: View {
 
     struct InvitationData: Identifiable, Equatable {
 
-        let id: Int
+        let id = UUID()
 
 
 
@@ -51,7 +51,7 @@ struct RecordBucketListView: View {
 
     private struct BucketItem: Identifiable {
 
-        let id = UUID()
+        let id: Int
 
 
 
