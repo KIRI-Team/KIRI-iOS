@@ -15,7 +15,7 @@ struct RecordBucketListView: View {
 
     struct InvitationData: Identifiable, Equatable {
 
-        let id = UUID()
+        let id: Int
 
 
 
@@ -79,6 +79,8 @@ struct RecordBucketListView: View {
     @State private var serverItems: [BucketItemResult] = []
     @State private var isLoading = false
     @State private var loadError: String?
+    @State private var pendingDelete: BucketItemResult?
+    @State private var isDeleting = false
 
 
 
@@ -189,6 +191,14 @@ struct RecordBucketListView: View {
 
         }
         .task { await loadBuckets() }
+        .confirmationDialog("버킷리스트를 삭제할까요?", item: $pendingDelete) { item in
+            Button("삭제하기", role: .destructive) {
+                Task { await delete(item) }
+            }
+            Button("취소", role: .cancel) {}
+        } message: { _ in
+            Text("삭제한 버킷리스트는 다시 표시되지 않습니다.")
+        }
 
     }
 
@@ -208,6 +218,18 @@ struct RecordBucketListView: View {
             #endif
         }
         isLoading = false
+    }
+
+    private func delete(_ item: BucketItemResult) async {
+        guard !isDeleting, item.deletable else { return }
+        isDeleting = true
+        defer { isDeleting = false }
+        do {
+            try await AuthService.shared.deleteBucketItem(bucketItemId: item.bucketItemId)
+            await loadBuckets()
+        } catch {
+            loadError = "버킷리스트를 삭제하지 못했어요."
+        }
     }
 
     // MARK: - Invitation Sent Banner
@@ -459,6 +481,13 @@ struct RecordBucketListView: View {
         }
 
         .buttonStyle(.plain)
+        .contextMenu {
+            if let serverItem = serverItems.first(where: { $0.bucketItemId == item.id }), serverItem.deletable {
+                Button("버킷에서 삭제", role: .destructive) {
+                    pendingDelete = serverItem
+                }
+            }
+        }
 
     }
 
