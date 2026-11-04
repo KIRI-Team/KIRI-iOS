@@ -30,7 +30,7 @@
 | 미션 필터 | `Features/Mission/MissionView.swift` | `MissionFilterView` | `9404:20244` | 칩·적용 버튼 |
 | 미션 상세 | `Features/Mission/MissionActivityDetailView.swift` | `KIRIContentImage` | 미션 상세 Handoff | 이미지·하단 CTA |
 | 기록탭 | `Features/Record/RecordView.swift` | Calendar/Bucket child views | `9898:18872` | 탭 전환·상태 |
-| 캘린더 | `Features/Record/Components/RecordCalendarView.swift` | schedule detail | `9898:18872` 주변 | 월 헤더·날짜 셀 |
+| 캘린더 | `Features/Record/Components/RecordCalendarView.swift` | schedule detail | `9898:18872` 주변 | 월 헤더·날짜 셀·서버 일정 상태 |
 | 버킷리스트 | `Features/Record/Components/RecordBucketListView.swift` | `KIRIChip` | 기록탭 버킷 프레임 | 필터·카드·빈 상태 |
 | 일정 생성 | `Features/Record/Request/AddScheduleSheet.swift` | participant controls | 기록탭 후속 화면 | 날짜·시간·초대 |
 | 일정 상세 | `Features/Record/Schedule/ScheduleDetailView.swift` | `TodayActivityView` | 기록탭 후속 화면 | 상세 카드·액션 |
@@ -83,6 +83,11 @@
 - 리뷰: `POST /api/v1/schedules/{scheduleId}/reviews`
 - 이미지 URL: `POST /api/v1/images/presigned-url`
 
+`RecordCalendarView`는 기록탭 진입과 월 변경 때 `calendar(year:month:)`와
+`upcomingSchedules()`를 호출합니다. 서버 일정이 없어도 날짜 그리드는 1일부터 말일까지
+자체 생성하고, 응답은 날짜 상태와 다가오는 약속에 반영합니다. 일정 생성·수정·취소와 리뷰
+저장 Service는 현재 계약 단계이므로 화면 연결 완료로 표시하지 않습니다.
+
 ## Asset 목록과 교체 방법
 
 | 리소스 | 경로/형식 | 사용처 | 교체 방법 |
@@ -92,11 +97,12 @@
 | 역할 캐릭터 | `role_mom`, `role_dad`, `role_son`, `role_daughter` | RoleSelection/FamilyMemberItem | 원본 비율 유지 후 SwiftUI frame 조정 |
 | 탭 아이콘 | `figma_home_active`, `figma_calendar_active`, `figma_profile_active` 등 | `KIRITabBar` | 상태별 imageset 교체 |
 | 미션 필터 | `mission_filter.imageset` SVG | `MissionView` | SVG 파일 교체 후 Asset 이름 유지 |
+| 앱 아이콘 | `AppIcon.appiconset/kiri_logo.png` PNG 1024×1024 RGB | iOS 홈 화면 | `Contents.json` universal 슬롯 교체 |
 | 홈/미션 장소 | `home_*`, `mission_*` | `PlaceCard`, mission cards | 서버 URL과 로컬 Preview를 구분 |
 | 캘린더 제스처 | `figma_gesture_tap` | 튜토리얼/Preview | 원본 PNG 교체 |
 | 리뷰 Mock | `mock_review_*` | Preview 전용 | 실서비스 경로에 사용하지 않음 |
 
-원격 이미지는 `KIRIContentImage`에서 `scaledToFill`, 고정 `frame`, `clipped`를 함께 확인합니다. Asset 이름을 바꾸면 `Image("...")` 참조도 모두 갱신해야 합니다. 동영상 리소스는 현재 `Assets.xcassets`에서 확인되지 않았으므로 새 동영상은 Figma 원본과 기능 요구를 확인한 뒤 별도 추가합니다.
+원격 이미지는 `KIRIContentImage`에서 `scaledToFill`, 고정 `frame`, `clipped`를 함께 확인합니다. Asset 이름을 바꾸면 `Image("...")` 참조도 모두 갱신해야 합니다. 동영상 리소스는 현재 `Assets.xcassets`에서 확인되지 않았으므로 새 동영상은 Figma 원본과 기능 요구를 확인한 뒤 별도 추가합니다. 앱 아이콘 원본 JPEG(`kiri_logo.jpeg`)는 루트의 사용자 제공 파일이며, Asset에는 1024×1024 RGB PNG만 등록합니다.
 
 ## UI만 수정할 때 건드리지 않을 파일
 
