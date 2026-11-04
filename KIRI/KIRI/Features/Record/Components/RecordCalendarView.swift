@@ -81,14 +81,6 @@ struct RecordCalendarView: View {
         let review: ReviewDetailData?
     }
 
-    struct UpcomingSchedule: Identifiable {
-        let id = UUID()
-
-        let title: String
-        let dateText: String
-        let isConfirmed: Bool
-    }
-
     // MARK: - Properties
 
     let onSelectSchedule: (ScheduleDetailData) -> Void
@@ -103,6 +95,10 @@ struct RecordCalendarView: View {
 
     @State private var displayedMonthDate: Date
     @State private var selectedDate: Date
+    @State private var serverCalendar: CalendarResult?
+    @State private var serverUpcoming: UpcomingScheduleResult?
+    @State private var isLoadingServerSchedules = false
+    @State private var scheduleLoadError: String?
 
     // MARK: - Initializer
 
@@ -205,6 +201,12 @@ struct RecordCalendarView: View {
         savedReviewSchedules
     }
 
+    private var serverUpcomingSchedules: [ScheduleDetailData] {
+        [serverUpcoming?.responseRequired, serverUpcoming?.upcoming]
+            .compactMap { $0 }
+            .compactMap(scheduleDetail)
+    }
+
     private func reviewKey(_ schedule: ScheduleDetailData) -> String {
         "\(schedule.date)|\(schedule.title)"
     }
@@ -228,7 +230,11 @@ struct RecordCalendarView: View {
     }
 
     private var upcomingSchedules: [ScheduleDetailData] {
-        visibleSchedules
+        (visibleSchedules + serverUpcomingSchedules)
+            .reduce(into: [ScheduleDetailData]()) { result, schedule in
+                guard !result.contains(where: { $0.date == schedule.date && $0.title == schedule.title }) else { return }
+                result.append(schedule)
+            }
             .filter { schedule in
                 guard let date = parseDate(schedule.date) else {
                     return false
@@ -249,7 +255,7 @@ struct RecordCalendarView: View {
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.calendar = calendar
         formatter.timeZone = .current
-        formatter.dateFormat = "yyyy.MM.dd"
+        formatter.dateFormat = value.contains(".") ? "yyyy.MM.dd" : "yyyy-MM-dd"
         formatter.isLenient = false
 
         return formatter.date(from: value)
@@ -312,6 +318,10 @@ struct RecordCalendarView: View {
         for day: Int
     ) -> ActivityState? {
         let daySchedules = schedules(for: day)
+        let serverEvents = serverCalendar?.schedules.filter { event in
+            guard let eventDate = parseDate(event.date), let date = dateForDay(day) else { return false }
+            return calendar.isDate(eventDate, inSameDayAs: date)
+        } ?? []
 
         if !reviews(for: day).isEmpty ||
             daySchedules.contains(where: hasSavedReview) {
@@ -320,11 +330,11 @@ struct RecordCalendarView: View {
 
         if daySchedules.contains(where: {
             $0.status == .confirmedSchedule
-        }) {
+        }) || serverEvents.contains(where: { $0.status == "CONFIRMED" }) {
             return .confirmedSchedule
         }
 
-        if !daySchedules.isEmpty {
+        if !daySchedules.isEmpty || !serverEvents.isEmpty {
             return .pendingSchedule
         }
 
@@ -351,6 +361,43 @@ struct RecordCalendarView: View {
             .padding(.horizontal, 18)
         }
         .background(KIRIColor.Background.base)
+        .task { await loadServerSchedules() }
+        .onChange(of: displayedMonthDate) { _, _ in
+            Task { await loadServerSchedules() }
+        }
+    }
+
+    private func loadServerSchedules() async {
+        guard !isLoadingServerSchedules else { return }
+        isLoadingServerSchedules = true
+        scheduleLoadError = nil
+        do {
+            async let calendarResult = AuthService.shared.calendar(year: displayedYear, month: displayedMonth)
+            async let upcomingResult = AuthService.shared.upcomingSchedules()
+            serverCalendar = try await calendarResult
+            serverUpcoming = try await upcomingResult
+        } catch {
+            scheduleLoadError = "일정을 불러오지 못했어요."
+            #if DEBUG
+            print("[KIRI][Record] schedule load failed: \(error)")
+            #endif
+        }
+        isLoadingServerSchedules = false
+    }
+
+    private func scheduleDetail(_ item: UpcomingSchedule) -> ScheduleDetailData? {
+        guard let date = parseDate(item.date) else { return nil }
+        return ScheduleDetailData(
+            day: calendar.component(.day, from: date),
+            month: calendar.component(.month, from: date),
+            status: item.status == "CONFIRMED" ? .confirmedSchedule : .pendingSchedule,
+            title: item.title,
+            date: item.date,
+            startTime: item.time,
+            location: "",
+            expectedSteps: "",
+            duration: ""
+        )
     }
 
     // MARK: - Month Header
