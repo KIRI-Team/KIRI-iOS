@@ -234,6 +234,10 @@ struct ScheduleDetailResult: Decodable, Sendable {
     let status: String?
     let participants: [ScheduleParticipantResult]
 
+    private enum CodingKeys: String, CodingKey {
+        case missionId, date, time, status, participants
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         missionId = try container.decodeIfPresent(Int.self, forKey: .missionId)
