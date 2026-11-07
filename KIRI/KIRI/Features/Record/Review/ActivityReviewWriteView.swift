@@ -23,6 +23,8 @@ struct ActivityReviewWriteView: View {
 
     let onBack: () -> Void
     let onSubmit: (Draft) -> Void
+    /// 서버 리뷰 등록이 필요한 운영 화면에서 주입합니다. Preview는 nil로 둡니다.
+    var onSubmitToServer: ((Draft) async throws -> Void)? = nil
 
     var initialDraft: Draft? = nil
     var userName: String = "김주연"
@@ -36,6 +38,8 @@ struct ActivityReviewWriteView: View {
     @State private var images: [UIImage] = []
     @State private var isLoadingPhotos = false
     @State private var hasLoadedInitialDraft = false
+    @State private var isSubmitting = false
+    @State private var submitError: String?
 
     private let maxCommentLength = 500
     private let maxPhotoCount = 10
@@ -81,6 +85,11 @@ struct ActivityReviewWriteView: View {
         .background(
             KIRIColor.Background.base.ignoresSafeArea()
         )
+        .alert("리뷰 저장 실패", isPresented: Binding(get: { submitError != nil }, set: { if !$0 { submitError = nil } })) {
+            Button("확인", role: .cancel) { submitError = nil }
+        } message: {
+            Text(submitError ?? "")
+        }
         .onAppear {
             loadInitialDraftIfNeeded()
         }
@@ -142,7 +151,7 @@ struct ActivityReviewWriteView: View {
                 )
                 .frame(minWidth: 80, minHeight: 44)
             }
-            .disabled(!canSubmit)
+            .disabled(!canSubmit || isSubmitting)
             .buttonStyle(.plain)
         }
         .frame(height: 62)
@@ -154,8 +163,7 @@ struct ActivityReviewWriteView: View {
             return
         }
 
-        onSubmit(
-            Draft(
+        let draft = Draft(
                 rating: rating,
                 images: images,
                 comment: comment.trimmingCharacters(
@@ -163,7 +171,26 @@ struct ActivityReviewWriteView: View {
                 ),
                 wantsToRepeat: wantsToRepeat
             )
-        )
+        guard let onSubmitToServer else {
+            onSubmit(draft)
+            return
+        }
+        isSubmitting = true
+        submitError = nil
+        Task {
+            do {
+                try await onSubmitToServer(draft)
+                await MainActor.run {
+                    isSubmitting = false
+                    onSubmit(draft)
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    submitError = "리뷰를 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요."
+                }
+            }
+        }
     }
 
     // MARK: - User

@@ -224,6 +224,22 @@ struct ScheduleResult: Decodable, Sendable {
     let myStatus: String?
 }
 
+/// GET /api/v1/schedules/{scheduleId} 응답입니다.
+/// 서버가 일정 제목을 반환하지 않으므로 목록 제목은 화면에 유지하고
+/// 날짜·시간·상태·참여자만 최신 서버 값으로 갱신합니다.
+struct ScheduleDetailResult: Decodable, Sendable {
+    let missionId: Int?
+    let date: String
+    let time: String?
+    let status: String?
+    let participants: [ScheduleParticipantResult]
+}
+
+struct ScheduleParticipantResult: Decodable, Sendable {
+    let nickname: String
+    let accepted: Bool
+}
+
 struct CalendarScheduleResult: Decodable, Sendable, Identifiable {
     let scheduleId: Int
     let date: String
