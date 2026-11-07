@@ -25,6 +25,8 @@ struct MissionActivityDetailView: View {
     @State private var detail: MissionDetailResult?
     @State private var isLoadingDetail = false
     @State private var detailError: String?
+    @State private var isSavingBookmark = false
+    @State private var bookmarkError: String?
 
     init(
         missionId: Int? = nil,
@@ -311,8 +313,9 @@ struct MissionActivityDetailView: View {
 
     private var bottomBar: some View {
         Button {
-            guard !isBookmarked, detail?.bucketSaved != true else { return }
-            isBookmarked = true
+            guard !isBookmarked, detail?.bucketSaved != true,
+                  !isSavingBookmark, let missionId else { return }
+            Task { await saveBookmark(missionId: missionId) }
         } label: {
             HStack(spacing: 10) {
                 let saved = isBookmarked || detail?.bucketSaved == true
@@ -327,10 +330,35 @@ struct MissionActivityDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .disabled(isSavingBookmark || isBookmarked || detail?.bucketSaved == true)
         .padding(.horizontal, 18)
         .padding(.top, 12)
         .padding(.bottom, 10)
         .background(KIRIColor.Background.base)
+        .overlay(alignment: .top) {
+            if let bookmarkError {
+                Text(bookmarkError)
+                    .font(KIRITypography.captionMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .padding(.bottom, 4)
+                    .offset(y: -22)
+            }
+        }
+    }
+
+    private func saveBookmark(missionId: Int) async {
+        isSavingBookmark = true
+        bookmarkError = nil
+        defer { isSavingBookmark = false }
+        do {
+            _ = try await AuthService.shared.saveMissionToBucket(missionId: missionId)
+            isBookmarked = true
+        } catch {
+            bookmarkError = "버킷 저장에 실패했어요. 다시 시도해 주세요."
+            #if DEBUG
+            print("[KIRI][Mission] bucket save failed: \(error)")
+            #endif
+        }
     }
 
     private func loadDetail() async {
