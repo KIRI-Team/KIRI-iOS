@@ -59,7 +59,7 @@ struct RecordBucketListView: View {
 
         let savedBy: String
 
-        let owner: FamilyFilter
+        let owner: FamilyFilter?
 
         let isCompleted: Bool
 
@@ -82,6 +82,8 @@ struct RecordBucketListView: View {
     @State private var pendingDelete: BucketItemResult?
     @State private var showingDeleteConfirmation = false
     @State private var isDeleting = false
+    @State private var nextCursor: Int?
+    @State private var hasNextPage = false
 
 
 
@@ -116,12 +118,13 @@ struct RecordBucketListView: View {
         return mapped.filter { $0.owner == selectedFilter }
     }
 
-    private func familyFilter(for role: String?) -> FamilyFilter {
+    private func familyFilter(for role: String?) -> FamilyFilter? {
         switch role {
         case "MOTHER": return .mom
         case "FATHER": return .dad
         case "SON": return .son
-        default: return .daughter
+        case "DAUGHTER": return .daughter
+        default: return nil
         }
     }
 
@@ -151,7 +154,7 @@ struct RecordBucketListView: View {
                         } else if let loadError {
                             VStack(spacing: 12) {
                                 Text(loadError).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.secondary)
-                                Button("다시 시도") { Task { await loadBuckets() } }
+                                Button("다시 시도") { Task { await loadBuckets(reset: true) } }
                             }.frame(maxWidth: .infinity).padding(.top, 48)
                         } else if filteredItems.isEmpty {
                             Text("저장한 버킷리스트가 없어요.").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.secondary).frame(maxWidth: .infinity).padding(.top, 48)
@@ -192,7 +195,7 @@ struct RecordBucketListView: View {
             }
 
         }
-        .task { await loadBuckets() }
+        .task { await loadBuckets(reset: true) }
         .confirmationDialog("버킷리스트를 삭제할까요?", isPresented: $showingDeleteConfirmation) {
             Button("삭제하기", role: .destructive) {
                 if let item = pendingDelete { Task { await delete(item) } }
@@ -206,14 +209,29 @@ struct RecordBucketListView: View {
 
 
 
-    private func loadBuckets() async {
+    private func loadBuckets(reset: Bool = false) async {
         guard !isLoading else { return }
+        if reset {
+            nextCursor = nil
+            hasNextPage = false
+            serverItems = []
+        } else if !hasNextPage {
+            return
+        }
         isLoading = true
         loadError = nil
         do {
-            serverItems = try await AuthService.shared.bucketItems().bucketItems
+            let result = try await AuthService.shared.bucketItems(cursor: nextCursor)
+            if reset {
+                serverItems = result.bucketItems
+            } else {
+                let existing = Set(serverItems.map(\.bucketItemId))
+                serverItems.append(contentsOf: result.bucketItems.filter { !existing.contains($0.bucketItemId) })
+            }
+            nextCursor = result.nextCursor
+            hasNextPage = result.hasNext && result.nextCursor != nil
         } catch {
-            serverItems = []
+            if reset { serverItems = [] }
             loadError = "버킷리스트를 불러오지 못했어요."
             #if DEBUG
             print("[KIRI][Record] bucket load failed: \(error)")
@@ -353,6 +371,12 @@ struct RecordBucketListView: View {
             ForEach(filteredItems) { item in
 
                 bucketCard(item)
+
+                if item.id == filteredItems.last?.id, hasNextPage {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .task { await loadBuckets() }
+                }
 
             }
 

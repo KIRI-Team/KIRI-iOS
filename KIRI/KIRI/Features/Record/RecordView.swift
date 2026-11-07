@@ -8,6 +8,19 @@ import SwiftUI
 
 struct RecordView: View {
 
+    // 가족 상태가 확인된 뒤에만 기록 API를 조회합니다.
+    // 둘러보기와 상태 확인 실패를 서버 빈 목록으로 오인하지 않도록 라우터 상태를 받습니다.
+    let userMode: AppRouter.UserMode
+    let familyState: AppRouter.FamilyState
+
+    init(
+        userMode: AppRouter.UserMode = .family,
+        familyState: AppRouter.FamilyState = .hasFamily
+    ) {
+        self.userMode = userMode
+        self.familyState = familyState
+    }
+
     enum RecordTab: Hashable {
 
         case calendar
@@ -170,7 +183,14 @@ struct RecordView: View {
 
     // MARK: - Record Content
 
+    @ViewBuilder
     private var recordContent: some View {
+
+        if userMode == .browse || familyState == .noFamily {
+            RecordFamilyRequiredView()
+        } else if familyState == .loading || familyState == .unknown {
+            RecordFamilyStateView(state: familyState)
+        } else {
 
         VStack(spacing: 0) {
 
@@ -248,6 +268,8 @@ struct RecordView: View {
                 }
 
             }
+
+        }
 
         }
 
@@ -330,4 +352,48 @@ struct RecordView: View {
 
     RecordView()
 
+}
+
+// MARK: - 가족공간 접근 상태
+
+private struct RecordFamilyRequiredView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(KIRIColor.Icon.secondary)
+            Text("가족공간에 참여하면 기록을 볼 수 있어요")
+                .font(KIRITypography.headingSmall)
+                .foregroundStyle(KIRIColor.Text.strong)
+            Text("가족공간을 만들거나 초대를 받아 기록을 시작해 보세요.")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 32)
+    }
+}
+
+private struct RecordFamilyStateView: View {
+    let state: AppRouter.FamilyState
+
+    var body: some View {
+        VStack(spacing: 14) {
+            if state == .loading {
+                ProgressView()
+            } else {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 28))
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+                Text("가족공간 상태를 확인하고 있어요")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Text("잠시 후 다시 시도해 주세요.")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }

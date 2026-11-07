@@ -129,7 +129,7 @@ struct MainTabView: View {
             MissionView()
 
         case .record:
-            RecordView()
+            RecordView(userMode: userMode, familyState: familyState)
 
         case .myPage:
             MyPageView(
