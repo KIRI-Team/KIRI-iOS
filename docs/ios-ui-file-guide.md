@@ -43,17 +43,22 @@
 ### 기록탭 운영 데이터 경계
 
 `RecordBucketListView`의 운영 목록은 `AuthService.bucketItems(memberId:cursor:size:)` 응답만
-사용합니다. 서버 응답이 비어 있으면 빈 상태를 보여주며, 과거의 하드코딩 버킷과
-`MissionBucketStore` 로컬 목록을 화면에 합치지 않습니다.
+사용합니다. `nextCursor`와 `hasNext`가 있으면 마지막 카드에서 다음 페이지를 요청하며,
+서버 응답이 비어 있으면 빈 상태를 보여줍니다. 과거의 하드코딩 버킷과 `MissionBucketStore`
+로컬 목록을 화면에 합치지 않습니다. 서버가 알 수 없는 `familyRole`을 보내면 임의로 다른
+역할로 매핑하지 않고 전체 목록에서만 표시합니다.
 
 `RecordCalendarView`의 날짜 그리드는 서버 일정과 독립적으로 항상 월 1일부터 마지막 날까지
 생성합니다. 셀 ID는 `day-year-month-day` 형식이고 앞쪽 빈 셀은 `empty-index` 형식이라
 월을 이동해도 날짜 셀 identity가 충돌하지 않습니다. `RecordView`에서 데모 일정과 임시
 오늘 활동 콘텐츠를 주입하지 않으므로 API 데이터가 없을 때 일정이 임의로 나타나지 않습니다.
 
-현재 캘린더·일정·리뷰 API Service 계약은 `AuthService`에 존재하지만, 화면에서 실제 서버
-일정을 로드하는 ViewModel 연결은 별도 작업 대상입니다. 이 상태에서는 로컬 Preview와
-실서비스 데이터를 혼동하지 않도록 하며, 화면 검증 시 빈 상태를 정상 결과로 판정합니다.
+`RecordView`는 `AppRouter.UserMode`와 `FamilyState`를 받아 둘러보기·가족 미소속·상태
+확인 실패에서는 가족 기록 API를 호출하지 않고 안내 또는 상태 화면을 표시합니다.
+`RecordCalendarView`는 가족 상태가 확인된 경우 기록탭 진입과 월 변경 때
+`calendar(year:month:)`와 `upcomingSchedules()`를 호출합니다. 일정 생성·수정·취소와 리뷰
+저장 Service는 아직 실제 화면 액션에 연결되지 않았으며, 서버에서 확인되지 않은 로컬 리뷰
+Draft도 운영 화면에 전달하지 않습니다.
 
 ## 공통 UI 수정 위치
 
