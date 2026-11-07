@@ -135,13 +135,10 @@ struct RecordView: View {
                     // 서버 일정 상세가 제공하는 데이터만 표시합니다.
                     todayContent: nil,
 
-                    savedReview: reviewStore.reviews[reviewKey(schedule)],
-
-                    onReviewSaved: { draft in
-
-                        reviewStore.save(draft, for: reviewKey(schedule))
-
-                    }
+                    // 서버 리뷰 조회/등록 API가 실제 화면에 연결되기 전까지
+                    // UserDefaults의 임시 Draft를 일정 상세에 표시하지 않습니다.
+                    savedReview: nil,
+                    onReviewSaved: nil
 
                 )
 
@@ -237,13 +234,10 @@ struct RecordView: View {
 
                         },
 
-                        savedReviewDrafts: reviewStore.reviews,
-
-                        onSelectSavedReview: { schedule in
-
-                            openSavedReview(schedule)
-
-                        }
+                        // 리뷰 조회 API가 연결되기 전까지 로컬 Draft는 운영 화면에 표시하지 않습니다.
+                        // Preview와 테스트에서만 ActivityReviewStore를 사용할 수 있습니다.
+                        savedReviewDrafts: [:],
+                        onSelectSavedReview: { _ in }
 
                     )
 
