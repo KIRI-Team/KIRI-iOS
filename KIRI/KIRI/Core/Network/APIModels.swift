@@ -233,6 +233,15 @@ struct ScheduleDetailResult: Decodable, Sendable {
     let time: String?
     let status: String?
     let participants: [ScheduleParticipantResult]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missionId = try container.decodeIfPresent(Int.self, forKey: .missionId)
+        date = try container.decode(String.self, forKey: .date)
+        time = try container.decodeIfPresent(String.self, forKey: .time)
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        participants = try container.decodeIfPresent([ScheduleParticipantResult].self, forKey: .participants) ?? []
+    }
 }
 
 struct ScheduleParticipantResult: Decodable, Sendable {
