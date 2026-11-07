@@ -439,7 +439,7 @@ final class AuthService {
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
         #if DEBUG
-        print("[KIRI][Record] schedule detail loaded id=\(scheduleId) status=\(result.status ?? \"unknown\")")
+        print("[KIRI][Record] schedule detail loaded id=\(scheduleId) status=\(result.status ?? "unknown")")
         #endif
         return result
     }

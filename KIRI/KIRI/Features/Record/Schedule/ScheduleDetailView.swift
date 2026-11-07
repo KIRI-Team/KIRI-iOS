@@ -124,7 +124,6 @@ struct ScheduleDetailView: View {
                     onReviewSaved?(draft)
                     showingReviewEditor = false
                 },
-                initialDraft: currentReview,
                 onSubmitToServer: schedule.scheduleId.map { scheduleId in
                     { draft in
                         var imageKeys: [String] = []
@@ -150,7 +149,8 @@ struct ScheduleDetailView: View {
                             )
                         )
                     }
-                }
+                },
+                initialDraft: currentReview
             )
         }
         .background(KIRIColor.Background.base)
