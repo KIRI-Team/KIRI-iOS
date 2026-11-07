@@ -50,9 +50,12 @@ struct ScheduleDetailView: View {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.timeZone = .current
-        formatter.dateFormat = schedule.date.contains(".") ? "yyyy.MM.dd" : "yyyy-MM-dd"
+        formatter.dateFormat = effectiveDate.contains(".") ? "yyyy.MM.dd" : "yyyy-MM-dd"
         formatter.isLenient = false
-        return formatter.date(from: schedule.date)
+        return formatter.date(from: effectiveDate)
+    }
+    private var effectiveDate: String {
+        serverDetail?.date ?? schedule.date
     }
     private var effectiveStartTime: String {
         serverDetail?.time ?? schedule.startTime
@@ -217,7 +220,7 @@ struct ScheduleDetailView: View {
     }
     private var navigationBar: some View {
         ZStack {
-            Text("\(schedule.month)월 \(schedule.day)일")
+            Text(effectiveDate.replacingOccurrences(of: "-", with: "."))
                 .font(KIRITypography.bodySmallMedium)
                 .foregroundStyle(KIRIColor.Text.tertiary)
             HStack {
