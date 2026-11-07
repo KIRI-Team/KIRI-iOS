@@ -32,6 +32,9 @@ struct RecordCalendarView: View {
     struct ScheduleDetailData: Identifiable {
         let id = UUID()
 
+        /// 서버 일정 식별자. Preview/local fixture에는 nil일 수 있습니다.
+        let scheduleId: Int?
+
         let day: Int
         let month: Int
         let status: ActivityState
@@ -42,6 +45,19 @@ struct RecordCalendarView: View {
         let location: String
         let expectedSteps: String
         let duration: String
+
+        init(scheduleId: Int? = nil, day: Int, month: Int, status: ActivityState, title: String, date: String, startTime: String, location: String, expectedSteps: String, duration: String) {
+            self.scheduleId = scheduleId
+            self.day = day
+            self.month = month
+            self.status = status
+            self.title = title
+            self.date = date
+            self.startTime = startTime
+            self.location = location
+            self.expectedSteps = expectedSteps
+            self.duration = duration
+        }
     }
 
     struct ReviewDetailData: Identifiable {
@@ -274,7 +290,7 @@ struct RecordCalendarView: View {
             return []
         }
 
-        return visibleSchedules.filter { schedule in
+        let localSchedules = visibleSchedules.filter { schedule in
             guard let scheduleDate = parseDate(schedule.date) else {
                 return false
             }
@@ -283,6 +299,27 @@ struct RecordCalendarView: View {
                 scheduleDate,
                 inSameDayAs: date
             )
+        }
+
+        let serverSchedules = (serverCalendar?.schedules ?? []).compactMap { event -> ScheduleDetailData? in
+            guard let eventDate = parseDate(event.date), calendar.isDate(eventDate, inSameDayAs: date) else { return nil }
+            return ScheduleDetailData(
+                scheduleId: event.scheduleId,
+                day: calendar.component(.day, from: eventDate),
+                month: calendar.component(.month, from: eventDate),
+                status: event.status == "CONFIRMED" ? .confirmedSchedule : .pendingSchedule,
+                title: "가족 일정",
+                date: event.date,
+                startTime: event.time,
+                location: "",
+                expectedSteps: "",
+                duration: ""
+            )
+        }
+
+        return (localSchedules + serverSchedules).reduce(into: [ScheduleDetailData]()) { result, item in
+            guard item.scheduleId == nil || !result.contains(where: { $0.scheduleId == item.scheduleId }) else { return }
+            result.append(item)
         }
     }
 
@@ -388,6 +425,7 @@ struct RecordCalendarView: View {
     private func scheduleDetail(_ item: UpcomingSchedule) -> ScheduleDetailData? {
         guard let date = parseDate(item.date) else { return nil }
         return ScheduleDetailData(
+            scheduleId: item.scheduleId,
             day: calendar.component(.day, from: date),
             month: calendar.component(.month, from: date),
             status: item.status == "CONFIRMED" ? .confirmedSchedule : .pendingSchedule,

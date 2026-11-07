@@ -429,6 +429,21 @@ final class AuthService {
         return result
     }
 
+    /// 기록탭 일정 상세를 서버에서 다시 확인합니다.
+    func scheduleDetail(scheduleId: Int) async throws -> ScheduleDetailResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleDetailResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        #if DEBUG
+        print("[KIRI][Record] schedule detail loaded id=\(scheduleId) status=\(result.status ?? \"unknown\")")
+        #endif
+        return result
+    }
+
     func updateSchedule(scheduleId: Int, request: UpdateScheduleRequest) async throws -> ScheduleResult {
         let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)", method: .PATCH, requiresAuthentication: true)
         let tokens = try authenticatedTokens()

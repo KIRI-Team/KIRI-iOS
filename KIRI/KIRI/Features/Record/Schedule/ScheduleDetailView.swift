@@ -19,6 +19,9 @@ struct ScheduleDetailView: View {
     var onReviewSaved: ((ActivityReviewWriteView.Draft) -> Void)? = nil
     @State private var showingReviewEditor = false
     @State private var localEditedReview: ActivityReviewWriteView.Draft?
+    @State private var serverDetail: ScheduleDetailResult?
+    @State private var isLoadingServerDetail = false
+    @State private var serverDetailError: String?
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -47,9 +50,15 @@ struct ScheduleDetailView: View {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.timeZone = .current
-        formatter.dateFormat = "yyyy.MM.dd"
+        formatter.dateFormat = schedule.date.contains(".") ? "yyyy.MM.dd" : "yyyy-MM-dd"
         formatter.isLenient = false
         return formatter.date(from: schedule.date)
+    }
+    private var effectiveStartTime: String {
+        serverDetail?.time ?? schedule.startTime
+    }
+    private var effectiveStatus: String {
+        serverDetail?.status ?? (schedule.status == .confirmedSchedule ? "CONFIRMED" : "PENDING")
     }
     var body: some View {
         Group {
@@ -115,17 +124,59 @@ struct ScheduleDetailView: View {
                     onReviewSaved?(draft)
                     showingReviewEditor = false
                 },
-                initialDraft: currentReview
+                initialDraft: currentReview,
+                onSubmitToServer: schedule.scheduleId.map { scheduleId in
+                    { draft in
+                        var imageKeys: [String] = []
+                        for image in draft.images {
+                            guard let data = image.jpegData(compressionQuality: 0.85) else {
+                                throw APIError.decodingFailed
+                            }
+                            let contentType = "image/jpeg"
+                            let presigned = try await AuthService.shared.issuePresignedURL(
+                                contentType: contentType,
+                                contentLength: Int64(data.count)
+                            )
+                            try await AuthService.shared.uploadImage(data: data, to: presigned.presignedUrl, contentType: contentType)
+                            imageKeys.append(presigned.imageKey)
+                        }
+                        _ = try await AuthService.shared.createReview(
+                            scheduleId: scheduleId,
+                            request: ReviewCreateRequest(
+                                starRating: draft.rating,
+                                imageKeys: imageKeys,
+                                content: draft.comment,
+                                isRejoinIntended: draft.wantsToRepeat
+                            )
+                        )
+                    }
+                }
             )
         }
         .background(KIRIColor.Background.base)
+        .task { await loadServerDetail() }
+    }
+
+    private func loadServerDetail() async {
+        guard let scheduleId = schedule.scheduleId, !isLoadingServerDetail else { return }
+        isLoadingServerDetail = true
+        serverDetailError = nil
+        do {
+            serverDetail = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
+        } catch {
+            serverDetailError = "일정 최신 정보를 불러오지 못했어요."
+            #if DEBUG
+            print("[KIRI][Record] schedule detail failed id=\(scheduleId) error=\(error)")
+            #endif
+        }
+        isLoadingServerDetail = false
     }
     private var upcomingContent: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 navigationBar
                 Text(
-                    schedule.status == .confirmedSchedule
+                    effectiveStatus == "CONFIRMED"
                         ? "약속 확정"
                         : "약속 예정"
                 )
@@ -142,6 +193,19 @@ struct ScheduleDetailView: View {
                     .padding(.top, 12)
                 activityDetail
                     .padding(.top, 30)
+                if let participants = serverDetail?.participants, !participants.isEmpty {
+                    participantSummary(participants)
+                        .padding(.top, 18)
+                }
+                if isLoadingServerDetail {
+                    ProgressView("일정 정보를 확인하고 있어요")
+                        .padding(.top, 16)
+                } else if let serverDetailError {
+                    Text(serverDetailError)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .padding(.top, 16)
+                }
                 contentSelector
                     .padding(.top, 53)
                 selectedContent
@@ -165,13 +229,35 @@ struct ScheduleDetailView: View {
     }
     private var activityDetail: some View {
         VStack(alignment: .leading, spacing: 9) {
-            detailRow("시작 시간", schedule.startTime)
+            detailRow("시작 시간", effectiveStartTime)
             detailRow("장소", schedule.location)
             detailRow("예상 걸음 수", schedule.expectedSteps)
             detailRow("활동 시간", schedule.duration)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func participantSummary(_ participants: [ScheduleParticipantResult]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("참여 가족")
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
+            ForEach(Array(participants.enumerated()), id: \.offset) { _, participant in
+                HStack {
+                    Text(participant.nickname)
+                    Spacer()
+                    Text(participant.accepted ? "참여" : "응답 대기")
+                        .foregroundStyle(participant.accepted ? KIRIColor.Primary.default : KIRIColor.Text.secondary)
+                }
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.primary)
+            }
+        }
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
