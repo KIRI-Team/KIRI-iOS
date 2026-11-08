@@ -71,7 +71,9 @@ final class ActivityReviewStore {
 
     private func persist() {
         let payload = reviews.reduce(into: [String: PersistedReview]()) { result, entry in
-            let imageFileNames = entry.value.images.enumerated().compactMap { index, image in
+            let imageFileNames: [String] = entry.value.images.enumerated().compactMap { pair in
+                let index = pair.offset
+                let image = pair.element
                 guard let data = image.jpegData(compressionQuality: 0.85) else { return nil }
                 let fileName = "\(safeFilePrefix(entry.key))-\(index).jpg"
                 do {
