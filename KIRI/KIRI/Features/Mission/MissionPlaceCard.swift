@@ -46,7 +46,7 @@ struct MissionPlaceCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 17) {
+        HStack(alignment: .center, spacing: 17) {
             thumbnail
 
             VStack(
@@ -72,7 +72,7 @@ struct MissionPlaceCard: View {
         .padding(.vertical, 18)
         .frame(
             maxWidth: .infinity,
-            minHeight: 127
+            minHeight: 136
         )
         .background(cardBackground)
         .clipShape(
@@ -85,9 +85,9 @@ struct MissionPlaceCard: View {
     // MARK: - Background
 
     private var cardBackground: Color {
-        isRecommended
-            ? KIRIColor.Background.tertiary
-            : KIRIColor.Background.secondary
+        // Figma KIRI/Place Card의 추천·일반 상태 모두 #252524 계열을 사용합니다.
+        // 추천 여부는 태그 색상으로만 구분하고 카드 배경은 동일하게 유지합니다.
+        KIRIColor.Background.primary
     }
 
     // MARK: - Thumbnail
@@ -161,23 +161,19 @@ struct MissionPlaceCard: View {
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
-                .lineLimit(1)
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: 27,
-                    alignment: .leading
-                )
+                // Figma의 216pt 정보 영역 안에서 긴 제목은 최대 두 줄로 확장합니다.
+                // 고정 높이나 offset으로 줄바꿈을 덮지 않아 장소명이 겹치지 않습니다.
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text("\(placeName) · \(district)")
                 .font(KIRITypography.bodySmall)
                 .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.secondary)
-                .lineLimit(1)
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: 21,
-                    alignment: .leading
-                )
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -206,6 +202,9 @@ struct MissionPlaceCard: View {
                 )
             }
         }
+        .lineLimit(1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .clipped()
     }
 
     // MARK: - Bookmark
@@ -265,11 +264,7 @@ private struct MissionPlaceTag: View {
             .frame(height: 17)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .background(
-                isAccent
-                    ? KIRIColor.Background.greenSoft
-                    : KIRIColor.Background.elevated
-            )
+            .background(isAccent ? KIRIColor.Primary.container : KIRIColor.Background.elevated)
             .clipShape(
                 RoundedRectangle(
                     cornerRadius: 5
