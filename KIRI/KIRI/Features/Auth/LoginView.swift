@@ -202,10 +202,11 @@ struct LoginView: View {
             )
             .signInWithAppleButtonStyle(.white)
             // 시스템 버튼은 투명하게 유지해 인증 hit target과 Apple의 요청 흐름을 보존합니다.
-            .opacity(0.01)
+            .opacity(0.001)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 54)
+        .background(Color.white)
         .clipShape(
             RoundedRectangle(cornerRadius: 12)
         )
