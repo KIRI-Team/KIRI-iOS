@@ -1,11 +1,12 @@
 //
 // MARK: - 파일 가이드
 // 파일: Features/Auth/LoginView.swift
-// 담당 영역: 기능별 SwiftUI 화면과 상태
-// 주요 책임: 이 파일의 View·상태·서비스 연결을 담당합니다.
-// UI 수정: 이 파일의 body와 private computed view의 frame, padding, spacing, font, color를 확인하세요.
-// 데이터 흐름: 상위 라우터/화면에서 상태를 받고 하위 컴포넌트에 전달합니다.
-// 주의: 공통 컴포넌트·네트워크·저장소 변경은 여러 화면에 영향을 줄 수 있습니다.
+// 담당 화면: 카카오·Google·Apple 소셜 로그인 화면
+// 주요 책임: 로그인 버튼 레이아웃과 Apple 인증 요청 결과 전달을 담당합니다.
+// UI 수정 위치: 버튼 높이/모서리는 각 버튼의 frame·clipShape, 아이콘 기준선은
+// SocialLoginButtonContent, 화면 여백은 상위 VStack의 padding에서 조정합니다.
+// 데이터 흐름: AuthFlowView가 로그인 클로저를 주입하고, 성공한 credential만 상위로 전달합니다.
+// 주의: 버튼 UI만 수정하며 OAuth 요청·nonce·토큰 처리 로직은 변경하지 않습니다.
 //
 
 
@@ -171,22 +172,38 @@ struct LoginView: View {
     // MARK: - Apple
 
     private var appleLoginButton: some View {
-        SignInWithAppleButton(
-            .signIn,
-            onRequest: { request in
-                let nonce = Self.randomNonce()
-                appleNonce = nonce
-                request.nonce = Self.sha256(nonce)
-                request.requestedScopes = [
-                    .fullName,
-                    .email
-                ]
-            },
-            onCompletion: { result in
-                handleAppleSignInResult(result)
+        ZStack {
+            // 공식 Apple 인증 컨트롤의 요청/완료 동작은 유지하고,
+            // 서비스에서 사용하는 한국어 라벨은 앞쪽의 공통 콘텐츠로 표시합니다.
+            SocialLoginButtonContent(
+                title: "Apple로 로그인",
+                foregroundColor: .black
+            ) {
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 21, weight: .medium))
+                    .foregroundStyle(.black)
             }
-        )
-        .signInWithAppleButtonStyle(.white)
+            .accessibilityHidden(true)
+
+            SignInWithAppleButton(
+                .signIn,
+                onRequest: { request in
+                    let nonce = Self.randomNonce()
+                    appleNonce = nonce
+                    request.nonce = Self.sha256(nonce)
+                    request.requestedScopes = [
+                        .fullName,
+                        .email
+                    ]
+                },
+                onCompletion: { result in
+                    handleAppleSignInResult(result)
+                }
+            )
+            .signInWithAppleButtonStyle(.white)
+            // 시스템 버튼은 투명하게 유지해 인증 hit target과 Apple의 요청 흐름을 보존합니다.
+            .opacity(0.01)
+        }
         .frame(maxWidth: .infinity)
         .frame(height: 54)
         .clipShape(
@@ -252,15 +269,19 @@ private struct SocialLoginButtonContent<Logo: View>: View {
     let logo: () -> Logo
 
     var body: some View {
-        HStack(spacing: KIRISpacing.small) {
-            logo()
-                .frame(width: 20, height: 20)
-
+        ZStack {
             Text(title)
                 .font(KIRITypography.button)
                 .foregroundStyle(foregroundColor)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            HStack(spacing: 0) {
+                logo()
+                    .frame(width: 20, height: 20)
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 24)
         }
-        .frame(maxWidth: .infinity)
         .frame(height: 54)
         .contentShape(Rectangle())
     }
