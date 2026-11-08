@@ -272,14 +272,14 @@ enum KIRIColor {
     enum Navigation {
 
         enum Bar {
-            // Figma KIRI/Bottom Navigation: #404140 fill + subtle glass border.
+            // Figma KIRI/Bottom Navigation: 반투명 #404140 계열의 글래스 바.
             static let background = Background.elevated
-            static let border = Primitive.alphaWhite08
+            static let border = Primitive.alphaWhite12
         }
 
         enum Item {
             // Selected item is a light pill with the green accent icon/text.
-            static let backgroundActive = Text.strong
+            static let backgroundActive = Primitive.neutral600
             static let backgroundDefault = Background.transparent
             static let backgroundDisabled = Background.transparent
             static let backgroundPressed = State.pressed

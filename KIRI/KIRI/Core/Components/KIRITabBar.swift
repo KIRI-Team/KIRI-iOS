@@ -1,11 +1,12 @@
 //
 // MARK: - 파일 가이드
 // 파일: Core/Components/KIRITabBar.swift
-// 담당 영역: 공통 컴포넌트·디자인 시스템·네트워크·저장소
-// 주요 책임: 이 파일의 View·상태·서비스 연결을 담당합니다.
-// UI 수정: 이 파일의 body와 private computed view의 frame, padding, spacing, font, color를 확인하세요.
-// 데이터 흐름: 상위 라우터/화면에서 상태를 받고 하위 컴포넌트에 전달합니다.
-// 주의: 공통 컴포넌트·네트워크·저장소 변경은 여러 화면에 영향을 줄 수 있습니다.
+// 담당 화면: 홈·미션·기록·마이 공통 하단 내비게이션 (Figma 9901:23908)
+// 주요 책임: 선택 탭, 아이콘/라벨 상태, 352×65pt 플로팅 글래스 바를 렌더링합니다.
+// UI 수정 위치: 바 크기와 패딩은 body, 아이콘은 tabIcon, 탭 제목은 title(for:),
+// 활성/비활성 색상은 KIRIColor.Navigation에서 조정합니다.
+// 데이터 흐름: MainTabView의 selectedTab Binding을 받아 탭 전환을 전달합니다.
+// 주의: 이 컴포넌트 수정은 네 개 탭 전체에 영향을 주므로 미션 화면 전용 구현을 추가하지 않습니다.
 //
 
 import SwiftUI
@@ -31,9 +32,13 @@ struct KIRITabBar: View {
             }
         }
         .padding(6)
-        .frame(height: 65)
+        .frame(width: 352, height: 65)
+        // Figma KIRI/Bottom Navigation은 배경이 비치는 플로팅 글래스 바입니다.
+        // Material만으로 색이 달라지지 않도록 반투명 토큰을 함께 사용합니다.
+        .background(.ultraThinMaterial, in: Capsule())
         .background(
-            KIRIColor.Navigation.Bar.background
+            KIRIColor.Navigation.Bar.background.opacity(0.82),
+            in: Capsule()
         )
         .clipShape(Capsule())
         .overlay {
@@ -110,7 +115,14 @@ struct KIRITabBar: View {
 
     @ViewBuilder
     private func tabIcon(_ tab: MainTabView.AppTab, isSelected: Bool) -> some View {
-        if let assetName = figmaAssetName(for: tab, isSelected: isSelected) {
+        if tab == .mission {
+            Image("figma_place_disabled")
+                .renderingMode(isSelected ? .template : .original)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(isSelected ? KIRIColor.Navigation.Item.contentActive : KIRIColor.Navigation.Item.contentDefault)
+                .frame(width: 24, height: 24)
+        } else if let assetName = figmaAssetName(for: tab, isSelected: isSelected) {
             Image(assetName)
                 .resizable()
                 .scaledToFit()
