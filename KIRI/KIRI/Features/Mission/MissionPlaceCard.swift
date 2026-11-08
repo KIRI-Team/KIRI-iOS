@@ -213,22 +213,11 @@ struct MissionPlaceCard: View {
         Button {
             isBookmarked.toggle()
         } label: {
-            Image(
-                systemName: isBookmarked
-                    ? "bookmark.fill"
-                    : "bookmark"
-            )
-            .font(
-                .system(
-                    size: 20,
-                    weight: .medium
-                )
-            )
-            .foregroundStyle(
-                isBookmarked
-                    ? KIRIColor.Icon.accent
-                    : KIRIColor.Icon.secondary
-            )
+            // Figma KIRI/Icon/Action/Bookmark의 24pt 원본 SVG를 상태별로 사용합니다.
+            Image(isBookmarked ? "mission_bookmark_active" : "mission_bookmark_disabled")
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
             .frame(
                 width: 24,
                 height: 24
