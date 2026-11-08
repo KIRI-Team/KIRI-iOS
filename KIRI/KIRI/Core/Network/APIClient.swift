@@ -11,6 +11,11 @@
 
 import Foundation
 
+extension Notification.Name {
+    /// refresh token까지 만료되어 현재 세션을 재인증해야 할 때 발생합니다.
+    static let kiriAuthenticationExpired = Notification.Name("kiri.authenticationExpired")
+}
+
 final class APIClient {
     static let shared = APIClient()
 
@@ -89,12 +94,20 @@ final class APIClient {
                endpoint.path != "/api/v1/auth/reissue",
                let accessToken,
                !accessToken.isEmpty {
-                let refreshed = try await AuthRefreshCoordinator.shared.refreshIfNeeded(
-                    failedAccessToken: accessToken,
-                    session: session,
-                    encoder: encoder,
-                    decoder: decoder
-                )
+                let refreshed: AuthTokens
+                do {
+                    refreshed = try await AuthRefreshCoordinator.shared.refreshIfNeeded(
+                        failedAccessToken: accessToken,
+                        session: session,
+                        encoder: encoder,
+                        decoder: decoder
+                    )
+                } catch let refreshError as APIError {
+                    if case .unauthorized = refreshError {
+                        NotificationCenter.default.post(name: .kiriAuthenticationExpired, object: nil)
+                    }
+                    throw refreshError
+                }
                 let retryRequest = try makeRequest(
                     endpoint: endpoint,
                     body: body,

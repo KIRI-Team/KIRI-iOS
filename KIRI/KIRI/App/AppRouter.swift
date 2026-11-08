@@ -61,6 +61,7 @@ final class AppRouter {
 
     private let sessionStore: AppSessionStore
     private let tokenStore: AuthTokenStoring
+    private var authenticationExpiredObserver: NSObjectProtocol?
 
     var hasPendingInvitation: Bool {
         pendingInvitation != nil
@@ -72,6 +73,18 @@ final class AppRouter {
     ) {
         self.sessionStore = sessionStore
         self.tokenStore = tokenStore
+        // Observer가 self를 캡처하기 전에 @Observable 저장 프로퍼티를 초기화합니다.
+        self.appState = .authentication
+        self.userMode = .browse
+        authenticationExpiredObserver = NotificationCenter.default.addObserver(
+            forName: .kiriAuthenticationExpired,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleAuthenticationExpired()
+            }
+        }
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
         nickname = sessionStore.nickname
@@ -128,6 +141,22 @@ final class AppRouter {
         #if DEBUG
         print("[KIRI][Router] initial route: main")
         #endif
+    }
+
+    /// API 요청에서 refresh token까지 거절된 경우에만 호출됩니다.
+    /// 서버 5xx나 네트워크 오류에는 이 경로를 사용하지 않습니다.
+    private func handleAuthenticationExpired() {
+        do { try tokenStore.clear() } catch {
+            #if DEBUG
+            print("[KIRI][Router] expired session token clear failed")
+            #endif
+        }
+        sessionStore.clearSession()
+        pendingTerms = nil
+        pendingTermAgreements = []
+        familyState = .unknown
+        userMode = .browse
+        appState = .authentication
     }
 
     #if DEBUG
