@@ -48,25 +48,24 @@ struct MissionPlaceCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 17) {
+            // 이미지는 고정 프레임을 유지하고, 정보 영역은 남은 폭만 사용합니다.
+            // 두 영역을 같은 HStack의 독립 자식으로 두어 텍스트가 이미지 위로 그려질 수 없게 합니다.
             thumbnail
+                .layoutPriority(0)
 
-            VStack(
-                alignment: .leading,
-                spacing: 21
-            ) {
+            VStack(alignment: .leading, spacing: 12) {
                 placeInformation
 
-                HStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 8) {
                     tagsView
-
-                    Spacer(minLength: 8)
-
+                        .layoutPriority(0)
                     bookmarkButton
+                        .layoutPriority(1)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            // 카드 폭 354 - 좌우 패딩 30 - 이미지 91 - 간격 17 = 216pt.
-            // 정보 영역을 명시해 제목이 이미지 영역으로 압축되지 않도록 합니다.
-            .frame(width: 216, alignment: .leading)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 18)
@@ -161,18 +160,19 @@ struct MissionPlaceCard: View {
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
-                // Figma의 216pt 정보 영역 안에서 긴 제목은 최대 두 줄로 확장합니다.
-                // 고정 높이나 offset으로 줄바꿈을 덮지 않아 장소명이 겹치지 않습니다.
+                // 부모 HStack에서 계산된 남은 폭 안에서만 두 줄까지 줄바꿈합니다.
+                // fixedSize(width:)나 offset을 사용하지 않아 이미지 영역을 침범하지 않습니다.
                 .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(width: 216, alignment: .leading)
+                .multilineTextAlignment(.leading)
+                .layoutPriority(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(locationText)
                 .font(KIRITypography.bodySmall)
                 .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.secondary)
                 .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -208,7 +208,7 @@ struct MissionPlaceCard: View {
             }
         }
         .lineLimit(1)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         .clipped()
     }
 
