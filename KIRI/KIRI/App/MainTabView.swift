@@ -1,11 +1,11 @@
 //
 // MARK: - 파일 가이드
 // 파일: App/MainTabView.swift
-// 담당 영역: 앱 시작·라우팅·탭 구성
-// 주요 책임: 이 파일의 View·상태·서비스 연결을 담당합니다.
-// UI 수정: 이 파일의 body와 private computed view의 frame, padding, spacing, font, color를 확인하세요.
-// 데이터 흐름: 상위 라우터/화면에서 상태를 받고 하위 컴포넌트에 전달합니다.
-// 주의: 공통 컴포넌트·네트워크·저장소 변경은 여러 화면에 영향을 줄 수 있습니다.
+// 담당 화면: 인증 이후 메인 탭 컨테이너
+// 주요 책임: 현재 탭 콘텐츠와 공통 KIRITabBar의 배치, 가족/세션 상태 전달을 담당합니다.
+// UI 수정 위치: 탭바 좌우·하단 위치는 body의 padding, 화면 콘텐츠는 currentContent에서 조정합니다.
+// 데이터 흐름: AppRouter → MainTabView → HomeView/MissionView/RecordView/MyPageView.
+// 주의: 탭바 여백을 바꾸면 네 화면의 Safe Area와 마지막 콘텐츠 가시성이 함께 변합니다.
 //
 
 import SwiftUI
@@ -96,8 +96,10 @@ struct MainTabView: View {
             KIRITabBar(
                 selectedTab: $selectedTab
             )
-            .padding(.horizontal, 18)
-            .padding(.bottom, 8)
+            // Figma outer navigation 영역은 390×97pt이며, 내부 352×65pt 바를
+            // 좌우 19pt·하단 16pt 띄워 배치합니다.
+            .padding(.horizontal, 19)
+            .padding(.bottom, 16)
             .zIndex(1)
 
         }

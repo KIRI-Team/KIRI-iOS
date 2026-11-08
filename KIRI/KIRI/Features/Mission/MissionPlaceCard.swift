@@ -1,11 +1,12 @@
 //
 // MARK: - 파일 가이드
 // 파일: Features/Mission/MissionPlaceCard.swift
-// 담당 영역: 기능별 SwiftUI 화면과 상태
-// 주요 책임: 이 파일의 View·상태·서비스 연결을 담당합니다.
-// UI 수정: 이 파일의 body와 private computed view의 frame, padding, spacing, font, color를 확인하세요.
-// 데이터 흐름: 상위 라우터/화면에서 상태를 받고 하위 컴포넌트에 전달합니다.
-// 주의: 공통 컴포넌트·네트워크·저장소 변경은 여러 화면에 영향을 줄 수 있습니다.
+// 담당 화면: 미션 목록의 장소 카드 (Figma 9901:23876)
+// 주요 책임: 서버 미션의 이미지·제목·장소·태그·버킷 상태를 한 카드로 렌더링합니다.
+// UI 수정 위치: 카드 여백은 padding, 정보 폭은 216pt frame, 이미지 크기는 thumbnail frame,
+// 제목/장소 글꼴은 placeInformation, 태그 모양은 MissionPlaceTag에서 조정합니다.
+// 데이터 흐름: MissionView → MissionPlaceCard → KIRIContentImage / AuthService 버킷 저장.
+// 주의: 정보 폭과 이미지 폭의 합은 390pt Figma 프레임에서 카드가 겹치지 않도록 유지해야 합니다.
 //
 
 import SwiftUI
@@ -14,7 +15,7 @@ struct MissionPlaceCard: View {
 
     let title: String
     let placeName: String
-    let district: String
+    let district: String?
     let rating: Double?
     let tags: [String]
     let isRecommended: Bool
@@ -26,7 +27,7 @@ struct MissionPlaceCard: View {
     init(
         title: String,
         placeName: String,
-        district: String,
+        district: String? = nil,
         rating: Double?,
         tags: [String],
         isRecommended: Bool,
@@ -46,7 +47,7 @@ struct MissionPlaceCard: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 17) {
+        HStack(alignment: .top, spacing: 17) {
             thumbnail
 
             VStack(
@@ -63,10 +64,9 @@ struct MissionPlaceCard: View {
                     bookmarkButton
                 }
             }
-            .frame(
-                maxWidth: .infinity,
-                alignment: .leading
-            )
+            // 카드 폭 354 - 좌우 패딩 30 - 이미지 91 - 간격 17 = 216pt.
+            // 정보 영역을 명시해 제목이 이미지 영역으로 압축되지 않도록 합니다.
+            .frame(width: 216, alignment: .leading)
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 18)
@@ -165,9 +165,9 @@ struct MissionPlaceCard: View {
                 // 고정 높이나 offset으로 줄바꿈을 덮지 않아 장소명이 겹치지 않습니다.
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: 216, alignment: .leading)
 
-            Text("\(placeName) · \(district)")
+            Text(locationText)
                 .font(KIRITypography.bodySmall)
                 .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.secondary)
@@ -175,6 +175,11 @@ struct MissionPlaceCard: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private var locationText: String {
+        guard let district, !district.isEmpty else { return placeName }
+        return "\(placeName) · \(district)"
     }
 
     // MARK: - Tags
