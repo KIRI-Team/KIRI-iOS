@@ -1,11 +1,12 @@
 //
 // MARK: - 파일 가이드
 // 파일: Features/Mission/MissionView.swift
-// 담당 영역: 기능별 SwiftUI 화면과 상태
-// 주요 책임: 이 파일의 View·상태·서비스 연결을 담당합니다.
-// UI 수정: 이 파일의 body와 private computed view의 frame, padding, spacing, font, color를 확인하세요.
-// 데이터 흐름: 상위 라우터/화면에서 상태를 받고 하위 컴포넌트에 전달합니다.
-// 주의: 공통 컴포넌트·네트워크·저장소 변경은 여러 화면에 영향을 줄 수 있습니다.
+// 담당 화면: 미션(플레이스) 목록과 필터 진입 (Figma 9901:23876 / 9404:20244)
+// 주요 책임: 검색·카테고리·필터 상태, GET /api/v1/missions 목록 및 커서 페이지네이션을 관리합니다.
+// UI 수정 위치: 검색/칩/개수 행은 body, 카드 간격은 content의 LazyVStack, 필터 버튼은 count 행,
+// 하단 여백은 ScrollView.safeAreaInset에서 조정합니다.
+// 데이터 흐름: MainTabView → MissionView → AuthService.missionFeed → MissionPlaceCard.
+// 주의: 필터 요청에는 서버 enum 원문을 사용하고, 사용자 표시는 MissionDisplayLabel을 사용합니다.
 //
 
 import SwiftUI
@@ -110,8 +111,12 @@ struct MissionView: View {
                         .padding(.horizontal, 18)
                         .padding(.top, 24)
                         content.padding(.horizontal, 18).padding(.top, 16)
-                        Color.clear.frame(height: 100)
                     }
+                }
+                // 공통 플로팅 탭바 아래로 마지막 카드가 가려지지 않도록
+                // 임의 Spacer 대신 실제 외부 네비게이션 높이만큼 inset을 확보합니다.
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    Color.clear.frame(height: 97)
                 }
                 .refreshable { await load(reset: true) }
             }
@@ -125,7 +130,7 @@ struct MissionView: View {
             }
         }
         .fullScreenCover(item: $selectedMission) { row in
-            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
+            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: MissionDisplayLabel.category(row.mission.category) ?? "", rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
         }
     }
 
@@ -149,7 +154,7 @@ struct MissionView: View {
         } else {
             LazyVStack(spacing: 16) {
                 ForEach(filteredRows) { row in
-                    MissionPlaceCard(title: row.mission.title, placeName: row.mission.placeName, district: row.mission.category, rating: nil, tags: [row.mission.missionType], isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }))
+                    MissionPlaceCard(title: row.mission.title, placeName: row.mission.placeName, district: nil, rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }))
                         .contentShape(Rectangle()).onTapGesture { selectedMission = row }
                         .onAppear { if row.id == rows.last?.id, hasNext, !isLoadingMore { Task { await load(reset: false) } } }
                 }

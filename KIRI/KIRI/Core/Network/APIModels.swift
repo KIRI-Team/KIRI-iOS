@@ -309,6 +309,35 @@ struct MissionFeedItem: Decodable, Identifiable, Sendable {
     let distance: Double?
 
     var id: Int { missionId }
+
+    /// 서버 enum은 요청·필터에는 원문을 사용하고, 사용자 화면에서는 한국어 라벨만 사용합니다.
+    /// 서버에 새 값이 추가되어도 영문 enum이 그대로 노출되지 않도록 알 수 없는 값은 숨깁니다.
+    var displayTags: [String] {
+        [MissionDisplayLabel.category(category), MissionDisplayLabel.missionType(missionType)]
+            .compactMap { $0 }
+    }
+}
+
+enum MissionDisplayLabel {
+    static func category(_ rawValue: String) -> String? {
+        switch rawValue.uppercased() {
+        case "EXHIBITION": return "전시·문화"
+        case "POPUP": return "팝업·행사"
+        case "EXPERIENCE": return "체험·놀거리"
+        case "OUTDOOR": return "산책·야외"
+        case "PERFORMANCE": return "공연"
+        case "FOOD_CAFE": return "맛집·카페"
+        default: return nil
+        }
+    }
+
+    static func missionType(_ rawValue: String) -> String? {
+        switch rawValue.uppercased() {
+        case "PERMANENT": return "상시 운영"
+        case "TEMPORARY": return "기간 운영"
+        default: return nil
+        }
+    }
 }
 
 struct MissionDetailResult: Decodable, Sendable {
