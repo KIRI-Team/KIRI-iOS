@@ -82,6 +82,50 @@ final class APIClient {
                 print("[KIRI][Terms] response status=401")
             }
             #endif
+            // 만료된 access token은 공통 갱신 게이트를 통과해 한 번만
+            // 재발급한 뒤, 실패했던 원래 요청을 한 번만 재시도합니다.
+            // 재발급 endpoint 자체는 다시 갱신하지 않아 무한 루프를 막습니다.
+            if endpoint.requiresAuthentication,
+               endpoint.path != "/api/v1/auth/reissue",
+               let accessToken,
+               !accessToken.isEmpty {
+                let refreshed = try await AuthRefreshCoordinator.shared.refreshIfNeeded(
+                    failedAccessToken: accessToken,
+                    session: session,
+                    encoder: encoder,
+                    decoder: decoder
+                )
+                let retryRequest = try makeRequest(
+                    endpoint: endpoint,
+                    body: body,
+                    accessToken: refreshed.accessToken
+                )
+                do {
+                    let (retryData, retryResponse) = try await session.data(for: retryRequest)
+                    guard let retryHTTP = retryResponse as? HTTPURLResponse else {
+                        throw APIError.invalidResponse
+                    }
+                    guard retryHTTP.statusCode != 401 else {
+                        throw APIError.unauthorized
+                    }
+                    guard (200...299).contains(retryHTTP.statusCode) else {
+                        if let envelope = try? decoder.decode(APIEnvelope<EmptyAPIResult>.self, from: retryData) {
+                            throw APIError.serverError(code: envelope.code, message: envelope.message)
+                        }
+                        throw APIError.httpError(statusCode: retryHTTP.statusCode)
+                    }
+                    do {
+                        return try decoder.decode(Response.self, from: retryData)
+                    } catch {
+                        throw APIError.decodingFailed
+                    }
+                } catch let error as APIError {
+                    throw error
+                } catch {
+                    throw APIError.networkError(error)
+                }
+            }
+
             throw APIError.unauthorized
         }
 
@@ -230,4 +274,77 @@ final class APIClient {
         }
     }
     #endif
+}
+
+/// 여러 API가 동시에 401을 받아도 refresh token 재발급을 한 번만 수행합니다.
+/// 마지막으로 갱신된 access token이 실패한 요청의 토큰과 다르면 재발급 결과를 재사용합니다.
+private actor AuthRefreshCoordinator {
+    static let shared = AuthRefreshCoordinator()
+
+    private var lastRefreshedAccessToken: String?
+
+    func refreshIfNeeded(
+        failedAccessToken: String,
+        session: URLSession,
+        encoder: JSONEncoder,
+        decoder: JSONDecoder
+    ) async throws -> AuthTokens {
+        guard let stored = try KeychainAuthTokenStore.shared.read(),
+              let refreshToken = stored.refreshToken,
+              !refreshToken.isEmpty else {
+            throw APIError.unauthorized
+        }
+
+        if let lastRefreshedAccessToken,
+           lastRefreshedAccessToken != failedAccessToken,
+           stored.accessToken == lastRefreshedAccessToken {
+            return stored
+        }
+
+        let normalizedPath = "api/v1/auth/reissue"
+        let url = APIConfig.baseURL.appendingPathComponent(normalizedPath)
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.POST.rawValue
+        request.timeoutInterval = 30
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try encoder.encode(TokenReissueRequest(refreshToken: refreshToken))
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw APIError.networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+        guard (200...299).contains(http.statusCode) else {
+            if http.statusCode == 401 {
+                throw APIError.unauthorized
+            }
+            if let envelope = try? decoder.decode(APIEnvelope<EmptyAPIResult>.self, from: data) {
+                throw APIError.serverError(code: envelope.code, message: envelope.message)
+            }
+            throw APIError.httpError(statusCode: http.statusCode)
+        }
+        let envelope: APIEnvelope<TokenReissueResult>
+        do {
+            envelope = try decoder.decode(APIEnvelope<TokenReissueResult>.self, from: data)
+        } catch {
+            throw APIError.decodingFailed
+        }
+        guard let result = envelope.result else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+        let refreshed = AuthTokens(
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken,
+            expiresAt: nil
+        )
+        try KeychainAuthTokenStore.shared.save(refreshed)
+        lastRefreshedAccessToken = refreshed.accessToken
+        return refreshed
+    }
 }
