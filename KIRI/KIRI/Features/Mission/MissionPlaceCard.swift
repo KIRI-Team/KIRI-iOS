@@ -64,7 +64,7 @@ struct MissionPlaceCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, minWidth: 0, alignment: .leading)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
         }
         .padding(.horizontal, 15)
