@@ -58,32 +58,23 @@ struct MissionView: View {
         ZStack {
             KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
+                // Figma의 App Bar는 뒤로가기와 중앙 제목만 포함합니다.
+                // 필터는 목록 개수 행의 오른쪽에 배치해야 카드 목록과 같은 세로 기준을 유지합니다.
                 ZStack {
-                    Text("미션").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
+                    Text("미션")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
                     HStack {
-                        Spacer()
-                        Button { isFilterPresented = true } label: {
-                            ZStack(alignment: .topTrailing) {
-                                Image("mission_filter")
-                                    .resizable()
-                                    // Figma 원본 SVG의 회색을 유지합니다. 시스템 tint가 적용되면
-                                    // 아이콘이 배경과 섞여 보일 수 있으므로 원본 렌더링을 사용합니다.
-                                    .renderingMode(.original)
-                                    .scaledToFit()
-                                    .frame(width: 24, height: 24)
-                                if appliedFilter.count > 0 {
-                                    Circle().fill(KIRIColor.Text.accent).frame(width: 6, height: 6).offset(x: 1, y: -1)
-                                }
-                            }
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
+                        Button { } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 20, weight: .regular))
+                                .foregroundStyle(KIRIColor.Text.strong)
+                                .frame(width: 44, height: 44)
                         }
                         .buttonStyle(.plain)
-                        .zIndex(1)
-                        .accessibilityIdentifier("mission.filter.button")
-                        .accessibilityLabel("미션 필터")
+                        Spacer()
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 8)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 62)
@@ -91,7 +82,33 @@ struct MissionView: View {
                     VStack(spacing: 0) {
                         KIRISearchField(text: $searchText).padding(.horizontal, 18).padding(.top, 6)
                         categorySection.padding(.top, 13)
-                        HStack { Text("활동 \(filteredRows.count)개").font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.secondary); Spacer(); if isLoading { ProgressView().controlSize(.small) } }.frame(height: 20).padding(.horizontal, 18).padding(.top, 24)
+                        HStack {
+                            Text("활동 \(filteredRows.count)개")
+                                .font(KIRITypography.bodySmall)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                            Spacer()
+                            if isLoading { ProgressView().controlSize(.small) }
+                            Button { isFilterPresented = true } label: {
+                                ZStack(alignment: .topTrailing) {
+                                    Image("mission_filter")
+                                        .renderingMode(.original)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 24, height: 24)
+                                    if appliedFilter.count > 0 {
+                                        Circle().fill(KIRIColor.Text.accent).frame(width: 6, height: 6).offset(x: 1, y: -1)
+                                    }
+                                }
+                                .frame(width: 44, height: 24, alignment: .trailing)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("mission.filter.button")
+                            .accessibilityLabel("미션 필터")
+                        }
+                        .frame(height: 20)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 24)
                         content.padding(.horizontal, 18).padding(.top, 16)
                         Color.clear.frame(height: 100)
                     }
