@@ -104,8 +104,7 @@ struct MissionActivityDetailView: View {
                     Text("끼리추천")
                         .font(KIRITypography.captionMedium)
                         .foregroundStyle(KIRIColor.Text.accent)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
+                        .frame(width: 63, height: 33)
                         .background(KIRIColor.Background.greenSoft)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .padding(.bottom, 12)
@@ -116,14 +115,15 @@ struct MissionActivityDetailView: View {
                     .foregroundStyle(KIRIColor.Text.strong)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: 40, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, 18)
+                    .padding(.bottom, 23)
 
-                ActivityDetailCard(detail: detail, fallbackPlace: placeName, fallbackDistrict: district)
+                ActivityDetailCard(detail: detail, fallbackPlace: placeName)
             }
             .padding(.horizontal, 18)
             .padding(.top, 20)
-            .padding(.bottom, 32)
+            .padding(.bottom, 34)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(KIRIColor.Background.primary)
 
@@ -169,7 +169,6 @@ struct MissionActivityDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 62)
-        .padding(.horizontal, 8)
         .background(KIRIColor.Background.secondary)
     }
 
@@ -310,10 +309,8 @@ struct MissionActivityDetailView: View {
 private struct ActivityDetailCard: View {
     let detail: MissionDetailResult?
     let fallbackPlace: String
-    let fallbackDistrict: String
 
     private var place: String { detail?.place.name ?? fallbackPlace }
-    private var address: String { detail?.place.address ?? fallbackDistrict }
     private var openingTime: String? {
         guard let value = detail?.openingTime, !value.isEmpty else { return nil }
         return value
@@ -335,20 +332,22 @@ private struct ActivityDetailCard: View {
             row("장소", place)
             if let estimatedSteps, let durationText {
                 HStack(alignment: .top, spacing: 14) {
-                    row("예상 걸음수", estimatedSteps)
-                    row("활동시간", durationText)
+                    compactRow("예상 걸음수", estimatedSteps)
+                    compactRow("활동시간", durationText)
                 }
             } else {
                 if let estimatedSteps { row("예상 걸음수", estimatedSteps) }
                 if let durationText { row("활동시간", durationText) }
             }
-            if place.isEmpty == false, address != fallbackDistrict { row("주소", address) }
         }
-        .font(KIRITypography.bodySmall)
+        // Figma Activity Detail은 Pretendard Regular 16/26을 사용합니다.
+        // 행이 늘어날 때 카드 높이도 함께 늘어나도록 고정 높이를 두지 않습니다.
+        .font(KIRITypography.body)
         .foregroundStyle(KIRIColor.Text.primary)
         .padding(.horizontal, 26)
         .padding(.vertical, 17)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 127, alignment: .leading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -360,6 +359,14 @@ private struct ActivityDetailCard: View {
             Text(value).fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func compactRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(label).fixedSize(horizontal: true, vertical: false)
+            Text("|")
+            Text(value).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
