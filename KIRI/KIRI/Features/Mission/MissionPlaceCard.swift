@@ -3,10 +3,11 @@
 // 파일: Features/Mission/MissionPlaceCard.swift
 // 담당 화면: 미션 목록의 장소 카드 (Figma 9901:23876)
 // 주요 책임: 서버 미션의 이미지·제목·장소·태그·버킷 상태를 한 카드로 렌더링합니다.
-// UI 수정 위치: 이미지 높이는 thumbnail의 frame(height:), 정보 여백은 body의 padding,
+// UI 수정 위치: 이미지 크기는 thumbnail의 frame(width:height:), 정보 여백은 body의 padding,
 // 제목/장소 글꼴은 placeInformation, 태그 모양은 MissionPlaceTag에서 조정합니다.
 // 데이터 흐름: MissionView → MissionPlaceCard → KIRIContentImage / AuthService 버킷 저장.
-// 주의: 이미지와 정보가 수직으로 분리되어 있어 텍스트 길이가 이미지 레이아웃에 영향을 주지 않습니다.
+// 주의: Figma 9901:23876 기준으로 이미지는 왼쪽의 고정 91×91pt 영역에만 그려지고,
+// 오른쪽 정보 열은 남은 너비만 사용합니다. 이미지와 텍스트를 overlay로 겹치지 않습니다.
 //
 
 import SwiftUI
@@ -47,28 +48,38 @@ struct MissionPlaceCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 이미지와 정보 영역을 수직으로 분리합니다. 이미지의 실제 렌더링 영역을
-            // 고정 높이와 clipped로 제한해 원본 비율이 카드 밖으로 나갈 수 없게 합니다.
+        HStack(alignment: .top, spacing: 17) {
+            // 카드 이미지와 텍스트를 별도 열로 분리합니다. 이 열은 어떤 원본 이미지
+            // 비율이 들어와도 91×91pt를 벗어나지 않습니다.
             thumbnail
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 8) {
-                    placeInformation
+            VStack(alignment: .leading, spacing: 8) {
+                placeInformation
+
+                Spacer(minLength: 4)
+
+                // 태그와 북마크는 정보 열의 하단에 둡니다. 태그가 여러 줄이 되면
+                // 정보 열과 카드 높이가 함께 늘어나므로 이미지와 겹치지 않습니다.
+                HStack(alignment: .bottom, spacing: 8) {
+                    if !tagItems.isEmpty {
+                        tagsView
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Spacer(minLength: 0)
+                    }
                     bookmarkButton
                 }
-
-                if !tagItems.isEmpty {
-                    tagsView
-                }
             }
-            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, 15)
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(minHeight: 136, alignment: .topLeading)
         .background(cardBackground)
         .clipShape(
             RoundedRectangle(
-                cornerRadius: 14
+                cornerRadius: 8
             )
         )
     }
@@ -85,17 +96,21 @@ struct MissionPlaceCard: View {
 
     private var thumbnail: some View {
         ZStack(alignment: .topLeading) {
+            // KIRIContentImage는 공통 컴포넌트라 호출부가 크기를 제약해야 합니다.
+            // frame 뒤 clipped를 적용해 AsyncImage가 원본 크기로 카드 밖에 그려지지 않게 합니다.
             KIRIContentImage(imageURL: imageURL, mockAssetName: mockAssetName) {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(KIRIColor.Background.elevated)
             }
+            .frame(width: 91, height: 91)
+            .clipped()
             if let rating {
                 ratingBadge(rating)
-                    .padding(7)
+                    .padding(6)
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 160)
+        .frame(width: 91, height: 91)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
         .clipped()
     }
 
@@ -146,8 +161,8 @@ struct MissionPlaceCard: View {
             spacing: 2
         ) {
             Text(title)
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .font(.custom("Pretendard-Medium", fixedSize: 16))
+                .tracking(-0.64)
                 .foregroundStyle(KIRIColor.Text.strong)
                 // 정보 영역의 HStack에서 계산된 폭 안에서만 두 줄까지 줄바꿈합니다.
                 // fixedSize(width:)나 offset을 사용하지 않아 이미지 영역을 침범하지 않습니다.
@@ -156,8 +171,8 @@ struct MissionPlaceCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(locationText)
-                .font(KIRITypography.bodySmall)
-                .tracking(-0.56)
+                .font(.custom("Pretendard-Regular", fixedSize: 13))
+                .tracking(-0.52)
                 .foregroundStyle(KIRIColor.Text.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -293,8 +308,8 @@ private struct MissionPlaceTag: View {
 
     var body: some View {
         Text(title)
-            .font(KIRITypography.captionMedium)
-            .tracking(-0.48)
+            .font(.custom("Pretendard-Medium", fixedSize: 11))
+            .tracking(-0.44)
             .foregroundStyle(
                 isAccent
                     ? KIRIColor.Text.accent
