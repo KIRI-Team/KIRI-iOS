@@ -99,52 +99,57 @@ struct MissionActivityDetailView: View {
                 .padding(.vertical, 14)
             }
 
-            VStack(alignment: .leading, spacing: 0) {
-                if isRecommended {
-                    Text("끼리추천")
-                        .font(KIRITypography.captionMedium)
-                        .foregroundStyle(KIRIColor.Text.accent)
-                        .frame(width: 63, height: 33)
-                        .background(KIRIColor.Background.greenSoft)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .padding(.bottom, 12)
+            // 상세 조회가 실패한 경우 목록 응답의 제목·장소를 성공 데이터처럼
+            // 보여주지 않습니다. 재시도 상태와 실제 상세 응답을 분리해야
+            // 누락된 필드나 서버 오류를 사용자가 정상 데이터로 오해하지 않습니다.
+            if detailError == nil || detail != nil {
+                VStack(alignment: .leading, spacing: 0) {
+                    if isRecommended {
+                        Text("끼리추천")
+                            .font(KIRITypography.captionMedium)
+                            .foregroundStyle(KIRIColor.Text.accent)
+                            .frame(width: 63, height: 33)
+                            .background(KIRIColor.Background.greenSoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .padding(.bottom, 12)
+                    }
+
+                    Text(detail?.title ?? title)
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(minHeight: 40, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 23)
+
+                    ActivityDetailCard(detail: detail, fallbackPlace: placeName)
                 }
+                .padding(.horizontal, 18)
+                .padding(.top, 20)
+                .padding(.bottom, 34)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(KIRIColor.Background.primary)
 
-                Text(detail?.title ?? title)
-                    .font(KIRITypography.headingSmall)
-                    .foregroundStyle(KIRIColor.Text.strong)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(minHeight: 40, alignment: .leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, 23)
+                VStack(spacing: 0) {
+                    DetailSegmentedControl(selection: $selectedSegment)
+                        .padding(.top, 36)
+                        .padding(.bottom, 34)
 
-                ActivityDetailCard(detail: detail, fallbackPlace: placeName)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 20)
-            .padding(.bottom, 34)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(KIRIColor.Background.primary)
+                    if selectedSegment == .recommended {
+                        recommendationContent
+                    } else {
+                        Text("아직 등록된 리뷰가 없어요")
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                    }
 
-            VStack(spacing: 0) {
-                DetailSegmentedControl(selection: $selectedSegment)
-                    .padding(.top, 36)
-                    .padding(.bottom, 34)
-
-                if selectedSegment == .recommended {
-                    recommendationContent
-                } else {
-                    Text("아직 등록된 리뷰가 없어요")
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.tertiary)
-                        .frame(maxWidth: .infinity, minHeight: 140)
+                    detailSections
                 }
-
-                detailSections
+                .padding(.horizontal, 18)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
