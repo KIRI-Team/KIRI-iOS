@@ -591,6 +591,28 @@ final class AuthService {
         return result
     }
 
+    func scheduleReviews(scheduleId: Int) async throws -> ScheduleReviewsResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/reviews", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleReviewsResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func updateReview(scheduleId: Int, reviewId: Int, request: ReviewCreateRequest) async throws -> ReviewCreateResult {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/reviews/\(reviewId)", method: .PUT, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ReviewCreateResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func deleteReview(scheduleId: Int, reviewId: Int) async throws {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/reviews/\(reviewId)", method: .DELETE, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        _ = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken) as APIEnvelope<EmptyAPIResult>
+    }
+
 
     /// The current API exposes family membership through the question payload.
     /// No member/family profile lookup endpoint is present in the OpenAPI spec.
