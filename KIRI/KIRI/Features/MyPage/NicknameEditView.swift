@@ -13,6 +13,7 @@ import SwiftUI
 
 struct NicknameEditView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
 
     @Binding var nickname: String
     var onSave: ((String) async -> String?)? = nil
@@ -44,61 +45,63 @@ struct NicknameEditView: View {
             VStack(spacing: 0) {
                 header
 
-                VStack(
-                    alignment: .leading,
-                    spacing: 0
-                ) {
-                    Text("닉네임을 입력하세요")
-                        .font(KIRITypography.title)
-                        .foregroundStyle(
-                            KIRIColor.textPrimary
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("닉네임을 입력하세요")
+                            .font(KIRITypography.title)
+                            .foregroundStyle(KIRIColor.textPrimary)
+
+                        Text("닉네임은 월 1회 수정 가능합니다")
+                            .font(KIRITypography.subtitle)
+                            .foregroundStyle(KIRIColor.textSecondary)
+                            .padding(.top, 12)
+
+                        KIRITextField(
+                            placeholder: "이름을 입력하세요.",
+                            text: $editedNickname,
+                            state: editedNickname.isEmpty || isValid ? .normal : .error
                         )
-
-                    Text("닉네임은 월 1회 수정 가능합니다")
-                        .font(KIRITypography.subtitle)
-                        .foregroundStyle(
-                            KIRIColor.textSecondary
-                        )
-                        .padding(.top, 12)
-
-                    KIRITextField(
-                        placeholder: "이름을 입력하세요.",
-                        text: $editedNickname,
-                        state: editedNickname.isEmpty || isValid ? .normal : .error
-                    )
-                    .padding(.top, 40)
-
-                    Spacer()
-
-                    if let errorMessage {
-                        Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                        .padding(.top, 40)
                     }
-
-                    KIRIPrimaryButton(
-                        title: "다음",
-                        isEnabled: isValid && !isSaving
-                    ) {
-                        Task { @MainActor in
-                            isSaving = true
-                            errorMessage = await onSave?(trimmedNickname)
-                            if errorMessage == nil {
-                                nickname = trimmedNickname
-                                dismiss()
-                            }
-                            isSaving = false
-                        }
-                    }
+                    .padding(.horizontal, KIRISpacing.horizontal)
+                    .padding(.top, 10)
                 }
-                .padding(
-                    .horizontal,
-                    KIRISpacing.horizontal
-                )
-                .padding(.bottom, 10)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    saveArea
+                        .padding(.horizontal, KIRISpacing.horizontal)
+                        .padding(.top, 12)
+                        .padding(.bottom, 10)
+                        .background(KIRIColor.background)
+                }
             }
         }
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
+            tabBarVisibility.wrappedValue = false
             editedNickname = nickname
+        }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
+    }
+
+    private var saveArea: some View {
+        VStack(spacing: 8) {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Status.error)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            KIRIPrimaryButton(title: "다음", isEnabled: isValid && !isSaving) {
+                Task { @MainActor in
+                    isSaving = true
+                    errorMessage = await onSave?(trimmedNickname)
+                    if errorMessage == nil {
+                        nickname = trimmedNickname
+                        dismiss()
+                    }
+                    isSaving = false
+                }
+            }
         }
     }
 

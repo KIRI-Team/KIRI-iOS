@@ -15,6 +15,7 @@ private struct MyPageAppBar<Content: View>: View {
     let title: String
     let content: () -> Content
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
 
     init(title: String, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
@@ -35,6 +36,8 @@ private struct MyPageAppBar<Content: View>: View {
             }
             content()
         }
+        .onAppear { tabBarVisibility.wrappedValue = false }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
     }
 }
 

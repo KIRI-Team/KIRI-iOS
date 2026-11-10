@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct RecordView: View {
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
 
     // 가족 상태가 확인된 뒤에만 기록 API를 조회합니다.
     // 둘러보기와 상태 확인 실패를 서버 빈 목록으로 오인하지 않도록 라우터 상태를 받습니다.
@@ -67,6 +68,10 @@ struct RecordView: View {
     @State private var reviewStore = ActivityReviewStore()
     /// 일정 변경 후 캘린더와 다가오는 일정 API를 다시 호출하기 위한 화면 identity입니다.
     @State private var scheduleRefreshID = UUID()
+
+    private var isDetailPresented: Bool {
+        selectedInvitation != nil || selectedReview != nil || selectedSchedule != nil || editingReview
+    }
 
     private func reviewKey(_ schedule: RecordCalendarView.ScheduleDetailData) -> String {
 
@@ -181,6 +186,15 @@ struct RecordView: View {
             Button("취소", role: .cancel) {}
         } message: {
             Text("현재 실행 중인 앱의 임시 기록만 삭제됩니다.")
+        }
+        .onAppear {
+            tabBarVisibility.wrappedValue = !isDetailPresented
+        }
+        .onChange(of: isDetailPresented) { _, presented in
+            tabBarVisibility.wrappedValue = !presented
+        }
+        .onDisappear {
+            tabBarVisibility.wrappedValue = true
         }
     }
 

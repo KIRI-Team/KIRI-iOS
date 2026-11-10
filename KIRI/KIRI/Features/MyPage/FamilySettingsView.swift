@@ -13,6 +13,7 @@ import SwiftUI
 
 struct FamilySettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
 
     let familyId: Int?
     let initialFamilyName: String?
@@ -80,6 +81,8 @@ struct FamilySettingsView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear { tabBarVisibility.wrappedValue = false }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
         .alert("가족공간을 나갈까요?", isPresented: $isLeaveAlertPresented) {
             Button("취소", role: .cancel) {}
             Button("나가기", role: .destructive) {}

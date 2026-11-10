@@ -36,6 +36,7 @@ struct MainTabView: View {
 
     @State private var selectedTab: AppTab = .home
     @State private var homeTutorialStore: HomeTutorialStore
+    @State private var isTabBarVisible = true
 
     init(
         userMode: AppRouter.UserMode,
@@ -100,13 +101,16 @@ struct MainTabView: View {
             // 좌우 19pt·하단 16pt 띄워 배치합니다.
             .padding(.horizontal, 19)
             .padding(.bottom, 16)
+            .opacity(isTabBarVisible ? 1 : 0)
+            .allowsHitTesting(isTabBarVisible)
             .zIndex(1)
 
         }
-        .ignoresSafeArea(
-            .keyboard,
-            edges: .bottom
-        )
+        .environment(\.kiriTabBarVisibility, $isTabBarVisible)
+        .onChange(of: selectedTab) { _, _ in
+            // 탭을 전환하면 각 탭의 루트 화면에서 탭바를 다시 표시합니다.
+            isTabBarVisible = true
+        }
     }
 
     @ViewBuilder
