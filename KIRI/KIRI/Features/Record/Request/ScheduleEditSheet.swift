@@ -11,7 +11,7 @@ struct ScheduleEditSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var date: Date
     @State private var time: Date
-    @State private var members: [FamilyAnswer] = []
+    @State private var members: [FamilyMemberInfoResult] = []
     @State private var selectedMemberIds: Set<Int> = []
     @State private var isLoadingMembers = false
     @State private var isSubmitting = false
@@ -71,11 +71,13 @@ struct ScheduleEditSheet: View {
         guard !isLoadingMembers else { return }
         isLoadingMembers = true; defer { isLoadingMembers = false }
         do {
-            let today = try await AuthService.shared.todayQuestion()
-            if let questionId = today.questionId {
-                let result = try await AuthService.shared.familyAnswers(questionId: questionId)
-                members = result.answers.filter { !$0.isMe }
+            let session = AppSessionStore()
+            guard let familyId = session.familyId else {
+                throw AuthServiceError.missingStoredSession
             }
+            let result = try await AuthService.shared.familyInfo(familyId: familyId)
+            let currentMemberId = result.members.first { $0.nickname == session.nickname }?.memberId
+            members = result.members.filter { $0.memberId != currentMemberId }
         } catch { errorMessage = "가족 구성원을 불러오지 못했어요." }
     }
 

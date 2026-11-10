@@ -280,6 +280,14 @@ final class AuthService {
         return result
     }
 
+    func familyInfo(familyId: Int) async throws -> FamilyInfoResult {
+        let endpoint = APIEndpoint(path: "/api/v1/families/\(familyId)", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyInfoResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func reissueFamilyInvite(familyId: Int) async throws -> InviteResult {
         let endpoint = APIEndpoint(path: "/api/v1/families/\(familyId)/invite", method: .PATCH, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
@@ -477,6 +485,22 @@ final class AuthService {
         let envelope: APIEnvelope<UpcomingScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
         guard let result = envelope.result else { throw APIError.decodingFailed }
         return result
+    }
+
+    func nearbyMissions(scheduleId: Int) async throws -> [NearbyMissionResult] {
+        let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/nearby", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<[NearbyMissionResult]> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func familyRecommendation() async throws -> FamilyRecommendationResult? {
+        let endpoint = APIEndpoint(path: "/api/v1/missions/recommendations", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyRecommendationResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard envelope.isSuccess else { throw APIError.serverError(code: envelope.code, message: envelope.message) }
+        return envelope.result
     }
 
     /// 기록탭 일정 상세를 서버에서 다시 확인합니다.

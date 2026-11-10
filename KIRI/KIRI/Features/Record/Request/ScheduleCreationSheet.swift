@@ -11,7 +11,7 @@ struct ScheduleCreationSheet: View {
     @State private var time = Date()
     @State private var isSubmitting = false
     @State private var errorMessage: String?
-    @State private var familyMembers: [FamilyAnswer] = []
+    @State private var familyMembers: [FamilyMemberInfoResult] = []
     @State private var selectedMemberIds: Set<Int> = []
     @State private var membersLoaded = false
 
@@ -120,11 +120,13 @@ struct ScheduleCreationSheet: View {
     private func loadFamilyMembers() async {
         guard !membersLoaded else { return }
         do {
-            let today = try await AuthService.shared.todayQuestion()
-            if let questionId = today.questionId {
-                let result = try await AuthService.shared.familyAnswers(questionId: questionId)
-                familyMembers = result.answers.filter { !$0.isMe }
+            let session = AppSessionStore()
+            guard let familyId = session.familyId else {
+                throw AuthServiceError.missingStoredSession
             }
+            let result = try await AuthService.shared.familyInfo(familyId: familyId)
+            let currentMemberId = result.members.first { $0.nickname == session.nickname }?.memberId
+            familyMembers = result.members.filter { $0.memberId != currentMemberId }
             membersLoaded = true
         } catch {
             errorMessage = "가족 구성원을 불러오지 못했어요. 다시 시도해 주세요."

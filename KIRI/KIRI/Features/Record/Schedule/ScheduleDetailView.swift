@@ -28,6 +28,9 @@ struct ScheduleDetailView: View {
     @State private var scheduleMutationError: String?
     @State private var showingCancelConfirmation = false
     @State private var showingEditSheet = false
+    @State private var nearbyMissions: [NearbyMissionResult] = []
+    @State private var nearbyLoadError: String?
+    @State private var isLoadingNearby = false
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -178,7 +181,10 @@ struct ScheduleDetailView: View {
             }
         }
         .background(KIRIColor.Background.base)
-        .task { await loadServerDetail() }
+        .task {
+            await loadServerDetail()
+            await loadNearbyMissions()
+        }
     }
 
     private func loadServerDetail() async {
@@ -194,6 +200,18 @@ struct ScheduleDetailView: View {
             #endif
         }
         isLoadingServerDetail = false
+    }
+
+    private func loadNearbyMissions() async {
+        guard let scheduleId = schedule.scheduleId, !isLoadingNearby else { return }
+        isLoadingNearby = true
+        nearbyLoadError = nil
+        defer { isLoadingNearby = false }
+        do {
+            nearbyMissions = try await AuthService.shared.nearbyMissions(scheduleId: scheduleId)
+        } catch {
+            nearbyLoadError = "근처 놀거리 추천을 불러오지 못했어요."
+        }
     }
     private var upcomingContent: some View {
         ScrollView(showsIndicators: false) {
@@ -424,17 +442,53 @@ struct ScheduleDetailView: View {
             )
             .font(KIRITypography.headingSmall)
             .foregroundStyle(KIRIColor.Text.strong)
-            Text(
-                selectedTab == .aiActivity
-                    ? "추천 활동 정보를 준비하고 있어요."
-                    : "아직 등록된 가족 추억이 없어요."
-            )
-            .font(KIRITypography.bodySmall)
-            .foregroundStyle(KIRIColor.Text.secondary)
-            .frame(maxWidth: .infinity, minHeight: 110)
-            .background(KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            if selectedTab == .aiActivity {
+                if isLoadingNearby {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 110)
+                } else if let nearbyLoadError {
+                    VStack(spacing: 8) {
+                        Text(nearbyLoadError).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await loadNearbyMissions() } }
+                    }.frame(maxWidth: .infinity, minHeight: 110)
+                } else if nearbyMissions.isEmpty {
+                    Text("근처에 추천할 놀거리가 없어요.")
+                        .font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 110)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(nearbyMissions) { item in
+                                nearbyCard(item)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("아직 등록된 가족 추억이 없어요.")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 110)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
         }
+    }
+
+    private func nearbyCard(_ item: NearbyMissionResult) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            KIRIContentImage(imageURL: item.imageUrl, mockAssetName: nil) {
+                KIRIColor.Background.tertiary
+            }
+            .frame(width: 180, height: 120)
+            .clipped()
+            Text(item.placeName).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
+            Text(item.region).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary).lineLimit(1)
+            Text(item.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).lineLimit(2)
+        }
+        .padding(10)
+        .frame(width: 200, alignment: .leading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
     private func statusView(
         title: String,
