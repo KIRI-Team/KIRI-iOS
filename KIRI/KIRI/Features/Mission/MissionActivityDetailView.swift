@@ -7,6 +7,8 @@
 // 카드 행 간격은 ActivityDetailCard의 VStack spacing, 하단 CTA는 bottomBar에서 조정합니다.
 // 데이터 흐름: MissionView → missionId → AuthService.missionDetail → MissionDetailResult.
 // 주의: 서버에 없는 추천 활동·맞춤템·주변 장소를 임의로 생성하지 않습니다.
+// 맞춤템 카드의 우산 아이콘은 Figma 8438:5340 원본 SVG를
+// Assets.xcassets/figma_umbrella.imageset에서 사용합니다.
 //
 
 import SwiftUI
@@ -272,22 +274,35 @@ struct MissionActivityDetailView: View {
     }
 
     private func recommendationCardLabel(_ recommendation: FamilyRecommendationResult) -> some View {
-            HStack(spacing: 8) {
-            KIRIContentImage(imageURL: recommendation.imageUrl, mockAssetName: nil) {
-                KIRIColor.Background.tertiary
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                // Figma 8438:5340의 24pt 활성 우산 아이콘입니다.
+                // 서버 imageUrl은 이 Figma 카드 구조에 대응하는 필드가 아니므로
+                // 카드 안에서 임의의 썸네일로 대체하지 않습니다.
+                Image("figma_umbrella")
+                    .resizable()
+                    .renderingMode(.original)
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                Text(recommendation.title)
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(width: 52, height: 52)
-            .clipped()
-            VStack(alignment: .leading, spacing: 6) {
-                Text(recommendation.title).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
-                Text(recommendation.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary).lineLimit(2)
-                if !recommendation.recommendationReason.isEmpty {
-                    Text(recommendation.recommendationReason).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).lineLimit(2)
-                }
+            Text(recommendation.description)
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            if !recommendation.recommendationReason.isEmpty {
+                Text(recommendation.recommendationReason)
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .lineLimit(1)
             }
-            Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .frame(width: 171, height: 110, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
@@ -322,20 +337,9 @@ struct MissionActivityDetailView: View {
             .padding(.top, 28)
         }
 
-        if let detail, let description = detail.description, !description.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("미션 소개")
-                    .font(KIRITypography.headingSmall)
-                    .foregroundStyle(KIRIColor.Text.strong)
-                Text(description.replacingOccurrences(of: "\\n", with: "\n"))
-                    .font(KIRITypography.bodySmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .lineSpacing(5)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(.top, 28)
-        }
+        // Figma 9901:24342에는 별도의 "활동 소개"/"미션 소개" 섹션이 없습니다.
+        // 상세 API의 description은 모델에 보존하지만, 존재하지 않는 UI를 만들지
+        // 않도록 이 화면에서는 렌더링하지 않습니다.
     }
 
     private func detailList(title: String, items: [MissionDetailItem]) -> some View {
