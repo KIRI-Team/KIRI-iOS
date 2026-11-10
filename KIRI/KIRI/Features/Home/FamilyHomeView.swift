@@ -134,7 +134,21 @@ struct FamilyHomeView: View {
                     homeContent.allowsHitTesting(false)
                     Color.black.opacity(0.56).ignoresSafeArea()
                     if let selectedMember {
-                        HomeMemberQuestionView(member: selectedMember, onBack: { route = .home })
+                        HomeMemberQuestionView(
+                            member: selectedMember,
+                            onBack: { route = .home },
+                            onPoke: { memberId in
+                                do {
+                                    try await AuthService.shared.pokeMember(memberId: memberId)
+                                    if let questionId = serverQuestion?.questionId {
+                                        await loadFamilyAnswers(questionId: questionId)
+                                    }
+                                    return true
+                                } catch {
+                                    return false
+                                }
+                            }
+                        )
                     }
                 }
             }

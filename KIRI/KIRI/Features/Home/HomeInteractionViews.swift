@@ -117,7 +117,9 @@ struct HomeMissionDetailView: View {
 struct HomeMemberQuestionView: View {
     let member: HomeMember
     let onBack: () -> Void
+    let onPoke: (Int) async -> Bool
     @State private var didPoke = false
+    @State private var isPoking = false
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 20) {
@@ -133,8 +135,16 @@ struct HomeMemberQuestionView: View {
                     .fill(KIRIColor.Border.default)
                     .frame(width: 1, height: 50)
                 if !member.isMe {
-                    Button(didPoke ? "콕 보냄" : "콕 찌르기") { didPoke = true }
-                        .disabled(didPoke)
+                    Button(didPoke ? "콕 보냄" : "콕 찌르기") {
+                        guard let memberId = member.memberId, !didPoke, !isPoking else { return }
+                        isPoking = true
+                        Task { @MainActor in
+                            let success = await onPoke(memberId)
+                            didPoke = success
+                            isPoking = false
+                        }
+                    }
+                        .disabled(didPoke || isPoking || member.memberId == nil)
                         .font(KIRITypography.caption)
                         .overlay(alignment: .top) {
                             Image("figma_gesture_tap")
