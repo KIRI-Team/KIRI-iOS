@@ -291,6 +291,30 @@ struct UpdateScheduleRequest: Encodable, Sendable {
     let requestMessage: String?
 }
 
+struct TasteResult: Codable, Sendable {
+    let nickname: String
+    let isSet: Bool
+    let categories: [String]?
+    let indoorOutdoor: String?
+    let activityLevel: String?
+    let priceLevel: String?
+    let durationLevel: String?
+}
+
+struct TasteRequest: Encodable, Sendable {
+    let categories: [String]
+    let indoorOutdoor: String?
+    let activityLevel: String
+    let priceLevel: String?
+    let durationLevel: String?
+}
+
+struct InviteResult: Decodable, Sendable {
+    let inviteCode: String
+    let inviteUrl: String
+    let inviteExpiresAt: String?
+}
+
 struct ScheduleResponseRequest: Encodable, Sendable {
     let action: String
 }

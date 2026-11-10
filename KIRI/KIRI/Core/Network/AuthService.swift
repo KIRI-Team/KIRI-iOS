@@ -256,6 +256,38 @@ final class AuthService {
         return result
     }
 
+    func myTaste() async throws -> TasteResult {
+        let endpoint = APIEndpoint(path: "/api/v1/members/taste", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<TasteResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func saveTaste(_ request: TasteRequest) async throws -> TasteResult {
+        let endpoint = APIEndpoint(path: "/api/v1/members/taste", method: .PUT, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<TasteResult> = try await client.requestEnvelope(endpoint: endpoint, body: request, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func familyInvite(familyId: Int) async throws -> InviteResult {
+        let endpoint = APIEndpoint(path: "/api/v1/families/\(familyId)/invite", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<InviteResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func reissueFamilyInvite(familyId: Int) async throws -> InviteResult {
+        let endpoint = APIEndpoint(path: "/api/v1/families/\(familyId)/invite", method: .PATCH, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<InviteResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func todayQuestion() async throws -> TodayQuestionResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/questions/today",

@@ -49,7 +49,7 @@ struct MyPageView: View {
                                 )
                             } label: { menuRow("가족 기본 설정") }
                             NavigationLink { AddressSettingsView() } label: { menuRow("우리집 주소 설정") }
-                            NavigationLink { InviteLinkView() } label: { menuRow("공용초대링크 관리") }
+                            NavigationLink { InviteLinkView(familyId: familyId) } label: { menuRow("공용초대링크 관리") }
                         }.padding(.top, 48)
                         menuSection(title: "설정") {
                             NavigationLink { AccountInfoView(onLogout: onLogout, onDeleteAccount: onDeleteAccount) } label: { menuRow("계정 정보") }
