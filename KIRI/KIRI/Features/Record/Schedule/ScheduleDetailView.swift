@@ -27,6 +27,7 @@ struct ScheduleDetailView: View {
     @State private var isMutatingSchedule = false
     @State private var scheduleMutationError: String?
     @State private var showingCancelConfirmation = false
+    @State private var showingEditSheet = false
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -160,6 +161,21 @@ struct ScheduleDetailView: View {
                 },
                 initialDraft: currentReview
             )
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            if let scheduleId = schedule.scheduleId {
+                ScheduleEditSheet(
+                    scheduleId: scheduleId,
+                    initialDate: effectiveDate,
+                    initialTime: effectiveStartTime,
+                    onUpdated: {
+                        Task {
+                            await loadServerDetail()
+                            onScheduleChanged?()
+                        }
+                    }
+                )
+            }
         }
         .background(KIRIColor.Background.base)
         .task { await loadServerDetail() }
@@ -328,6 +344,10 @@ struct ScheduleDetailView: View {
             }
 
             if effectiveStatus != "CANCELLED" {
+                Button("일정 수정") { showingEditSheet = true }
+                    .buttonStyle(scheduleActionStyle(isPrimary: false))
+                    .disabled(isMutatingSchedule || schedule.scheduleId == nil)
+
                 HStack(spacing: 8) {
                     Button("거절") {
                         Task { await respond(action: "DECLINED") }
