@@ -31,6 +31,9 @@ struct ScheduleDetailView: View {
     @State private var nearbyMissions: [NearbyMissionResult] = []
     @State private var nearbyLoadError: String?
     @State private var isLoadingNearby = false
+    @State private var serverReviews: [ReviewItemResult] = []
+    @State private var reviewsLoadError: String?
+    @State private var isLoadingReviews = false
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -185,6 +188,7 @@ struct ScheduleDetailView: View {
         .task {
             await loadServerDetail()
             await loadNearbyMissions()
+            await loadReviews()
         }
     }
 
@@ -212,6 +216,18 @@ struct ScheduleDetailView: View {
             nearbyMissions = try await AuthService.shared.nearbyMissions(scheduleId: scheduleId)
         } catch {
             nearbyLoadError = "근처 놀거리 추천을 불러오지 못했어요."
+        }
+    }
+
+    private func loadReviews() async {
+        guard let scheduleId = schedule.scheduleId, !isLoadingReviews else { return }
+        isLoadingReviews = true
+        reviewsLoadError = nil
+        defer { isLoadingReviews = false }
+        do {
+            serverReviews = try await AuthService.shared.scheduleReviews(scheduleId: scheduleId).reviews
+        } catch {
+            reviewsLoadError = "가족 추억을 불러오지 못했어요."
         }
     }
     private var upcomingContent: some View {
@@ -463,14 +479,47 @@ struct ScheduleDetailView: View {
                     }
                 }
             } else {
-                Text("아직 등록된 가족 추억이 없어요.")
-                    .font(KIRITypography.bodySmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 110)
-                    .background(KIRIColor.Background.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                if isLoadingReviews {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 110)
+                } else if let reviewsLoadError {
+                    VStack(spacing: 8) {
+                        Text(reviewsLoadError).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await loadReviews() } }
+                    }.frame(maxWidth: .infinity, minHeight: 110)
+                } else if serverReviews.isEmpty {
+                    Text("아직 등록된 가족 추억이 없어요.")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 110)
+                        .background(KIRIColor.Background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(serverReviews) { review in
+                            serverReviewCard(review)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private func serverReviewCard(_ review: ReviewItemResult) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(review.writer.nickname).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong)
+                Spacer()
+                Text("★ (review.starRating)").font(KIRITypography.captionMedium).foregroundStyle(KIRIColor.Text.accent)
+            }
+            Text(review.content).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.primary)
+            if !review.photos.isEmpty {
+                Text("사진 (review.photos.count)장").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func nearbyCard(_ item: NearbyMissionResult) -> some View {

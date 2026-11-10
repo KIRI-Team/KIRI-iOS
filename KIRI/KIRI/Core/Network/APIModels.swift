@@ -205,6 +205,36 @@ struct ReviewCreateResult: Decodable, Sendable {
     let scheduleId: Int
 }
 
+struct ScheduleReviewsResult: Decodable, Sendable {
+    let scheduleId: Int
+    let reviews: [ReviewItemResult]
+}
+
+struct ReviewItemResult: Decodable, Identifiable, Sendable {
+    let reviewId: Int
+    let writer: ReviewWriterResult
+    let content: String
+    let starRating: Int
+    let isRejoinIntended: Bool
+    let photos: [ReviewPhotoResult]
+    let createdAt: String
+    let isMine: Bool
+
+    var id: Int { reviewId }
+}
+
+struct ReviewWriterResult: Decodable, Sendable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+}
+
+struct ReviewPhotoResult: Decodable, Sendable {
+    let reviewPhotoId: Int
+    let imageKey: String
+    let imageUrl: URL
+}
+
 struct CreateScheduleRequest: Encodable, Sendable {
     let scheduleDate: String
     let scheduleTime: String
