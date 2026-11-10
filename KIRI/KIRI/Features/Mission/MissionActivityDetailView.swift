@@ -195,16 +195,33 @@ struct MissionActivityDetailView: View {
         if isLoadingDetail {
             ProgressView().frame(maxWidth: .infinity, minHeight: 140)
         } else {
-            Text("오늘의 끼리 추천 활동")
-                .font(KIRITypography.headingSmall)
-                .foregroundStyle(KIRIColor.Text.strong)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 16)
-            Text(detail == nil ? "추천 활동 정보가 아직 없어요." : "추천 활동 정보가 준비되면 이곳에 표시됩니다.")
-                .font(KIRITypography.bodySmall)
-                .foregroundStyle(KIRIColor.Text.tertiary)
-                .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+            VStack(alignment: .leading, spacing: 16) {
+                detailSectionTitle("오늘의 끼리 추천 활동", accent: true)
+                unavailableRecommendationCard("추천 활동 데이터가 아직 없어요.")
+
+                // Figma의 맞춤템 영역은 서버 계약이 확인될 때까지 빈 상태만 표시합니다.
+                // 샘플 상품이나 추천 이유를 운영 화면에 생성하지 않습니다.
+                detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
+                unavailableRecommendationCard("맞춤 콘텐츠가 준비되면 이곳에 표시됩니다.")
+            }
         }
+    }
+
+    private func detailSectionTitle(_ title: String, accent: Bool) -> some View {
+        Text(title)
+            .font(KIRITypography.headingSmall)
+            .foregroundStyle(accent ? KIRIColor.Text.accent : KIRIColor.Text.strong)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func unavailableRecommendationCard(_ message: String) -> some View {
+        Text(message)
+            .font(KIRITypography.bodySmall)
+            .foregroundStyle(KIRIColor.Text.tertiary)
+            .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
+            .padding(.horizontal, 18)
+            .background(KIRIColor.Background.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     @ViewBuilder
