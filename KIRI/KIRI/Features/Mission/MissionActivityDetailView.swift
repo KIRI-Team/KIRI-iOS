@@ -238,11 +238,11 @@ struct MissionActivityDetailView: View {
     }
 
     private func recommendationCard(_ recommendation: FamilyRecommendationResult) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             KIRIContentImage(imageURL: recommendation.imageUrl, mockAssetName: nil) {
                 KIRIColor.Background.tertiary
             }
-            .frame(width: 92, height: 92)
+            .frame(width: 52, height: 52)
             .clipped()
             VStack(alignment: .leading, spacing: 6) {
                 Text(recommendation.title).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
@@ -253,7 +253,8 @@ struct MissionActivityDetailView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(12)
+        .padding(18)
+        .frame(width: 171, height: 110, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }

@@ -81,7 +81,7 @@ struct ScheduleCreationSheet: View {
                             Spacer()
                         }
                     }
-                    .disabled(isSubmitting)
+                    .disabled(isSubmitting || !membersLoaded || selectedMemberIds.isEmpty)
                 }
             }
             .navigationTitle("일정 만들기")
@@ -97,6 +97,10 @@ struct ScheduleCreationSheet: View {
 
     private func submit() async {
         guard !isSubmitting else { return }
+        guard !selectedMemberIds.isEmpty else {
+            errorMessage = "초대할 가족 구성원을 한 명 이상 선택해 주세요."
+            return
+        }
         isSubmitting = true
         errorMessage = nil
         defer { isSubmitting = false }
@@ -125,7 +129,7 @@ struct ScheduleCreationSheet: View {
                 throw AuthServiceError.missingStoredSession
             }
             let result = try await AuthService.shared.familyInfo(familyId: familyId)
-            let currentMemberId = result.members.first { $0.nickname == session.nickname }?.memberId
+            let currentMemberId = try? AuthService.shared.currentMemberId()
             familyMembers = result.members.filter { $0.memberId != currentMemberId }
             membersLoaded = true
         } catch {

@@ -288,6 +288,24 @@ final class AuthService {
         return result
     }
 
+    /// KIRI-SERVER access token은 JWT subject에 인증된 memberId를 담습니다.
+    /// 닉네임 변경과 무관하게 참여자 선택에서 현재 사용자를 제외하기 위한 값입니다.
+    func currentMemberId() throws -> Int {
+        let tokens = try authenticatedTokens()
+        let segments = tokens.accessToken.split(separator: ".")
+        guard segments.count == 3 else { throw AuthServiceError.missingStoredSession }
+        var payload = String(segments[1])
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        payload = payload.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        guard let data = Data(base64Encoded: payload),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let subject = object["sub"] as? String,
+              let memberId = Int(subject) else {
+            throw AuthServiceError.missingStoredSession
+        }
+        return memberId
+    }
+
     func reissueFamilyInvite(familyId: Int) async throws -> InviteResult {
         let endpoint = APIEndpoint(path: "/api/v1/families/\(familyId)/invite", method: .PATCH, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
