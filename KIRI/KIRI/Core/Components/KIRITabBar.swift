@@ -162,7 +162,7 @@ struct KIRITabBar: View {
             return "기록"
 
         case .myPage:
-            return "마이"
+            return "마이페이지"
         }
     }
 

@@ -81,8 +81,13 @@ struct MyPageView: View {
             }
             Spacer()
             NavigationLink { NicknameEditView(nickname: Binding(get: { nickname ?? "" }, set: { editedNickname = $0 }), onSave: onUpdateNickname) } label: {
-                Image(systemName: "pencil").font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(KIRIColor.Icon.secondary).frame(width: 36, height: 36)
+                // Figma 9901:25894 / KIRI/Icon/Action/Edit 원본 벡터.
+                // 수정 아이콘 크기와 터치 영역은 각각 24pt·36pt로 유지합니다.
+                Image("figma_edit")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .frame(width: 36, height: 36)
             }.buttonStyle(.plain)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -105,8 +110,14 @@ struct MyPageView: View {
         HStack {
             Text(title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
             Spacer()
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .medium))
-                .foregroundStyle(KIRIColor.Icon.secondary)
+            // Figma 9901:25902 / KIRI/Icon/Navigation/Back 원본을 오른쪽 방향으로 사용합니다.
+            // SF Symbol을 쓰지 않아 Figma의 8×16pt 선 굵기와 색상을 유지합니다.
+            Image("figma_navigation_back")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 8, height: 16)
+                .rotationEffect(.degrees(180))
+                .frame(width: 36, height: 36)
         }.padding(.horizontal, 16).frame(height: 56).contentShape(Rectangle())
     }
 }
