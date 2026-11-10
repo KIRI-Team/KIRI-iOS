@@ -27,19 +27,44 @@ final class APIClient {
 
     func request<Response: Decodable>(
         endpoint: APIEndpoint,
-        body: (any Encodable)? = nil,
         accessToken: String? = nil
+    ) async throws -> Response {
+        return try await requestImpl<Response>(
+            endpoint: endpoint,
+            bodyData: nil,
+            accessToken: accessToken
+        )
+    }
+
+    func request<Response: Decodable, Body: Encodable>(
+        endpoint: APIEndpoint,
+        body: Body,
+        accessToken: String? = nil
+    ) async throws -> Response {
+        // Encode the value before entering the async request pipeline. This keeps
+        // the request payload independent from the caller's object lifetime and
+        // prevents an existential/body value from crossing an async boundary.
+        let bodyData = try JSONEncoder().encode(body)
+        return try await requestImpl<Response>(
+            endpoint: endpoint,
+            bodyData: bodyData,
+            accessToken: accessToken
+        )
+    }
+
+    private func requestImpl<Response: Decodable>(
+        endpoint: APIEndpoint,
+        bodyData: Data?,
+        accessToken: String?
     ) async throws -> Response {
         // APIClient.shared는 여러 화면의 Task에서 동시에 사용됩니다.
         // JSONEncoder/JSONDecoder는 요청 간 공유하지 않고 요청마다 생성해야
         // 인코딩·디코딩 중 내부 상태가 다른 요청과 경합하지 않습니다.
-        let requestEncoder = JSONEncoder()
         let responseDecoder = JSONDecoder()
         let request = try makeRequest(
             endpoint: endpoint,
-            body: body,
-            accessToken: accessToken,
-            encoder: requestEncoder
+            bodyData: bodyData,
+            accessToken: accessToken
         )
 
         let data: Data
@@ -112,9 +137,8 @@ final class APIClient {
                 }
                 let retryRequest = try makeRequest(
                     endpoint: endpoint,
-                    body: body,
-                    accessToken: refreshed.accessToken,
-                    encoder: requestEncoder
+                    bodyData: bodyData,
+                    accessToken: refreshed.accessToken
                 )
                 do {
                     let (retryData, retryResponse) = try await session.data(for: retryRequest)
@@ -187,7 +211,17 @@ final class APIClient {
 
     func requestEnvelope<Response: Decodable>(
         endpoint: APIEndpoint,
-        body: (any Encodable)? = nil,
+        accessToken: String? = nil
+    ) async throws -> APIEnvelope<Response> {
+        try await request(
+            endpoint: endpoint,
+            accessToken: accessToken
+        )
+    }
+
+    func requestEnvelope<Response: Decodable, Body: Encodable>(
+        endpoint: APIEndpoint,
+        body: Body,
         accessToken: String? = nil
     ) async throws -> APIEnvelope<Response> {
         try await request(
@@ -199,9 +233,8 @@ final class APIClient {
 
     private func makeRequest(
         endpoint: APIEndpoint,
-        body: (any Encodable)?,
-        accessToken: String?,
-        encoder: JSONEncoder
+        bodyData: Data?,
+        accessToken: String?
     ) throws -> URLRequest {
         let baseURL = APIConfig.baseURL
 
@@ -259,8 +292,8 @@ final class APIClient {
             )
         }
 
-        if let body {
-            request.httpBody = try encoder.encode(body)
+        if let bodyData {
+            request.httpBody = bodyData
 
             request.setValue(
                 "application/json",

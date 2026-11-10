@@ -92,11 +92,15 @@ struct NicknameEditView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             KIRIPrimaryButton(title: "다음", isEnabled: isValid && !isSaving) {
+                // Task가 시작된 뒤 SwiftUI View identity가 바뀌어도 요청 값과
+                // 저장 클로저가 화면의 임시 View 값에 의존하지 않도록 스냅샷을 만든다.
+                let nicknameToSave = trimmedNickname
+                let save = onSave
                 Task { @MainActor in
                     isSaving = true
-                    errorMessage = await onSave?(trimmedNickname)
+                    errorMessage = await save?(nicknameToSave)
                     if errorMessage == nil {
-                        nickname = trimmedNickname
+                        nickname = nicknameToSave
                         dismiss()
                     }
                     isSaving = false
