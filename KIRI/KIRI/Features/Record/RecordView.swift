@@ -136,15 +136,15 @@ struct RecordView: View {
                     // 서버 일정 상세가 제공하는 데이터만 표시합니다.
                     todayContent: nil,
 
-                    onScheduleChanged: {
-                        selectedSchedule = nil
-                        scheduleRefreshID = UUID()
-                    },
-
                     // 서버 리뷰 조회/등록 API가 실제 화면에 연결되기 전까지
                     // UserDefaults의 임시 Draft를 일정 상세에 표시하지 않습니다.
                     savedReview: nil,
-                    onReviewSaved: nil
+                    onReviewSaved: nil,
+
+                    onScheduleChanged: {
+                        selectedSchedule = nil
+                        scheduleRefreshID = UUID()
+                    }
 
                 )
 
