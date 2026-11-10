@@ -20,6 +20,13 @@
 
 ## 1. 검증 범위·결론
 
+## 2026-11-11 우선 API 작업 상태
+
+- `POST /api/v1/bucket-items/{bucketItemId}/schedules`: **부분 구현**. 버킷 카드에서 실제 생성 화면과 API 호출은 연결했지만, 참여자 선택 UI 및 실제 서버 저장 검증이 아직 없다. 요청에 `participantMemberIds: []`를 사용하므로 완료로 표시하지 않는다.
+- `GET/PUT /api/v1/members/taste`: 취향 화면에 조회·저장을 연결했다. Android 계약(`categories`, `indoorOutdoor`, `activityLevel`, `priceLevel`, `durationLevel`)을 기준으로 매핑했으며 실서버 검증은 대기다.
+- `GET/PATCH /api/v1/families/{familyId}/invite`: 가족 ID를 전달받는 초대 링크 화면에 조회·재발급을 연결했다. 실서버 검증은 대기다.
+- `/api/v1/schedules/{scheduleId}/nearby`: 현재 접근 가능한 Android 원격 API와 iOS 코드에서 해당 계약·응답 스키마를 확인하지 못해 임의 구현하지 않았다.
+
 **최신 CSV의 107개 기능 ID(P0 84개, P1 23개)를 전수 대조했다. 기존 화면 목록 중심 분석을 기능 ID·정책·예외 처리 중심으로 갱신했으며, 개발 순서는 5절을 확정 기준으로 사용한다.**
 
 - CSV는 UTF-8 BOM 및 따옴표 내부 줄바꿈을 처리하는 CSV 파서로 읽었다. 10개 열, 107개 고유 ID이며 중복·누락 ID는 없다. 이름이 비슷해도 ID를 합치거나 빠진 번호를 임의 생성하지 않았다.
