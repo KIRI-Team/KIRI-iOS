@@ -20,13 +20,9 @@ final class APIClient {
     static let shared = APIClient()
 
     private let session: URLSession
-    private let decoder: JSONDecoder
-    private let encoder: JSONEncoder
 
     private init() {
         self.session = URLSession.shared
-        self.decoder = JSONDecoder()
-        self.encoder = JSONEncoder()
     }
 
     func request<Response: Decodable>(
@@ -34,10 +30,16 @@ final class APIClient {
         body: (any Encodable)? = nil,
         accessToken: String? = nil
     ) async throws -> Response {
+        // APIClient.shared는 여러 화면의 Task에서 동시에 사용됩니다.
+        // JSONEncoder/JSONDecoder는 요청 간 공유하지 않고 요청마다 생성해야
+        // 인코딩·디코딩 중 내부 상태가 다른 요청과 경합하지 않습니다.
+        let requestEncoder = JSONEncoder()
+        let responseDecoder = JSONDecoder()
         let request = try makeRequest(
             endpoint: endpoint,
             body: body,
-            accessToken: accessToken
+            accessToken: accessToken,
+            encoder: requestEncoder
         )
 
         let data: Data
@@ -72,7 +74,7 @@ final class APIClient {
 
         if httpResponse.statusCode == 401 {
             #if DEBUG
-            if let envelope = try? decoder.decode(
+            if let envelope = try? responseDecoder.decode(
                 APIEnvelope<EmptyAPIResult>.self,
                 from: data
             ) {
@@ -99,8 +101,8 @@ final class APIClient {
                     refreshed = try await AuthRefreshCoordinator.shared.refreshIfNeeded(
                         failedAccessToken: accessToken,
                         session: session,
-                        encoder: encoder,
-                        decoder: decoder
+                        encoder: JSONEncoder(),
+                        decoder: JSONDecoder()
                     )
                 } catch let refreshError as APIError {
                     if case .unauthorized = refreshError {
@@ -111,7 +113,8 @@ final class APIClient {
                 let retryRequest = try makeRequest(
                     endpoint: endpoint,
                     body: body,
-                    accessToken: refreshed.accessToken
+                    accessToken: refreshed.accessToken,
+                    encoder: requestEncoder
                 )
                 do {
                     let (retryData, retryResponse) = try await session.data(for: retryRequest)
@@ -122,13 +125,13 @@ final class APIClient {
                         throw APIError.unauthorized
                     }
                     guard (200...299).contains(retryHTTP.statusCode) else {
-                        if let envelope = try? decoder.decode(APIEnvelope<EmptyAPIResult>.self, from: retryData) {
+                        if let envelope = try? responseDecoder.decode(APIEnvelope<EmptyAPIResult>.self, from: retryData) {
                             throw APIError.serverError(code: envelope.code, message: envelope.message)
                         }
                         throw APIError.httpError(statusCode: retryHTTP.statusCode)
                     }
                     do {
-                        return try decoder.decode(Response.self, from: retryData)
+                        return try responseDecoder.decode(Response.self, from: retryData)
                     } catch {
                         throw APIError.decodingFailed
                     }
@@ -143,7 +146,7 @@ final class APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            if let envelope = try? decoder.decode(
+            if let envelope = try? responseDecoder.decode(
                 APIEnvelope<EmptyAPIResult>.self,
                 from: data
             ) {
@@ -176,7 +179,7 @@ final class APIClient {
         }
 
         do {
-            return try decoder.decode(Response.self, from: data)
+            return try responseDecoder.decode(Response.self, from: data)
         } catch {
             throw APIError.decodingFailed
         }
@@ -197,7 +200,8 @@ final class APIClient {
     private func makeRequest(
         endpoint: APIEndpoint,
         body: (any Encodable)?,
-        accessToken: String?
+        accessToken: String?,
+        encoder: JSONEncoder
     ) throws -> URLRequest {
         let baseURL = APIConfig.baseURL
 
