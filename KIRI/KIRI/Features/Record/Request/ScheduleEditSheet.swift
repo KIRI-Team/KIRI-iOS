@@ -57,7 +57,7 @@ struct ScheduleEditSheet: View {
                 Section {
                     Button { Task { await submit() } } label: {
                         HStack { Spacer(); if isSubmitting { ProgressView() } else { Text("수정 저장") }; Spacer() }
-                    }.disabled(isSubmitting || isLoadingMembers)
+                    }.disabled(isSubmitting || isLoadingMembers || selectedMemberIds.isEmpty)
                 }
             }
             .navigationTitle("일정 수정")
@@ -76,13 +76,17 @@ struct ScheduleEditSheet: View {
                 throw AuthServiceError.missingStoredSession
             }
             let result = try await AuthService.shared.familyInfo(familyId: familyId)
-            let currentMemberId = result.members.first { $0.nickname == session.nickname }?.memberId
+            let currentMemberId = try? AuthService.shared.currentMemberId()
             members = result.members.filter { $0.memberId != currentMemberId }
         } catch { errorMessage = "가족 구성원을 불러오지 못했어요." }
     }
 
     private func submit() async {
         guard !isSubmitting else { return }
+        guard !selectedMemberIds.isEmpty else {
+            errorMessage = "초대할 가족 구성원을 한 명 이상 선택해 주세요."
+            return
+        }
         isSubmitting = true; errorMessage = nil; defer { isSubmitting = false }
         let dateFormatter = DateFormatter(); dateFormatter.dateFormat = "yyyy-MM-dd"
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm"

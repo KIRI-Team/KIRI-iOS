@@ -277,6 +277,8 @@ struct InviteLinkView: View {
     @State private var invite: InviteResult?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var feedbackMessage: String?
+    @State private var feedbackIsError = false
     @State private var isDeleteConfirmationPresented = false
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
@@ -299,7 +301,24 @@ struct InviteLinkView: View {
                             .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                     } else if isLoading { ProgressView().frame(maxWidth: .infinity) }
-                    else { Text(errorMessage ?? "초대 링크를 불러올 수 없어요.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary) }
+                    else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(errorMessage ?? "초대 링크를 불러올 수 없어요.")
+                                .font(KIRITypography.bodySmall)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                            Button("다시 시도") { Task { await loadInvite() } }
+                                .font(KIRITypography.captionMedium)
+                                .foregroundStyle(KIRIColor.Text.accent)
+                            Button("새 초대 링크 발급") { Task { await reissue() } }
+                                .font(KIRITypography.captionMedium)
+                                .foregroundStyle(KIRIColor.Text.accent)
+                        }
+                    }
+                    if let feedbackMessage {
+                        Text(feedbackMessage)
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(feedbackIsError ? KIRIColor.Status.error : KIRIColor.Text.accent)
+                    }
                     Spacer()
                 }.padding(18)
             }
@@ -315,14 +334,14 @@ struct InviteLinkView: View {
     private func loadInvite() async {
         guard let familyId, !isLoading else { return }
         isLoading = true; defer { isLoading = false }
-        do { invite = try await AuthService.shared.familyInvite(familyId: familyId); errorMessage = nil }
-        catch { errorMessage = "초대 링크를 불러오지 못했어요." }
+        do { invite = try await AuthService.shared.familyInvite(familyId: familyId); errorMessage = nil; feedbackMessage = nil }
+        catch { errorMessage = "초대 링크를 불러오지 못했어요."; feedbackMessage = nil }
     }
     private func reissue() async {
         guard let familyId, !isLoading else { return }
         isLoading = true; defer { isLoading = false }
-        do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil }
-        catch { errorMessage = "초대 링크를 재발급하지 못했어요." }
+        do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil; feedbackMessage = "초대 링크를 새로 발급했어요."; feedbackIsError = false }
+        catch { feedbackMessage = "초대 링크를 재발급하지 못했어요."; feedbackIsError = true }
     }
     private func deleteInvite() async {
         guard let familyId, !isLoading else { return }
@@ -330,9 +349,12 @@ struct InviteLinkView: View {
         do {
             try await AuthService.shared.deleteFamilyInvite(familyId: familyId)
             invite = nil
-            errorMessage = "초대 링크를 폐기했어요."
+            errorMessage = nil
+            feedbackMessage = "초대 링크를 폐기했어요."
+            feedbackIsError = false
         } catch {
-            errorMessage = "초대 링크를 폐기하지 못했어요. 다시 시도해 주세요."
+            feedbackMessage = "초대 링크를 폐기하지 못했어요. 다시 시도해 주세요."
+            feedbackIsError = true
         }
     }
     private func inviteCard(label: String, value: String) -> some View {

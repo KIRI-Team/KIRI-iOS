@@ -174,6 +174,7 @@ struct ScheduleDetailView: View {
                     onUpdated: {
                         Task {
                             await loadServerDetail()
+                            await loadNearbyMissions()
                             onScheduleChanged?()
                         }
                     }
@@ -414,6 +415,7 @@ struct ScheduleDetailView: View {
         do {
             _ = try await AuthService.shared.respondToSchedule(scheduleId: scheduleId, action: action)
             await loadServerDetail()
+            await loadNearbyMissions()
             onScheduleChanged?()
         } catch {
             scheduleMutationError = "일정 응답을 저장하지 못했어요. 다시 시도해 주세요."
@@ -428,6 +430,7 @@ struct ScheduleDetailView: View {
         do {
             _ = try await AuthService.shared.cancelSchedule(scheduleId: scheduleId)
             await loadServerDetail()
+            await loadNearbyMissions()
             onScheduleChanged?()
         } catch {
             scheduleMutationError = "약속을 취소하지 못했어요. 다시 시도해 주세요."
@@ -435,11 +438,7 @@ struct ScheduleDetailView: View {
     }
     private var selectedContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(
-                selectedTab == .aiActivity
-                    ? "끼리네 AI 활동"
-                    : "가족 추억"
-            )
+            Text(selectedTab == .aiActivity ? "근처 놀거리 추천" : "가족 추억")
             .font(KIRITypography.headingSmall)
             .foregroundStyle(KIRIColor.Text.strong)
             if selectedTab == .aiActivity {
@@ -475,18 +474,21 @@ struct ScheduleDetailView: View {
     }
 
     private func nearbyCard(_ item: NearbyMissionResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
             KIRIContentImage(imageURL: item.imageUrl, mockAssetName: nil) {
                 KIRIColor.Background.tertiary
             }
-            .frame(width: 180, height: 120)
+            .frame(width: 251, height: 144)
             .clipped()
-            Text(item.placeName).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
-            Text(item.region).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary).lineLimit(1)
-            Text(item.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).lineLimit(2)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.placeName).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
+                Text(item.region).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary).lineLimit(1)
+                Text(item.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).lineLimit(3)
+            }
+            .padding(.horizontal, 19)
+            .padding(.top, 18)
         }
-        .padding(10)
-        .frame(width: 200, alignment: .leading)
+        .frame(width: 251, height: 284, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
