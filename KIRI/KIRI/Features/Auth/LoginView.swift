@@ -13,6 +13,7 @@
 import SwiftUI
 import AuthenticationServices
 import CryptoKit
+import UIKit
 
 struct LoginView: View {
     let animateButtonEntrance: Bool
@@ -27,8 +28,8 @@ struct LoginView: View {
     @State private var googleButtonVisible = false
     @State private var appleButtonVisible = false
     @State private var hasStartedEntrance = false
-    @State private var appleNonce: String?
     @State private var isAppleRequestInFlight = false
+    @State private var appleSignInCoordinator: AppleSignInCoordinator?
 
     var body: some View {
         ZStack {
@@ -174,48 +175,20 @@ struct LoginView: View {
     // MARK: - Apple
 
     private var appleLoginButton: some View {
-        ZStack {
-            // 공식 Apple 인증 컨트롤의 요청/완료 동작은 유지하고,
-            // 서비스에서 사용하는 한국어 라벨은 앞쪽의 공통 콘텐츠로 표시합니다.
+        Button(action: beginAppleSignIn) {
             SocialLoginButtonContent(
                 title: "Apple로 로그인",
                 foregroundColor: .black
             ) {
                 Image(systemName: "apple.logo")
-                    .font(.system(size: 21, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(.black)
             }
-            .accessibilityHidden(true)
-
-            SignInWithAppleButton(
-                .signIn,
-                onRequest: { request in
-                    guard !isAppleRequestInFlight, !isAuthenticating else { return }
-                    isAppleRequestInFlight = true
-                    let nonce = Self.randomNonce()
-                    appleNonce = nonce
-                    request.nonce = Self.sha256(nonce)
-                    request.requestedScopes = [
-                        .fullName,
-                        .email
-                    ]
-                },
-                onCompletion: { result in
-                    handleAppleSignInResult(result)
-                }
-            )
-            .signInWithAppleButtonStyle(.white)
-            // ZStack의 외부 프레임만으로는 UIViewRepresentable인
-            // SignInWithAppleButton의 실제 hit target이 보장되지 않습니다.
-            // 네이티브 버튼 자체를 카드 전체 크기로 제한해야 인증 시트가 열립니다.
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .disabled(isAppleRequestInFlight || isAuthenticating)
-            // 시스템 버튼은 투명하게 유지해 인증 hit target과 Apple의 요청 흐름을 보존합니다.
-            .opacity(0.001)
         }
+        .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
+        .disabled(isAppleRequestInFlight || isAuthenticating)
         .background(Color.white)
         .clipShape(
             RoundedRectangle(cornerRadius: 12)
@@ -227,40 +200,148 @@ struct LoginView: View {
 
     // MARK: - Apple Result
 
+    private func beginAppleSignIn() {
+        guard !isAppleRequestInFlight, !isAuthenticating else { return }
+
+        isAppleRequestInFlight = true
+        #if DEBUG
+        print("[KIRI][Apple] authorization request started")
+        #endif
+
+        let coordinator = AppleSignInCoordinator { result, nonce in
+            #if DEBUG
+            let success: Bool
+            switch result {
+            case .success: success = true
+            case .failure: success = false
+            }
+            print("[KIRI][Apple] authorization completed: success=\(success)")
+            #endif
+            handleAppleSignInResult(result, nonce: nonce)
+        }
+
+        appleSignInCoordinator = coordinator
+        coordinator.start()
+    }
+
     private func handleAppleSignInResult(
-        _ result: Result<ASAuthorization, Error>
+        _ result: Result<ASAuthorization, Error>,
+        nonce: String?
     ) {
         isAppleRequestInFlight = false
+        appleSignInCoordinator = nil
         switch result {
         case .success(let authorization):
             guard let credential =
                 authorization.credential
                     as? ASAuthorizationAppleIDCredential
             else {
-                appleNonce = nil
                 onLoginFailure("Apple 인증 정보를 확인할 수 없습니다.")
                 return
             }
 
             guard let tokenData = credential.identityToken,
                   let identityToken = String(data: tokenData, encoding: .utf8),
-                  let nonce = appleNonce else {
-                appleNonce = nil
+                  let nonce else {
                 onLoginFailure("Apple 인증 토큰을 확인할 수 없습니다.")
                 return
             }
 
-            appleNonce = nil
             onAppleLogin(identityToken, nonce)
 
         case .failure(let error):
-            appleNonce = nil
+            // 사용자가 인증 창을 닫은 것은 로그인 실패가 아니므로
+            // 로그인 화면을 유지하고 오류 알림을 띄우지 않습니다.
+            if let authorizationError = error as? ASAuthorizationError,
+               authorizationError.code == .canceled {
+                return
+            }
             onLoginFailure(error.localizedDescription)
         }
     }
+}
+
+/// Apple 인증 창이 닫힐 때까지 요청 객체·delegate·presentation context·nonce를 유지합니다.
+private final class AppleSignInCoordinator: NSObject,
+    ASAuthorizationControllerDelegate,
+    ASAuthorizationControllerPresentationContextProviding {
+    private let onCompletion: (Result<ASAuthorization, Error>, String?) -> Void
+    private var authorizationController: ASAuthorizationController?
+    private var rawNonce: String?
+    private var presentationWindow: UIWindow?
+
+    init(
+        onCompletion: @escaping (Result<ASAuthorization, Error>, String?) -> Void
+    ) {
+        self.onCompletion = onCompletion
+    }
+
+    func start() {
+        guard let window = Self.activeKeyWindow() else {
+            onCompletion(
+                .failure(AppleSignInError.missingPresentationWindow),
+                nil
+            )
+            return
+        }
+
+        let nonce = Self.randomNonce()
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = Self.sha256(nonce)
+
+        rawNonce = nonce
+        presentationWindow = window
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        authorizationController = controller
+        controller.performRequests()
+    }
+
+    func presentationAnchor(
+        for controller: ASAuthorizationController
+    ) -> ASPresentationAnchor {
+        presentationWindow ?? Self.activeKeyWindow() ?? UIWindow()
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        onCompletion(.success(authorization), rawNonce)
+        finish()
+    }
+
+    func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        onCompletion(.failure(error), nil)
+        finish()
+    }
+
+    private func finish() {
+        authorizationController = nil
+        presentationWindow = nil
+        rawNonce = nil
+    }
+
+    private static func activeKeyWindow() -> UIWindow? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+
+        return scenes
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow && !$0.isHidden && $0.alpha > 0 }
+    }
 
     private static func randomNonce(length: Int = 32) -> String {
-        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        let charset = Array(
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._"
+        )
         var result = ""
         result.reserveCapacity(length)
         for _ in 0..<length {
@@ -272,6 +353,14 @@ struct LoginView: View {
     private static func sha256(_ input: String) -> String {
         let digest = SHA256.hash(data: Data(input.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+private enum AppleSignInError: LocalizedError {
+    case missingPresentationWindow
+
+    var errorDescription: String? {
+        "Apple 로그인 화면을 표시할 수 없습니다."
     }
 }
 

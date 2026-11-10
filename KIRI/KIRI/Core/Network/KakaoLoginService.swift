@@ -10,15 +10,22 @@
 
 import Foundation
 import KakaoSDKAuth
+import KakaoSDKCommon
 import KakaoSDKUser
 
 enum KakaoLoginError: LocalizedError {
     case missingIDToken
+    case cancelled
+    case requestInProgress
 
     var errorDescription: String? {
         switch self {
         case .missingIDToken:
             return "카카오에서 OIDC ID Token을 받지 못했습니다. 카카오 개발자 콘솔에서 OpenID Connect를 활성화해 주세요."
+        case .cancelled:
+            return "카카오 로그인이 취소되었습니다."
+        case .requestInProgress:
+            return "이미 카카오 로그인이 진행 중입니다."
         }
     }
 }
@@ -27,15 +34,28 @@ enum KakaoLoginError: LocalizedError {
 final class KakaoLoginService {
     static let shared = KakaoLoginService()
 
+    private var isLoginInFlight = false
+
     private init() {}
 
     func login() async throws -> (identityToken: String, nonce: String) {
+        guard !isLoginInFlight else {
+            throw KakaoLoginError.requestInProgress
+        }
+
+        isLoginInFlight = true
+        defer { isLoginInFlight = false }
+
         let nonce = Self.randomNonce()
 
         return try await withCheckedThrowingContinuation { continuation in
             let completion: (OAuthToken?, Error?) -> Void = { token, error in
                 if let error {
-                    continuation.resume(throwing: error)
+                    if Self.isUserCancellation(error) {
+                        continuation.resume(throwing: KakaoLoginError.cancelled)
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
                     return
                 }
 
@@ -62,6 +82,16 @@ final class KakaoLoginService {
                 )
             }
         }
+    }
+
+    private static func isUserCancellation(_ error: Error) -> Bool {
+        if let sdkError = error as? SdkError,
+           case .ClientFailed(reason: .Cancelled, errorMessage: _) = sdkError {
+            return true
+        }
+
+        let nsError = error as NSError
+        return nsError.domain == "com.apple.AuthenticationServices" && nsError.code == 1
     }
 
     private static func randomNonce(length: Int = 32) -> String {
