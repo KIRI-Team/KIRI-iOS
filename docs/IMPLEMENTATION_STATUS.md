@@ -5,6 +5,19 @@
 기준 HEAD: `24025222e1fb591d22dbba2df75a852b0b4765c2` — `[Docs] : KIRI iOS 구현 현황 및 기능명세서 분석`
 기준 명세: [KIRI_FEATURE_SPEC_LATEST.csv](specs/KIRI_FEATURE_SPEC_LATEST.csv)
 
+## 닉네임 변경 크래시 미해결 — 조사 보류
+
+후속 조사 이슈: [#66 — 닉네임 변경 시 JSONEncoder.encode에서 EXC_BAD_ACCESS 발생](https://github.com/KIRI-Team/KIRI-iOS/issues/66)
+
+- 재현 경로: 마이페이지 → 닉네임 수정 → 기존 값과 다른 유효한 닉네임 입력 → 다음.
+- 마지막으로 확인한 호출 경로: `NicknameEditView.swift:116` → `RootView.swift:81` → `AppRouter.updateNickname` → `AuthService.updateNickname` → `APIClient.requestEnvelope` → `APIClient.request:47` → `JSONEncoder.encode(body)` → `JSONWriter.serializeString` → `_StringObject.getSharedUTF8Start + 28`.
+- 현재 상태: 근본 원인 미확정. 버튼 검증, 공유 인코더 제거, 본문 선인코딩, 입력값·클로저 스냅샷 변경만으로 해결됐다는 근거가 없어 해결 또는 병합 완료로 표시하지 않는다.
+- 실제 `NicknameUpdateRequest`·`APIClient`·`AuthService`를 사용하는 오프라인 요청 생성·인코딩 테스트는 통과했지만, 실제 SwiftUI `Task`와 앱 메모리 경계의 안전성을 입증하지 않는다.
+- ASan 산출물은 생성했으나 실제 클릭 프로세스가 다른 Xcode 빌드로 실행되어 유효한 ASan 재현·진단 결과가 없다. 재개 시 실행 경로, 설치 bundle, debug dylib UUID, ASan runtime 로드, stdout/stderr 수집을 먼저 대조한다.
+- 기존 진단 자료: `/Users/namhyuk/Library/Logs/DiagnosticReports/KIRI-2026-11-10-230441.ips`, `/private/tmp/kiri-crash-sample.txt`, `/private/tmp/kiri-asan-oslog.log`, `/private/tmp/KIRINicknameASanCurrent`.
+- 조사 브랜치와 관련 커밋: `fix/nickname-json-encoding-crash`; `b07719b`, `15968ec`, `1fc1a32`, `5b939b5`.
+- 토큰, 인증 코드, PKCE 값, 전체 OAuth URL, 사용자 입력 원문은 기록하지 않는다. `kiri_logo.jpeg` 등 작업 외 사용자 파일은 이 조사에 포함하지 않는다.
+
 ## 1. 검증 범위·결론
 
 **최신 CSV의 107개 기능 ID(P0 84개, P1 23개)를 전수 대조했다. 기존 화면 목록 중심 분석을 기능 ID·정책·예외 처리 중심으로 갱신했으며, 개발 순서는 5절을 확정 기준으로 사용한다.**

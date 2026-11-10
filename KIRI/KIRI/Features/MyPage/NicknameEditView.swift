@@ -30,11 +30,19 @@ struct NicknameEditView: View {
     }
 
     private var isValid: Bool {
-        trimmedNickname.count >= 2 &&
-        trimmedNickname.count <= 12 &&
-        containsOnlyAllowedCharacters(
-            trimmedNickname
-        )
+        isValidNickname(trimmedNickname)
+    }
+
+    private var normalizedCurrentNickname: String {
+        nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var hasChanges: Bool {
+        trimmedNickname != normalizedCurrentNickname
+    }
+
+    private var canSave: Bool {
+        isValid && hasChanges && !isSaving
     }
 
     var body: some View {
@@ -91,12 +99,23 @@ struct NicknameEditView: View {
                     .foregroundStyle(KIRIColor.Status.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            KIRIPrimaryButton(title: "다음", isEnabled: isValid && !isSaving) {
+            KIRIPrimaryButton(title: "다음", isEnabled: canSave) {
+                // Task가 시작된 뒤 SwiftUI View identity가 바뀌어도 요청 값과
+                // 저장 클로저가 화면의 임시 View 값에 의존하지 않도록 스냅샷을 만든다.
+                let nicknameToSave = trimmedNickname
+                let save = onSave
                 Task { @MainActor in
+                    // 버튼 상태와 별개로 액션 시점에도 동일한 검증을 수행한다.
+                    // 빠른 연속 탭이나 상태 갱신 사이의 요청 중복을 막는다.
+                    guard !isSaving,
+                          isValidNickname(nicknameToSave),
+                          nicknameToSave != normalizedCurrentNickname else {
+                        return
+                    }
                     isSaving = true
-                    errorMessage = await onSave?(trimmedNickname)
+                    errorMessage = await save?(nicknameToSave)
                     if errorMessage == nil {
-                        nickname = trimmedNickname
+                        nickname = nicknameToSave
                         dismiss()
                     }
                     isSaving = false
@@ -126,6 +145,12 @@ struct NicknameEditView: View {
             of: pattern,
             options: .regularExpression
         ) != nil
+    }
+
+    private func isValidNickname(_ value: String) -> Bool {
+        value.count >= 2 &&
+        value.count <= 12 &&
+        containsOnlyAllowedCharacters(value)
     }
 }
 
