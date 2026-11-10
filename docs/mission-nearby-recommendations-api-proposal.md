@@ -1,7 +1,7 @@
 # 미션 상세 주변 놀거리 추천 API 조사 및 계약 제안
 
-- 조사 시각: 2026-11-09 15:04 KST
-- 기준 브랜치: `develop` (`6a261d082c1c6524abf69fafc89e3e850c3349e1`)
+- 조사 시각: 2026-11-10 KST
+- 기준 브랜치: `develop` (`554f93a7cf579398085cae0dcf99f50a470afa9a`)
 - Figma: `9901:24342`
 
 ## 조사 결과
@@ -18,7 +18,16 @@
 | iOS `MissionActivityDetailView` | 추천 영역은 서버 카드가 아닌 빈 상태 안내만 표시하며 주변 장소 호출 없음 |
 | Android 저장소 | `KIRI-Team/KIRI-ANDROID`가 비공개라 코드 확인 불가. 인증 우회하지 않음 |
 
+사용자가 전달한 후보 경로 `GET /api/v1/schedules/{scheduleId}/nearby`도 확인 대상으로 기록했지만,
+현재 접근 가능한 OpenAPI·iOS 코드·저장 명세에는 요청 파라미터와 응답 DTO가 없어 구현하지 않았다.
+이 경로는 `scheduleId`가 필수이므로 미션 상세에서 일정 없이 진입한 경우에는 호출할 수 없다.
+
 현재 확인 가능한 미션 상세 API는 `GET /api/v1/missions/{missionId}`이며, 주변 추천 API로 사용할 수 있다는 계약은 확인되지 않았다. 기존 미션 목록 API를 주변 추천으로 재사용하는 것은 서버의 반경·제외·정렬 정책을 보장하지 않으므로 구현하지 않았다.
+
+`/api/v1/schedules/{scheduleId}/nearby`가 실제 서버 계약이라면 일정 상세 화면에서만
+실제 `scheduleId`를 전달해 호출해야 하며, `missionId`나 `placeId`로 대체해서는 안 된다.
+다음 자료를 백엔드에서 받아야 iOS 연동을 시작할 수 있다: 인증 요구사항, 쿼리·페이지네이션,
+성공 응답 JSON, 추천 카드의 상세 이동 ID, 빈 결과·오류 코드.
 
 ## 백엔드 계약 제안
 
