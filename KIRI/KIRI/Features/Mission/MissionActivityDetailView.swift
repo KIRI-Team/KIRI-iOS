@@ -31,6 +31,9 @@ struct MissionActivityDetailView: View {
     @State private var bookmarkError: String?
     @State private var isShowingBucketToast = false
     @State private var selectedSegment: DetailSegment = .recommended
+    @State private var familyRecommendation: FamilyRecommendationResult?
+    @State private var recommendationError: String?
+    @State private var isLoadingRecommendation = false
 
     fileprivate enum DetailSegment: String, CaseIterable, Hashable {
         case recommended = "추천 활동"
@@ -77,7 +80,10 @@ struct MissionActivityDetailView: View {
                 bottomBar
             }
         }
-        .task { await loadDetail() }
+        .task {
+            await loadDetail()
+            await loadFamilyRecommendation()
+        }
     }
 
     private var detailContent: some View {
@@ -203,9 +209,53 @@ struct MissionActivityDetailView: View {
                 // Figma의 맞춤템 영역은 서버 계약이 확인될 때까지 빈 상태만 표시합니다.
                 // 샘플 상품이나 추천 이유를 운영 화면에 생성하지 않습니다.
                 detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
-                unavailableRecommendationCard("맞춤 콘텐츠가 준비되면 이곳에 표시됩니다.")
+                if isLoadingRecommendation {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 100)
+                } else if let recommendationError {
+                    VStack(spacing: 8) {
+                        Text(recommendationError).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await loadFamilyRecommendation() } }
+                    }.frame(maxWidth: .infinity, minHeight: 100)
+                } else if let recommendation = familyRecommendation {
+                    recommendationCard(recommendation)
+                } else {
+                    unavailableRecommendationCard("오늘의 맞춤 활동이 없어요.")
+                }
             }
         }
+    }
+
+    private func loadFamilyRecommendation() async {
+        guard !isLoadingRecommendation else { return }
+        isLoadingRecommendation = true
+        recommendationError = nil
+        defer { isLoadingRecommendation = false }
+        do {
+            familyRecommendation = try await AuthService.shared.familyRecommendation()
+        } catch {
+            recommendationError = "맞춤 활동을 불러오지 못했어요."
+        }
+    }
+
+    private func recommendationCard(_ recommendation: FamilyRecommendationResult) -> some View {
+        HStack(spacing: 12) {
+            KIRIContentImage(imageURL: recommendation.imageUrl, mockAssetName: nil) {
+                KIRIColor.Background.tertiary
+            }
+            .frame(width: 92, height: 92)
+            .clipped()
+            VStack(alignment: .leading, spacing: 6) {
+                Text(recommendation.title).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
+                Text(recommendation.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary).lineLimit(2)
+                if !recommendation.recommendationReason.isEmpty {
+                    Text(recommendation.recommendationReason).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func detailSectionTitle(_ title: String, accent: Bool) -> some View {

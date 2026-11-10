@@ -315,6 +315,33 @@ struct InviteResult: Decodable, Sendable {
     let inviteExpiresAt: String?
 }
 
+struct FamilyInfoResult: Decodable, Sendable {
+    let familyId: Int
+    let familyName: String
+    let ownerMemberId: Int
+    let memberCount: Int
+    let members: [FamilyMemberInfoResult]
+}
+
+struct FamilyMemberInfoResult: Decodable, Identifiable, Sendable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let characterImageUrl: URL?
+
+    var id: Int { memberId }
+}
+
+struct NearbyMissionResult: Decodable, Identifiable, Sendable {
+    let placeName: String
+    let region: String
+    let description: String
+    let imageUrl: URL?
+    let price: Int?
+
+    var id: String { "\(placeName)-\(region)-\(description)" }
+}
+
 struct ScheduleResponseRequest: Encodable, Sendable {
     let action: String
 }
@@ -399,6 +426,18 @@ struct MissionDetailResult: Decodable, Sendable {
     var district: String {
         place.address.split(separator: " ").first.map(String.init) ?? place.address
     }
+}
+
+struct FamilyRecommendationResult: Decodable, Identifiable, Sendable {
+    let missionId: Int
+    let title: String
+    let description: String
+    let category: String
+    let imageUrl: URL?
+    let recommendationReason: String
+    let score: Double?
+
+    var id: Int { missionId }
 }
 
 struct MissionDetailPlace: Decodable, Sendable {
