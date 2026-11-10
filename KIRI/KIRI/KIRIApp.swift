@@ -36,7 +36,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
        !appKey.isEmpty {
       KakaoSDK.initSDK(
         appKey: appKey,
-        customScheme: "kakao\(appKey)"
+        customScheme: "kakao\(appKey)",
+        // SDK 상세 로그에는 인증 URL·헤더·응답이 포함될 수 있으므로 명시적으로 끕니다.
+        loggingEnable: false
       )
     }
     return true

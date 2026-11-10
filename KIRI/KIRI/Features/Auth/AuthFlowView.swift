@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 struct AuthFlowView: View {
     enum Step {
@@ -57,7 +58,8 @@ struct AuthFlowView: View {
                     },
                     onLoginFailure: { message in
                         authErrorMessage = message
-                    }
+                    },
+                    isAuthenticating: $isAuthenticating
                 )
 
             case .terms:
@@ -111,7 +113,7 @@ struct AuthFlowView: View {
                     onAuthenticated(result.isNewUser)
                 }
             } catch {
-                authErrorMessage = error.localizedDescription
+                handleAuthenticationError(error)
             }
         }
     }
@@ -137,7 +139,7 @@ struct AuthFlowView: View {
                     onAuthenticated(result.isNewUser)
                 }
             } catch {
-                authErrorMessage = error.localizedDescription
+                handleAuthenticationError(error)
             }
         }
     }
@@ -163,7 +165,7 @@ struct AuthFlowView: View {
                     onAuthenticated(result.isNewUser)
                 }
             } catch {
-                authErrorMessage = error.localizedDescription
+                handleAuthenticationError(error)
             }
         }
     }
@@ -193,6 +195,32 @@ struct AuthFlowView: View {
                 authErrorMessage = error.localizedDescription
             }
         }
+    }
+
+    private func handleAuthenticationError(_ error: Error) {
+        guard !Self.isUserCancellation(error) else {
+            // 사용자가 인증 창을 닫은 경우 로그인 화면에 조용히 남습니다.
+            return
+        }
+        authErrorMessage = error.localizedDescription
+    }
+
+    private static func isUserCancellation(_ error: Error) -> Bool {
+        if let kakaoError = error as? KakaoLoginError,
+           case .cancelled = kakaoError {
+            return true
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == "com.google.GIDSignIn" && nsError.code == -5 {
+            return true
+        }
+        if nsError.domain == "com.apple.AuthenticationServices"
+            && nsError.code == ASAuthorizationError.canceled.rawValue {
+            return true
+        }
+        return nsError.domain == NSURLErrorDomain
+            && nsError.code == NSURLErrorCancelled
     }
 
     // MARK: - Sign Up Complete

@@ -16,6 +16,7 @@ enum GoogleLoginError: LocalizedError {
     case missingConfiguration
     case missingPresentingViewController
     case missingIDToken
+    case requestInProgress
 
     var errorDescription: String? {
         switch self {
@@ -25,6 +26,8 @@ enum GoogleLoginError: LocalizedError {
             return "Google 로그인 화면을 표시할 수 없습니다."
         case .missingIDToken:
             return "Google 인증 토큰을 확인할 수 없습니다."
+        case .requestInProgress:
+            return "이미 Google 로그인이 진행 중입니다."
         }
     }
 }
@@ -43,9 +46,21 @@ final class GoogleLoginService {
     private static let expectedServerClientID =
         "932646982366-u4d2vt0gmg1boulr74jrd21ajjokij2s.apps.googleusercontent.com"
 
+    // Google 인증이 끝날 때까지 presenting controller를 강하게 유지합니다.
+    // SwiftUI 상태 갱신으로 로그인 화면이 다시 계산되어도
+    // SFAuthenticationViewController의 presentation 기반을 잃지 않게 합니다.
+    private var activePresentingViewController: UIViewController?
+    private var isLoginInFlight = false
+
     private init() {}
 
     func login() async throws -> GoogleLoginCredentials {
+        guard !isLoginInFlight else {
+            throw GoogleLoginError.requestInProgress
+        }
+        isLoginInFlight = true
+        defer { isLoginInFlight = false }
+
         guard let configuration = loadConfiguration() else {
             throw GoogleLoginError.missingConfiguration
         }
@@ -58,9 +73,16 @@ final class GoogleLoginService {
 
         let nonce = UUID().uuidString
         #if DEBUG
-        print("[KIRI][Google] starting SDK sign-in: noncePresent=true")
+        print("[KIRI][Google] SDK sign-in request started")
         #endif
+        activePresentingViewController = presentingViewController
         return try await withCheckedThrowingContinuation { continuation in
+            let finish: (Result<GoogleLoginCredentials, Error>) -> Void = {
+                [weak self] result in
+                self?.activePresentingViewController = nil
+                continuation.resume(with: result)
+            }
+
             GIDSignIn.sharedInstance.signIn(
                 withPresenting: presentingViewController,
                 hint: nil,
@@ -73,11 +95,10 @@ final class GoogleLoginService {
                     let nsError = error as NSError
                     print(
                         "[KIRI][Google] SDK sign-in failed: "
-                            + "domain=\(nsError.domain), code=\(nsError.code), "
-                            + Self.safeOAuthErrorSummary(nsError)
+                            + "domain=\(nsError.domain), code=\(nsError.code)"
                     )
                     #endif
-                    continuation.resume(throwing: error)
+                    finish(.failure(error))
                     return
                 }
 
@@ -85,27 +106,14 @@ final class GoogleLoginService {
                     #if DEBUG
                     print("[KIRI][Google] SDK sign-in succeeded without ID token")
                     #endif
-                    continuation.resume(
-                        throwing: GoogleLoginError.missingIDToken
-                    )
+                    finish(.failure(GoogleLoginError.missingIDToken))
                     return
                 }
 
-                #if DEBUG
-                Self.logTokenMetadata(
-                    idToken,
-                    expectedAudience:
-                        configuration.serverClientID ?? configuration.clientID,
-                    nonce: nonce
-                )
-                #endif
-
-                continuation.resume(
-                    returning: GoogleLoginCredentials(
+                finish(.success(GoogleLoginCredentials(
                         idToken: idToken,
                         nonce: nonce
-                    )
-                )
+                    )))
             }
         }
     }
@@ -158,81 +166,38 @@ final class GoogleLoginService {
     }
 
     private func presentingViewController() -> UIViewController? {
-        let scenes = UIApplication.shared.connectedScenes
+        let activeScenes = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
 
-        let window = scenes
+        let window = activeScenes
             .flatMap(\.windows)
-            .first { $0.isKeyWindow }
+            .first { $0.isKeyWindow && !$0.isHidden && $0.alpha > 0 }
 
-        return window?.rootViewController
+        guard let rootViewController = window?.rootViewController else {
+            return nil
+        }
+
+        return topViewController(from: rootViewController)
+    }
+
+    private func topViewController(from viewController: UIViewController) -> UIViewController {
+        if let presented = viewController.presentedViewController,
+           !presented.isBeingDismissed {
+            return topViewController(from: presented)
+        }
+        if let navigation = viewController as? UINavigationController,
+           let visible = navigation.visibleViewController {
+            return topViewController(from: visible)
+        }
+        if let tab = viewController as? UITabBarController,
+           let selected = tab.selectedViewController {
+            return topViewController(from: selected)
+        }
+        return viewController
     }
 
     #if DEBUG
-    private static func logTokenMetadata(
-        _ token: String,
-        expectedAudience: String,
-        nonce: String
-    ) {
-        let segments = token.split(separator: ".")
-        guard segments.count == 3,
-              let payloadData = Data(
-                base64URLEncoded: String(segments[1])
-              ),
-              let payload = try? JSONSerialization.jsonObject(
-                with: payloadData
-              ) as? [String: Any]
-        else {
-            print("[KIRI][Google] ID token metadata unavailable")
-            return
-        }
-
-        let audienceMatches = payload["aud"] as? String == expectedAudience
-        let nonceMatches = payload["nonce"] as? String == nonce
-        let expiresAt = (payload["exp"] as? NSNumber)?.doubleValue
-        let isExpired = expiresAt.map { $0 <= Date().timeIntervalSince1970 } ?? true
-
-        print(
-            "[KIRI][Google] ID token metadata: "
-                + "audienceMatches=\(audienceMatches), "
-                + "noncePresent=\(payload["nonce"] != nil), "
-                + "nonceMatches=\(nonceMatches), "
-                + "expired=\(isExpired)"
-        )
-    }
-
-    private static func safeOAuthErrorSummary(_ error: NSError) -> String {
-        var parts: [String] = []
-        if let response = error.userInfo["OIDOAuthErrorResponseErrorKey"]
-            as? [String: Any] {
-            if let value = response["error"] as? String {
-                parts.append("oauthError=\(value)")
-            }
-            if let value = response["error_description"] as? String {
-                parts.append("oauthDescription=\(value)")
-            }
-        }
-        if let value = error.userInfo["error"] as? String {
-            parts.append("oauthError=\(value)")
-        }
-        if let value = error.userInfo["error_description"] as? String {
-            parts.append("oauthDescription=\(value)")
-        }
-        if let json = error.userInfo["json"] as? [String: Any] {
-            if let value = json["error"] as? String {
-                parts.append("oauthError=\(value)")
-            }
-            if let value = json["error_description"] as? String {
-                parts.append("oauthDescription=\(value)")
-            }
-        }
-        let keys = error.userInfo.keys
-            .compactMap { $0 as? String }
-            .sorted()
-        parts.append("userInfoKeys=\(keys.joined(separator: ","))")
-        return parts.joined(separator: ", ")
-    }
-
     private static func urlSchemes() -> [String] {
         let types = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleURLTypes"
@@ -243,15 +208,3 @@ final class GoogleLoginService {
     }
     #endif
 }
-
-#if DEBUG
-private extension Data {
-    init?(base64URLEncoded value: String) {
-        var base64 = value
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
-        self.init(base64Encoded: base64)
-    }
-}
-#endif
