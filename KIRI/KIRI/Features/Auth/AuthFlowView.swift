@@ -57,7 +57,8 @@ struct AuthFlowView: View {
                     },
                     onLoginFailure: { message in
                         authErrorMessage = message
-                    }
+                    },
+                    isAuthenticating: $isAuthenticating
                 )
 
             case .terms:

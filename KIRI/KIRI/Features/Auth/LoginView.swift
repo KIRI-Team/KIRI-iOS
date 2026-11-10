@@ -21,12 +21,14 @@ struct LoginView: View {
     let onGoogleLogin: () -> Void
     let onAppleLogin: (_ identityToken: String, _ nonce: String) -> Void
     let onLoginFailure: (_ message: String) -> Void
+    @Binding var isAuthenticating: Bool
 
     @State private var kakaoButtonVisible = false
     @State private var googleButtonVisible = false
     @State private var appleButtonVisible = false
     @State private var hasStartedEntrance = false
     @State private var appleNonce: String?
+    @State private var isAppleRequestInFlight = false
 
     var body: some View {
         ZStack {
@@ -188,6 +190,8 @@ struct LoginView: View {
             SignInWithAppleButton(
                 .signIn,
                 onRequest: { request in
+                    guard !isAppleRequestInFlight, !isAuthenticating else { return }
+                    isAppleRequestInFlight = true
                     let nonce = Self.randomNonce()
                     appleNonce = nonce
                     request.nonce = Self.sha256(nonce)
@@ -201,6 +205,12 @@ struct LoginView: View {
                 }
             )
             .signInWithAppleButtonStyle(.white)
+            // ZStack의 외부 프레임만으로는 UIViewRepresentable인
+            // SignInWithAppleButton의 실제 hit target이 보장되지 않습니다.
+            // 네이티브 버튼 자체를 카드 전체 크기로 제한해야 인증 시트가 열립니다.
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .disabled(isAppleRequestInFlight || isAuthenticating)
             // 시스템 버튼은 투명하게 유지해 인증 hit target과 Apple의 요청 흐름을 보존합니다.
             .opacity(0.001)
         }
@@ -220,12 +230,14 @@ struct LoginView: View {
     private func handleAppleSignInResult(
         _ result: Result<ASAuthorization, Error>
     ) {
+        isAppleRequestInFlight = false
         switch result {
         case .success(let authorization):
             guard let credential =
                 authorization.credential
                     as? ASAuthorizationAppleIDCredential
             else {
+                appleNonce = nil
                 onLoginFailure("Apple 인증 정보를 확인할 수 없습니다.")
                 return
             }
@@ -233,13 +245,16 @@ struct LoginView: View {
             guard let tokenData = credential.identityToken,
                   let identityToken = String(data: tokenData, encoding: .utf8),
                   let nonce = appleNonce else {
+                appleNonce = nil
                 onLoginFailure("Apple 인증 토큰을 확인할 수 없습니다.")
                 return
             }
 
+            appleNonce = nil
             onAppleLogin(identityToken, nonce)
 
         case .failure(let error):
+            appleNonce = nil
             onLoginFailure(error.localizedDescription)
         }
     }
@@ -297,6 +312,7 @@ private struct SocialLoginButtonContent<Logo: View>: View {
         onKakaoLogin: {},
         onGoogleLogin: {},
         onAppleLogin: { _, _ in },
-        onLoginFailure: { _ in }
+        onLoginFailure: { _ in },
+        isAuthenticating: .constant(false)
     )
 }
