@@ -11,6 +11,7 @@
 import SwiftUI
 
 struct HomeQuestionAnswerView: View {
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     let question: String
     let existingAnswer: String?
     let onBack: () -> Void
@@ -29,32 +30,46 @@ struct HomeQuestionAnswerView: View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
                 HomeInteractionBar(title: "오늘의 질문", onBack: onBack)
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("오늘의 질문").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
-                    Text(question).font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    TextEditor(text: $answer)
-                        .font(KIRITypography.body).foregroundStyle(KIRIColor.Text.primary)
-                        .scrollContentBackground(.hidden).padding(12).frame(height: 170)
-                        .background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                    HStack {
-                        Text("공백 제외 \(answer.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
-                        Spacer()
-                    }.font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                    Text("오늘의 질문은 텍스트로만 답변할 수 있으며, 저장 버튼을 눌러야 답변 상태가 변경됩니다.")
-                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                    Spacer()
-                    Button("답변 저장") {
-                        let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !normalized.isEmpty, normalized.count <= 500 else { return }
-                        onSave(normalized)
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text("오늘의 질문").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
+                        Text(question).font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
+                        TextEditor(text: $answer)
+                            .font(KIRITypography.body).foregroundStyle(KIRIColor.Text.primary)
+                            .scrollContentBackground(.hidden).padding(12).frame(height: 170)
+                            .background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
+                        HStack {
+                            Text("공백 제외 \(answer.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
+                            Spacer()
+                        }.font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                        Text("오늘의 질문은 텍스트로만 답변할 수 있으며, 저장 버튼을 눌러야 답변 상태가 변경됩니다.")
+                            .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                     }
-                    .disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || answer.count > 500)
-                    .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
-                    .frame(maxWidth: .infinity).frame(height: 54)
-                    .background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
-                }.padding(18)
+                    .padding(18)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    answerSaveButton
+                        .padding(.horizontal, 18)
+                        .padding(.top, 12)
+                        .padding(.bottom, 10)
+                        .background(KIRIColor.Background.base)
+                }
             }
         }
+        .onAppear { tabBarVisibility.wrappedValue = false }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
+    }
+
+    private var answerSaveButton: some View {
+        Button("답변 저장") {
+            let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalized.isEmpty, normalized.count <= 500 else { return }
+            onSave(normalized)
+        }
+        .disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || answer.count > 500)
+        .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
+        .frame(maxWidth: .infinity).frame(height: 54)
+        .background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

@@ -11,6 +11,19 @@
 
 import SwiftUI
 
+/// MainTabView가 표시하는 공통 탭바를 상세/입력 화면에서 숨기기 위한 환경 값입니다.
+/// NavigationStack·route 내부 화면은 이 Binding을 false로 바꾸고, 사라질 때 true로 복원합니다.
+private struct KIRITabBarVisibilityKey: EnvironmentKey {
+    static let defaultValue = Binding.constant(true)
+}
+
+extension EnvironmentValues {
+    var kiriTabBarVisibility: Binding<Bool> {
+        get { self[KIRITabBarVisibilityKey.self] }
+        set { self[KIRITabBarVisibilityKey.self] = newValue }
+    }
+}
+
 struct KIRITabBar: View {
 
     @Binding var selectedTab: MainTabView.AppTab

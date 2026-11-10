@@ -11,6 +11,7 @@
 import SwiftUI
 
 struct FamilyHomeView: View {
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
     var familyName: String?
@@ -155,6 +156,7 @@ struct FamilyHomeView: View {
             Text("가족공간의 초대코드가 연결되지 않았습니다.")
         }
         .onAppear {
+            tabBarVisibility.wrappedValue = route == .home
             if let tutorialStep {
                 showsMissionFace = tutorialStep >= 1
             }
@@ -163,6 +165,12 @@ struct FamilyHomeView: View {
             if let newStep {
                 showsMissionFace = newStep >= 1
             }
+        }
+        .onChange(of: route) { _, newRoute in
+            tabBarVisibility.wrappedValue = newRoute == .home
+        }
+        .onDisappear {
+            tabBarVisibility.wrappedValue = true
         }
         .task {
             guard loadsServerQuestion else {

@@ -13,6 +13,7 @@ import SwiftUI
 
 struct FamilyNameEditView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
 
     @Binding var familyName: String
     var onSave: ((String) async -> String?)? = nil
@@ -44,56 +45,34 @@ struct FamilyNameEditView: View {
             VStack(spacing: 0) {
                 header
 
-                VStack(
-                    alignment: .leading,
-                    spacing: 0
-                ) {
-                    Text("가족명을 다시 입력해주세요.")
-                        .font(KIRITypography.title)
-                        .foregroundStyle(
-                            KIRIColor.textPrimary
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("가족명을 다시 입력해주세요.")
+                            .font(KIRITypography.title)
+                            .foregroundStyle(KIRIColor.textPrimary)
+
+                        Text("가족명은 월 1회 수정 가능합니다")
+                            .font(KIRITypography.subtitle)
+                            .foregroundStyle(KIRIColor.textSecondary)
+                            .padding(.top, 12)
+
+                        KIRITextField(
+                            placeholder: "이름을 입력하세요.",
+                            text: $editedFamilyName,
+                            state: editedFamilyName.isEmpty || isValid ? .normal : .error
                         )
-
-                    Text("가족명은 월 1회 수정 가능합니다")
-                        .font(KIRITypography.subtitle)
-                        .foregroundStyle(
-                            KIRIColor.textSecondary
-                        )
-                        .padding(.top, 12)
-
-                    KIRITextField(
-                        placeholder: "이름을 입력하세요.",
-                        text: $editedFamilyName,
-                        state: editedFamilyName.isEmpty || isValid ? .normal : .error
-                    )
-                    .padding(.top, 40)
-
-                    Spacer()
-
-                    KIRIPrimaryButton(
-                        title: "다음",
-                        isEnabled: isValid && !isSaving
-                    ) {
-                        isSaving = true
-                        Task {
-                            let error = await onSave?(trimmedFamilyName)
-                            await MainActor.run {
-                                isSaving = false
-                                if let error {
-                                    errorMessage = error
-                                } else {
-                                    familyName = trimmedFamilyName
-                                    dismiss()
-                                }
-                            }
-                        }
+                        .padding(.top, 40)
                     }
+                    .padding(.horizontal, KIRISpacing.horizontal)
+                    .padding(.top, 10)
                 }
-                .padding(
-                    .horizontal,
-                    KIRISpacing.horizontal
-                )
-                .padding(.bottom, 10)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    saveArea
+                        .padding(.horizontal, KIRISpacing.horizontal)
+                        .padding(.top, 12)
+                        .padding(.bottom, 10)
+                        .background(KIRIColor.background)
+                }
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -103,7 +82,27 @@ struct FamilyNameEditView: View {
             Text(errorMessage ?? "가족명을 저장하지 못했습니다.")
         }
         .onAppear {
+            tabBarVisibility.wrappedValue = false
             editedFamilyName = familyName
+        }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
+    }
+
+    private var saveArea: some View {
+        KIRIPrimaryButton(title: "다음", isEnabled: isValid && !isSaving) {
+            isSaving = true
+            Task {
+                let error = await onSave?(trimmedFamilyName)
+                await MainActor.run {
+                    isSaving = false
+                    if let error {
+                        errorMessage = error
+                    } else {
+                        familyName = trimmedFamilyName
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 
