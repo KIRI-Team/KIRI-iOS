@@ -288,6 +288,17 @@ final class AuthService {
         return result
     }
 
+    /// 현재 가족의 초대 코드와 링크를 폐기합니다.
+    /// Android 계약상 성공 응답의 result는 사용하지 않습니다.
+    func deleteFamilyInvite(familyId: Int) async throws {
+        let endpoint = APIEndpoint(path: "/api/v1/families/\(familyId)/invite", method: .DELETE, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+    }
+
     func todayQuestion() async throws -> TodayQuestionResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/questions/today",
