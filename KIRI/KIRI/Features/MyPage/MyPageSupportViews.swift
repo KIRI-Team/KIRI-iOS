@@ -277,6 +277,7 @@ struct InviteLinkView: View {
     @State private var invite: InviteResult?
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var isDeleteConfirmationPresented = false
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "공용초대링크 관리") {
@@ -289,6 +290,10 @@ struct InviteLinkView: View {
                         if let expiresAt = invite.inviteExpiresAt { Text("\(expiresAt)까지 사용가능").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary) }
                         Button("리셋하기") { Task { await reissue() } }
                         .font(KIRITypography.bodySmall).underline().foregroundStyle(KIRIColor.Text.tertiary)
+                        Button("초대 링크 폐기") { isDeleteConfirmationPresented = true }
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Status.error)
+                        .disabled(isLoading)
                         ShareLink(item: invite.inviteUrl) {
                         Text("초대 링크 공유").font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
                             .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
@@ -300,6 +305,12 @@ struct InviteLinkView: View {
             }
         }.toolbar(.hidden, for: .navigationBar)
         .task { await loadInvite() }
+        .confirmationDialog("초대 링크를 폐기할까요?", isPresented: $isDeleteConfirmationPresented) {
+            Button("초대 링크 폐기", role: .destructive) { Task { await deleteInvite() } }
+            Button("취소", role: .cancel) {}
+        } message: {
+            Text("기존 초대 코드와 링크를 더 이상 사용할 수 없어요.")
+        }
     }
     private func loadInvite() async {
         guard let familyId, !isLoading else { return }
@@ -312,6 +323,17 @@ struct InviteLinkView: View {
         isLoading = true; defer { isLoading = false }
         do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil }
         catch { errorMessage = "초대 링크를 재발급하지 못했어요." }
+    }
+    private func deleteInvite() async {
+        guard let familyId, !isLoading else { return }
+        isLoading = true; defer { isLoading = false }
+        do {
+            try await AuthService.shared.deleteFamilyInvite(familyId: familyId)
+            invite = nil
+            errorMessage = "초대 링크를 폐기했어요."
+        } catch {
+            errorMessage = "초대 링크를 폐기하지 못했어요. 다시 시도해 주세요."
+        }
     }
     private func inviteCard(label: String, value: String) -> some View {
         VStack(spacing: 2) {
