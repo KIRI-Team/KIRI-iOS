@@ -273,28 +273,45 @@ struct AddressSettingsView: View {
 }
 
 struct InviteLinkView: View {
-    private let link = "https://kiri.app/invite/NWTKYJ"
-    private let code = "NWTKYJ"
+    let familyId: Int?
+    @State private var invite: InviteResult?
+    @State private var isLoading = false
+    @State private var errorMessage: String?
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "공용초대링크 관리") {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("가족이 모이면 더 즐거워져요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
                     Text("초대 링크는 7일 동안 사용할 수 있어요.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
-                    inviteCard(label: "링크코드", value: code)
-                    inviteCard(label: "초대링크", value: link)
-                    Text("10월 12일까지 사용가능").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
-                    Button("리셋하기") { }
+                    if let invite {
+                        inviteCard(label: "링크코드", value: invite.inviteCode)
+                        inviteCard(label: "초대링크", value: invite.inviteUrl)
+                        if let expiresAt = invite.inviteExpiresAt { Text("\(expiresAt)까지 사용가능").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary) }
+                        Button("리셋하기") { Task { await reissue() } }
                         .font(KIRITypography.bodySmall).underline().foregroundStyle(KIRIColor.Text.tertiary)
-                    ShareLink(item: link) {
+                        ShareLink(item: invite.inviteUrl) {
                         Text("초대 링크 공유").font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
                             .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                    Text("초대 링크는 Mock 값이며 서버에서 생성·저장되지 않습니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                        }
+                    } else if isLoading { ProgressView().frame(maxWidth: .infinity) }
+                    else { Text(errorMessage ?? "초대 링크를 불러올 수 없어요.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary) }
                     Spacer()
                 }.padding(18)
             }
         }.toolbar(.hidden, for: .navigationBar)
+        .task { await loadInvite() }
+    }
+    private func loadInvite() async {
+        guard let familyId, !isLoading else { return }
+        isLoading = true; defer { isLoading = false }
+        do { invite = try await AuthService.shared.familyInvite(familyId: familyId); errorMessage = nil }
+        catch { errorMessage = "초대 링크를 불러오지 못했어요." }
+    }
+    private func reissue() async {
+        guard let familyId, !isLoading else { return }
+        isLoading = true; defer { isLoading = false }
+        do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil }
+        catch { errorMessage = "초대 링크를 재발급하지 못했어요." }
     }
     private func inviteCard(label: String, value: String) -> some View {
         VStack(spacing: 2) {
@@ -318,6 +335,9 @@ struct TasteTestView: View {
     @State private var amount = ""
     @State private var cost = ""
     @State private var duration = ""
+    @State private var isLoading = false
+    @State private var isSaving = false
+    @State private var errorMessage: String?
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "내 취향 설정") {
@@ -328,12 +348,18 @@ struct TasteTestView: View {
                     preferenceSection("활동량", options: amounts, selectedValue: $amount)
                     preferenceSection("비용", options: costs, selectedValue: $cost)
                     preferenceSection("활동시간", options: durations, selectedValue: $duration)
-                    Text("명세서의 취향 데이터 저장 API가 없어 입력값은 저장하지 않습니다.")
-                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                    if let errorMessage { Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error) }
+                    Button {
+                        Task { await saveTaste() }
+                    } label: {
+                        HStack { Spacer(); if isSaving { ProgressView() } else { Text("저장") }; Spacer() }
+                    }
+                    .frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
+                    .disabled(isSaving || selectedActivities.isEmpty || amount.isEmpty)
                     Spacer()
                 }.padding(18)
             }
-        }.toolbar(.hidden, for: .navigationBar)
+        }.toolbar(.hidden, for: .navigationBar).task { await loadTaste() }
     }
 
     private func preferenceSection(_ title: String, options: [String], selected: Binding<Set<String>>, limit: Int) -> some View {
@@ -368,6 +394,46 @@ struct TasteTestView: View {
             .background(isSelected ? KIRIColor.Primary.default : KIRIColor.Background.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
+
+    private func loadTaste() async {
+        guard !isLoading else { return }
+        isLoading = true; defer { isLoading = false }
+        do {
+            let result = try await AuthService.shared.myTaste()
+            guard result.isSet else { return }
+            selectedActivities = Set((result.categories ?? []).compactMap { tasteCategoryLabel($0) })
+            space = tasteSpaceLabel(result.indoorOutdoor)
+            amount = tasteActivityLabel(result.activityLevel)
+            cost = tastePriceLabel(result.priceLevel)
+            duration = tasteDurationLabel(result.durationLevel)
+        } catch { errorMessage = "취향을 불러오지 못했어요." }
+    }
+
+    private func saveTaste() async {
+        guard !isSaving, !selectedActivities.isEmpty, !amount.isEmpty else { return }
+        isSaving = true; defer { isSaving = false }
+        do {
+            _ = try await AuthService.shared.saveTaste(TasteRequest(
+                categories: selectedActivities.compactMap(tasteCategoryRaw),
+                indoorOutdoor: tasteSpaceRaw(space),
+                activityLevel: tasteActivityRaw(amount) ?? "MODERATE",
+                priceLevel: tastePriceRaw(cost),
+                durationLevel: tasteDurationRaw(duration)
+            ))
+            errorMessage = nil
+        } catch { errorMessage = "취향을 저장하지 못했어요." }
+    }
+
+    private func tasteCategoryLabel(_ raw: String) -> String? { ["EXHIBITION":"전시·문화", "POPUP":"팝업·행사", "PERFORMANCE":"공연", "FOOD_CAFE":"맛집·카페", "OUTDOOR":"산책·야외", "EXPERIENCE":"체험·놀거리"][raw] }
+    private func tasteCategoryRaw(_ label: String) -> String? { ["전시·문화":"EXHIBITION", "팝업·행사":"POPUP", "공연":"PERFORMANCE", "맛집·카페":"FOOD_CAFE", "산책·야외":"OUTDOOR", "체험·놀거리":"EXPERIENCE"][label] }
+    private func tasteSpaceLabel(_ raw: String?) -> String { ["INDOOR":"실내", "OUTDOOR":"야외"][raw ?? ""] ?? "상관없음" }
+    private func tasteSpaceRaw(_ label: String) -> String? { ["실내":"INDOOR", "야외":"OUTDOOR"][label] }
+    private func tasteActivityLabel(_ raw: String?) -> String { ["LIGHT":"가볍게", "MODERATE":"적당히", "ACTIVE":"많이 움직여도 괜찮음"][raw ?? ""] ?? "" }
+    private func tasteActivityRaw(_ label: String) -> String? { ["가볍게":"LIGHT", "적당히":"MODERATE", "많이 움직여도 괜찮음":"ACTIVE"][label] }
+    private func tastePriceLabel(_ raw: String?) -> String { ["FREE":"무료 위주", "LOW":"부담 적게"][raw ?? ""] ?? "비용 상관없음" }
+    private func tastePriceRaw(_ label: String) -> String? { ["무료 위주":"FREE", "부담 적게":"LOW"][label] }
+    private func tasteDurationLabel(_ raw: String?) -> String { ["WITHIN_1H":"1시간 이내", "H1_TO_3":"1~3시간", "HALF_DAY_PLUS":"반나절 이상"][raw ?? ""] ?? "상관없음" }
+    private func tasteDurationRaw(_ label: String) -> String? { ["1시간 이내":"WITHIN_1H", "1~3시간":"H1_TO_3", "반나절 이상":"HALF_DAY_PLUS"][label] }
 }
 
 struct SuggestionView: View {
