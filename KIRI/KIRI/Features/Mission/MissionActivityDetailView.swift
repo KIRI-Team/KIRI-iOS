@@ -29,6 +29,7 @@ struct MissionActivityDetailView: View {
     @State private var detailError: String?
     @State private var isSavingBookmark = false
     @State private var bookmarkError: String?
+    @State private var isShowingBucketToast = false
     @State private var selectedSegment: DetailSegment = .recommended
 
     fileprivate enum DetailSegment: String, CaseIterable, Hashable {
@@ -277,16 +278,19 @@ struct MissionActivityDetailView: View {
             guard !isBookmarked, detail?.bucketSaved != true, !isSavingBookmark, let missionId else { return }
             Task { await saveBookmark(missionId: missionId) }
         } label: {
+            let saved = isBookmarked || detail?.bucketSaved == true
             HStack(spacing: 10) {
-                let saved = isBookmarked || detail?.bucketSaved == true
-                Image(systemName: saved ? "bookmark.fill" : "bookmark")
-                Text(saved ? "저장됨" : "버킷에 저장")
+                Image(saved ? "mission_bookmark_active" : "mission_bookmark_disabled")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                Text(saved ? "버킷에 저장됨" : "버킷에 저장")
             }
             .font(KIRITypography.headingSmall)
-            .foregroundStyle(KIRIColor.Text.strong)
+            .foregroundStyle(saved ? KIRIColor.Text.accent : KIRIColor.Text.strong)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(KIRIColor.Background.secondary)
+            .background(saved ? KIRIColor.Primary.container : KIRIColor.Background.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -302,6 +306,17 @@ struct MissionActivityDetailView: View {
                     .padding(.bottom, 4)
                     .offset(y: -22)
             }
+            if isShowingBucketToast {
+                Text("버킷에 저장했어요")
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.onGreen)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(KIRIColor.Primary.default)
+                    .clipShape(Capsule())
+                    .offset(y: -58)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
     }
 
@@ -312,6 +327,17 @@ struct MissionActivityDetailView: View {
         do {
             _ = try await AuthService.shared.saveMissionToBucket(missionId: missionId)
             isBookmarked = true
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isShowingBucketToast = true
+                }
+            }
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isShowingBucketToast = false
+                }
+            }
         } catch {
             bookmarkError = "버킷 저장에 실패했어요. 다시 시도해 주세요."
         }
