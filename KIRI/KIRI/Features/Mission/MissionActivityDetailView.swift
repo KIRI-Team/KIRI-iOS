@@ -34,6 +34,8 @@ struct MissionActivityDetailView: View {
     @State private var familyRecommendation: FamilyRecommendationResult?
     @State private var recommendationError: String?
     @State private var isLoadingRecommendation = false
+    @State private var selectedRecommendation: FamilyRecommendationResult?
+    @State private var recommendationIsBookmarked = false
 
     fileprivate enum DetailSegment: String, CaseIterable, Hashable {
         case recommended = "추천 활동"
@@ -83,6 +85,20 @@ struct MissionActivityDetailView: View {
         .task {
             await loadDetail()
             await loadFamilyRecommendation()
+        }
+        .fullScreenCover(item: $selectedRecommendation) { recommendation in
+            MissionActivityDetailView(
+                missionId: recommendation.missionId,
+                title: recommendation.title,
+                placeName: "",
+                district: MissionDisplayLabel.category(recommendation.category) ?? "",
+                rating: nil,
+                tags: [MissionDisplayLabel.category(recommendation.category)].compactMap { $0 },
+                isRecommended: false,
+                imageURL: recommendation.imageUrl,
+                isBookmarked: $recommendationIsBookmarked,
+                onBack: { selectedRecommendation = nil }
+            )
         }
     }
 
@@ -206,8 +222,6 @@ struct MissionActivityDetailView: View {
                 detailSectionTitle("오늘의 끼리 추천 활동", accent: true)
                 unavailableRecommendationCard("추천 활동 데이터가 아직 없어요.")
 
-                // Figma의 맞춤템 영역은 서버 계약이 확인될 때까지 빈 상태만 표시합니다.
-                // 샘플 상품이나 추천 이유를 운영 화면에 생성하지 않습니다.
                 detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
                 if isLoadingRecommendation {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 100)
@@ -238,7 +252,11 @@ struct MissionActivityDetailView: View {
     }
 
     private func recommendationCard(_ recommendation: FamilyRecommendationResult) -> some View {
-        HStack(spacing: 8) {
+        Button {
+            recommendationIsBookmarked = false
+            selectedRecommendation = recommendation
+        } label: {
+            HStack(spacing: 8) {
             KIRIContentImage(imageURL: recommendation.imageUrl, mockAssetName: nil) {
                 KIRIColor.Background.tertiary
             }
@@ -252,7 +270,10 @@ struct MissionActivityDetailView: View {
                 }
             }
             Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .buttonStyle(.plain)
         .padding(18)
         .frame(width: 171, height: 110, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
@@ -399,7 +420,11 @@ struct MissionActivityDetailView: View {
         await MainActor.run { isLoadingDetail = true; detailError = nil }
         do {
             let result = try await AuthService.shared.missionDetail(missionId: missionId)
-            await MainActor.run { detail = result; isLoadingDetail = false }
+            await MainActor.run {
+                detail = result
+                isBookmarked = result.bucketSaved
+                isLoadingDetail = false
+            }
         } catch {
             await MainActor.run { detailError = error.localizedDescription; isLoadingDetail = false }
         }
