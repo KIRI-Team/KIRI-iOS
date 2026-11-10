@@ -226,10 +226,11 @@ struct MissionActivityDetailView: View {
 
     @ViewBuilder
     private var detailSections: some View {
-        if let detail, !detail.prepareItems.isEmpty || !detail.steps.isEmpty {
+        if let detail, !detail.prepareItems.isEmpty {
             VStack(alignment: .leading, spacing: 24) {
-                if !detail.prepareItems.isEmpty { detailList(title: "준비물", items: detail.prepareItems) }
-                if !detail.steps.isEmpty { detailList(title: "활동 단계", items: detail.steps) }
+                // Figma 상세 화면에는 준비물 정보만 존재합니다.
+                // API 응답의 steps는 보존하되, Figma에 없는 활동 단계 UI는 노출하지 않습니다.
+                detailList(title: "준비물", items: detail.prepareItems)
             }
             .padding(.top, 28)
         }
