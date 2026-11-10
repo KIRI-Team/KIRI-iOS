@@ -29,7 +29,7 @@ final class APIClient {
         endpoint: APIEndpoint,
         accessToken: String? = nil
     ) async throws -> Response {
-        return try await requestImpl<Response>(
+        return try await requestImpl(
             endpoint: endpoint,
             bodyData: nil,
             accessToken: accessToken
@@ -45,7 +45,7 @@ final class APIClient {
         // the request payload independent from the caller's object lifetime and
         // prevents an existential/body value from crossing an async boundary.
         let bodyData = try JSONEncoder().encode(body)
-        return try await requestImpl<Response>(
+        return try await requestImpl(
             endpoint: endpoint,
             bodyData: bodyData,
             accessToken: accessToken
