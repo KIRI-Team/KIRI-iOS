@@ -174,46 +174,35 @@ struct LoginView: View {
     // MARK: - Apple
 
     private var appleLoginButton: some View {
-        ZStack {
-            // 공식 Apple 인증 컨트롤의 요청/완료 동작은 유지하고,
-            // 서비스에서 사용하는 한국어 라벨은 앞쪽의 공통 콘텐츠로 표시합니다.
-            SocialLoginButtonContent(
-                title: "Apple로 로그인",
-                foregroundColor: .black
-            ) {
-                Image(systemName: "apple.logo")
-                    .font(.system(size: 21, weight: .medium))
-                    .foregroundStyle(.black)
-            }
-            .accessibilityHidden(true)
-
-            SignInWithAppleButton(
-                .signIn,
-                onRequest: { request in
-                    guard !isAppleRequestInFlight, !isAuthenticating else { return }
-                    isAppleRequestInFlight = true
-                    let nonce = Self.randomNonce()
-                    appleNonce = nonce
-                    request.nonce = Self.sha256(nonce)
-                    request.requestedScopes = [
-                        .fullName,
-                        .email
-                    ]
-                },
-                onCompletion: { result in
-                    handleAppleSignInResult(result)
+        SignInWithAppleButton(
+            .signIn,
+            onRequest: { request in
+                guard !isAppleRequestInFlight, !isAuthenticating else { return }
+                isAppleRequestInFlight = true
+                let nonce = Self.randomNonce()
+                appleNonce = nonce
+                request.nonce = Self.sha256(nonce)
+                request.requestedScopes = [.fullName, .email]
+                #if DEBUG
+                print("[KIRI][Apple] authorization request started")
+                #endif
+            },
+            onCompletion: { result in
+                #if DEBUG
+                let success: Bool
+                switch result {
+                case .success: success = true
+                case .failure: success = false
                 }
-            )
-            .signInWithAppleButtonStyle(.white)
-            // ZStack의 외부 프레임만으로는 UIViewRepresentable인
-            // SignInWithAppleButton의 실제 hit target이 보장되지 않습니다.
-            // 네이티브 버튼 자체를 카드 전체 크기로 제한해야 인증 시트가 열립니다.
-            .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .disabled(isAppleRequestInFlight || isAuthenticating)
-            // 시스템 버튼은 투명하게 유지해 인증 hit target과 Apple의 요청 흐름을 보존합니다.
-            .opacity(0.001)
-        }
+                print("[KIRI][Apple] authorization completed: success=\(success)")
+                #endif
+                handleAppleSignInResult(result)
+            }
+        )
+        .signInWithAppleButtonStyle(.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 54)
+        .disabled(isAppleRequestInFlight || isAuthenticating)
         .frame(maxWidth: .infinity)
         .frame(height: 54)
         .background(Color.white)
@@ -255,6 +244,12 @@ struct LoginView: View {
 
         case .failure(let error):
             appleNonce = nil
+            // 사용자가 인증 창을 닫은 것은 로그인 실패가 아니므로
+            // 로그인 화면을 유지하고 오류 알림을 띄우지 않습니다.
+            if let authorizationError = error as? ASAuthorizationError,
+               authorizationError.code == .canceled {
+                return
+            }
             onLoginFailure(error.localizedDescription)
         }
     }
