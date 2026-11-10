@@ -31,10 +31,11 @@ struct MissionView: View {
     fileprivate struct MissionFilter: Equatable {
         var regionCode: String?
         var distance: Int?
+        var isFree: Bool?
         var maxPrice: Int?
 
-        static let empty = MissionFilter(regionCode: nil, distance: nil, maxPrice: nil)
-        var count: Int { [regionCode, distance, maxPrice].compactMap { $0 }.count }
+        static let empty = MissionFilter(regionCode: nil, distance: nil, isFree: nil, maxPrice: nil)
+        var count: Int { [regionCode, distance, isFree, maxPrice].compactMap { $0 }.count }
     }
     @State private var rows: [MissionRow] = []
     @State private var selectedMission: MissionRow?
@@ -48,6 +49,8 @@ struct MissionView: View {
     @State private var isLoadingMore = false
     @State private var errorMessage: String?
     @State private var savingMissionID: Int?
+    // 필터·카테고리 변경으로 새 요청이 시작되면 이전 응답이 화면을 덮어쓰지 않도록 식별자를 갱신합니다.
+    @State private var loadGeneration = UUID()
 
     private var filteredRows: [MissionRow] {
         let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -164,14 +167,37 @@ struct MissionView: View {
     }
 
     private func load(reset: Bool) async {
-        if reset { guard !isLoading else { return }; isLoading = true; errorMessage = nil } else { guard hasNext, !isLoadingMore else { return }; isLoadingMore = true }
+        let generation: UUID
+        if reset {
+            generation = UUID()
+            loadGeneration = generation
+            isLoading = true
+            isLoadingMore = false
+            errorMessage = nil
+            nextCursor = nil
+            hasNext = false
+        } else {
+            guard hasNext, !isLoadingMore else { return }
+            generation = loadGeneration
+            isLoadingMore = true
+        }
         do {
-            let result = try await AuthService.shared.missionFeed(category: selectedCategory.apiValue, regionCode: appliedFilter.regionCode, distance: appliedFilter.distance, maxPrice: appliedFilter.maxPrice, cursor: reset ? nil : nextCursor)
+            let category = selectedCategory.apiValue
+            let filter = appliedFilter
+            let cursor = reset ? nil : nextCursor
+            let result = try await AuthService.shared.missionFeed(category: category, regionCode: filter.regionCode, distance: filter.distance, isFree: filter.isFree, maxPrice: filter.maxPrice, cursor: cursor)
+            guard !Task.isCancelled, generation == loadGeneration else { return }
             let newRows = result.missions.map { MissionRow(id: $0.missionId, mission: $0, isBookmarked: false) }
             if reset { rows = newRows } else { rows.append(contentsOf: newRows) }
             nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil
-        } catch { errorMessage = error.localizedDescription }
-        isLoading = false; isLoadingMore = false
+        } catch {
+            guard !Task.isCancelled, generation == loadGeneration else { return }
+            errorMessage = error.localizedDescription
+        }
+        if generation == loadGeneration {
+            isLoading = false
+            isLoadingMore = false
+        }
     }
 
     private func save(_ missionID: Int, value: Bool) async {
@@ -194,6 +220,7 @@ private struct MissionFilterView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var regionCode: String?
     @State private var distance: Int?
+    @State private var isFree: Bool?
     @State private var maxPrice: Int?
 
     private let regions = [
@@ -213,6 +240,7 @@ private struct MissionFilterView: View {
         self.onApply = onApply
         _regionCode = State(initialValue: initial.regionCode)
         _distance = State(initialValue: initial.distance)
+        _isFree = State(initialValue: initial.isFree)
         _maxPrice = State(initialValue: initial.maxPrice)
     }
 
@@ -242,7 +270,19 @@ private struct MissionFilterView: View {
                             HStack(spacing: 8) { ForEach(distances, id: \.0) { item in chip(item.1, selected: distance == item.0) { distance = distance == item.0 ? nil : item.0 } } }
                         }
                         filterSection(title: "가격") {
-                            HStack(spacing: 8) { ForEach(prices, id: \.0) { item in chip(item.1, selected: maxPrice == item.0) { maxPrice = maxPrice == item.0 ? nil : item.0 } } }
+                            HStack(spacing: 8) {
+                                ForEach(prices, id: \.0) { item in
+                                    chip(item.1, selected: item.0 == 0 ? isFree == true : maxPrice == item.0) {
+                                        if item.0 == 0 {
+                                            isFree = isFree == true ? nil : true
+                                            maxPrice = nil
+                                        } else {
+                                            maxPrice = maxPrice == item.0 ? nil : item.0
+                                            isFree = nil
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, 18)
@@ -274,9 +314,9 @@ private struct MissionFilterView: View {
 
     private var actionButtons: some View {
         HStack(spacing: 8) {
-            Button("초기화") { regionCode = nil; distance = nil; maxPrice = nil }
+            Button("초기화") { regionCode = nil; distance = nil; isFree = nil; maxPrice = nil }
                 .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-            Button("적용하기") { onApply(MissionView.MissionFilter(regionCode: regionCode, distance: distance, maxPrice: maxPrice)) }
+            Button("적용하기") { onApply(MissionView.MissionFilter(regionCode: regionCode, distance: distance, isFree: isFree, maxPrice: maxPrice)) }
                 .frame(maxWidth: .infinity).frame(height: 54).foregroundStyle(.black).background(KIRIColor.Text.accent).clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .font(KIRITypography.bodyMedium)
