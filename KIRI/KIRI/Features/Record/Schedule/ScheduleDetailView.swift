@@ -34,6 +34,9 @@ struct ScheduleDetailView: View {
     @State private var serverReviews: [ReviewItemResult] = []
     @State private var reviewsLoadError: String?
     @State private var isLoadingReviews = false
+    @State private var reviewMutationError: String?
+    @State private var reviewToDelete: ReviewItemResult?
+    @State private var isDeletingReview = false
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -154,15 +157,24 @@ struct ScheduleDetailView: View {
                             try await AuthService.shared.uploadImage(data: data, to: presigned.presignedUrl, contentType: contentType)
                             imageKeys.append(presigned.imageKey)
                         }
-                        _ = try await AuthService.shared.createReview(
-                            scheduleId: scheduleId,
-                            request: ReviewCreateRequest(
-                                starRating: draft.rating,
-                                imageKeys: imageKeys,
-                                content: draft.comment,
-                                isRejoinIntended: draft.wantsToRepeat
-                            )
+                        let request = ReviewCreateRequest(
+                            starRating: draft.rating,
+                            imageKeys: imageKeys,
+                            content: draft.comment,
+                            isRejoinIntended: draft.wantsToRepeat
                         )
+                        if let mine = serverReviews.first(where: { $0.isMine }) {
+                            _ = try await AuthService.shared.updateReview(
+                                scheduleId: scheduleId,
+                                reviewId: mine.reviewId,
+                                request: request
+                            )
+                        } else {
+                            _ = try await AuthService.shared.createReview(
+                                scheduleId: scheduleId,
+                                request: request
+                            )
+                        }
                     }
                 },
                 initialDraft: currentReview
@@ -185,6 +197,26 @@ struct ScheduleDetailView: View {
             }
         }
         .background(KIRIColor.Background.base)
+        .alert("리뷰 삭제", isPresented: Binding(
+            get: { reviewToDelete != nil },
+            set: { if !$0 { reviewToDelete = nil } }
+        )) {
+            Button("삭제", role: .destructive) {
+                guard let review = reviewToDelete else { return }
+                Task { await deleteReview(review) }
+            }
+            Button("취소", role: .cancel) { reviewToDelete = nil }
+        } message: {
+            Text("작성한 리뷰를 삭제할까요?")
+        }
+        .alert("리뷰 처리 실패", isPresented: Binding(
+            get: { reviewMutationError != nil },
+            set: { if !$0 { reviewMutationError = nil } }
+        )) {
+            Button("확인", role: .cancel) { reviewMutationError = nil }
+        } message: {
+            Text(reviewMutationError ?? "")
+        }
         .task {
             await loadServerDetail()
             await loadNearbyMissions()
@@ -228,6 +260,20 @@ struct ScheduleDetailView: View {
             serverReviews = try await AuthService.shared.scheduleReviews(scheduleId: scheduleId).reviews
         } catch {
             reviewsLoadError = "가족 추억을 불러오지 못했어요."
+        }
+    }
+
+    private func deleteReview(_ review: ReviewItemResult) async {
+        guard !isDeletingReview, let scheduleId = schedule.scheduleId else { return }
+        isDeletingReview = true
+        reviewMutationError = nil
+        defer { isDeletingReview = false }
+        do {
+            try await AuthService.shared.deleteReview(scheduleId: scheduleId, reviewId: review.reviewId)
+            await loadReviews()
+            await MainActor.run { reviewToDelete = nil }
+        } catch {
+            await MainActor.run { reviewMutationError = "리뷰를 삭제하지 못했어요. 다시 시도해 주세요." }
         }
     }
     private var upcomingContent: some View {
@@ -509,11 +555,23 @@ struct ScheduleDetailView: View {
             HStack {
                 Text(review.writer.nickname).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong)
                 Spacer()
-                Text("★ (review.starRating)").font(KIRITypography.captionMedium).foregroundStyle(KIRIColor.Text.accent)
+                Text("★ \(review.starRating)").font(KIRITypography.captionMedium).foregroundStyle(KIRIColor.Text.accent)
+                if review.isMine {
+                    Menu {
+                        Button("수정하기") { showingReviewEditor = true }
+                        Button("삭제하기", role: .destructive) { reviewToDelete = review }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .foregroundStyle(KIRIColor.Icon.secondary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .disabled(isDeletingReview)
+                }
             }
             Text(review.content).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.primary)
             if !review.photos.isEmpty {
-                Text("사진 (review.photos.count)장").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                Text("사진 \(review.photos.count)장").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
             }
         }
         .padding(16)
