@@ -321,6 +321,13 @@ final class AuthService {
         return result
     }
 
+    func pokeMember(memberId: Int) async throws {
+        let endpoint = APIEndpoint(path: "/api/v1/questions/today/members/\(memberId)/pokes", method: .POST, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard envelope.isSuccess else { throw APIError.serverError(code: envelope.code, message: envelope.message) }
+    }
+
     func missionFeed(
         category: String? = nil,
         regionCode: String? = nil,
