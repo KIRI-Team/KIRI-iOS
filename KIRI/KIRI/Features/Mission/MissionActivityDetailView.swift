@@ -23,6 +23,7 @@ struct MissionActivityDetailView: View {
     let imageURL: URL?
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
+    private let allowsRecommendationNavigation: Bool
 
     @State private var detail: MissionDetailResult?
     @State private var isLoadingDetail = false
@@ -54,6 +55,7 @@ struct MissionActivityDetailView: View {
         imageURL: URL? = nil,
         previewDetail: MissionDetailResult? = nil,
         isBookmarked: Binding<Bool>,
+        allowsRecommendationNavigation: Bool = true,
         onBack: @escaping () -> Void
     ) {
         self.missionId = missionId
@@ -67,6 +69,7 @@ struct MissionActivityDetailView: View {
         self.imageURL = imageURL
         self._detail = State(initialValue: previewDetail)
         self._isBookmarked = isBookmarked
+        self.allowsRecommendationNavigation = allowsRecommendationNavigation
         self.onBack = onBack
     }
 
@@ -97,6 +100,7 @@ struct MissionActivityDetailView: View {
                 isRecommended: false,
                 imageURL: recommendation.imageUrl,
                 isBookmarked: $recommendationIsBookmarked,
+                allowsRecommendationNavigation: false,
                 onBack: { selectedRecommendation = nil }
             )
         }
@@ -252,10 +256,22 @@ struct MissionActivityDetailView: View {
     }
 
     private func recommendationCard(_ recommendation: FamilyRecommendationResult) -> some View {
-        Button {
-            recommendationIsBookmarked = false
-            selectedRecommendation = recommendation
-        } label: {
+        Group {
+            if allowsRecommendationNavigation {
+                Button {
+                    recommendationIsBookmarked = false
+                    selectedRecommendation = recommendation
+                } label: {
+                    recommendationCardLabel(recommendation)
+                }
+                .buttonStyle(.plain)
+            } else {
+                recommendationCardLabel(recommendation)
+            }
+        }
+    }
+
+    private func recommendationCardLabel(_ recommendation: FamilyRecommendationResult) -> some View {
             HStack(spacing: 8) {
             KIRIContentImage(imageURL: recommendation.imageUrl, mockAssetName: nil) {
                 KIRIColor.Background.tertiary
@@ -272,8 +288,6 @@ struct MissionActivityDetailView: View {
             Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(.plain)
         .padding(18)
         .frame(width: 171, height: 110, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
