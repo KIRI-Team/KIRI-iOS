@@ -65,6 +65,8 @@ struct RecordView: View {
     @State private var showingDeleteConfirmation = false
     @State private var selectedReviewSchedule: RecordCalendarView.ScheduleDetailData?
     @State private var reviewStore = ActivityReviewStore()
+    /// 일정 변경 후 캘린더와 다가오는 일정 API를 다시 호출하기 위한 화면 identity입니다.
+    @State private var scheduleRefreshID = UUID()
 
     private func reviewKey(_ schedule: RecordCalendarView.ScheduleDetailData) -> String {
 
@@ -130,6 +132,10 @@ struct RecordView: View {
 
                         selectedSchedule = nil
 
+                    },
+                    onScheduleChanged: {
+                        selectedSchedule = nil
+                        scheduleRefreshID = UUID()
                     },
 
                     // 서버 일정 상세가 제공하는 데이터만 표시합니다.
@@ -240,6 +246,7 @@ struct RecordView: View {
                         onSelectSavedReview: { _ in }
 
                     )
+                    .id(scheduleRefreshID)
 
                 case .bucket:
 

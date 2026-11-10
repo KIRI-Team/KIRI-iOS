@@ -17,11 +17,16 @@ struct ScheduleDetailView: View {
     var todayContent: TodayActivityView.Content? = nil
     var savedReview: ActivityReviewWriteView.Draft? = nil
     var onReviewSaved: ((ActivityReviewWriteView.Draft) -> Void)? = nil
+    /// 일정 변경이 서버에 반영된 뒤 캘린더·다가오는 일정 목록을 다시 읽도록 알립니다.
+    var onScheduleChanged: (() -> Void)? = nil
     @State private var showingReviewEditor = false
     @State private var localEditedReview: ActivityReviewWriteView.Draft?
     @State private var serverDetail: ScheduleDetailResult?
     @State private var isLoadingServerDetail = false
     @State private var serverDetailError: String?
+    @State private var isMutatingSchedule = false
+    @State private var scheduleMutationError: String?
+    @State private var showingCancelConfirmation = false
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -213,6 +218,8 @@ struct ScheduleDetailView: View {
                     .padding(.top, 53)
                 selectedContent
                     .padding(.top, 40)
+                scheduleActions
+                    .padding(.top, 28)
                 Color.clear.frame(height: 120)
             }
             .padding(.horizontal, 18)
@@ -309,6 +316,85 @@ struct ScheduleDetailView: View {
         .clipShape(Capsule())
         .frame(maxWidth: .infinity)
     }
+
+    /// 서버 계약이 확정된 일정 응답·취소 동작만 노출합니다.
+    /// 버튼을 누르면 서버 결과를 받은 뒤 상세를 재조회하고 상위 캘린더도 갱신합니다.
+    private var scheduleActions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let scheduleMutationError {
+                Text(scheduleMutationError)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+
+            if effectiveStatus != "CANCELLED" {
+                HStack(spacing: 8) {
+                    Button("거절") {
+                        Task { await respond(action: "DECLINED") }
+                    }
+                    .buttonStyle(scheduleActionStyle(isPrimary: false))
+                    .disabled(isMutatingSchedule)
+
+                    Button("수락") {
+                        Task { await respond(action: "ACCEPTED") }
+                    }
+                    .buttonStyle(scheduleActionStyle(isPrimary: true))
+                    .disabled(isMutatingSchedule)
+                }
+
+                Button("약속 취소", role: .destructive) {
+                    showingCancelConfirmation = true
+                }
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .disabled(isMutatingSchedule)
+            }
+        }
+        .confirmationDialog(
+            "약속을 취소할까요?",
+            isPresented: $showingCancelConfirmation
+        ) {
+            Button("약속 취소", role: .destructive) {
+                Task { await cancelSchedule() }
+            }
+            Button("돌아가기", role: .cancel) {}
+        } message: {
+            Text("가족에게 취소 내역이 표시됩니다.")
+        }
+    }
+
+    private func scheduleActionStyle(isPrimary: Bool) -> some ButtonStyle {
+        ScheduleActionButtonStyle(isPrimary: isPrimary)
+    }
+
+    private func respond(action: String) async {
+        guard let scheduleId = schedule.scheduleId, !isMutatingSchedule else { return }
+        isMutatingSchedule = true
+        scheduleMutationError = nil
+        defer { isMutatingSchedule = false }
+        do {
+            _ = try await AuthService.shared.respondToSchedule(scheduleId: scheduleId, action: action)
+            await loadServerDetail()
+            onScheduleChanged?()
+        } catch {
+            scheduleMutationError = "일정 응답을 저장하지 못했어요. 다시 시도해 주세요."
+        }
+    }
+
+    private func cancelSchedule() async {
+        guard let scheduleId = schedule.scheduleId, !isMutatingSchedule else { return }
+        isMutatingSchedule = true
+        scheduleMutationError = nil
+        defer { isMutatingSchedule = false }
+        do {
+            _ = try await AuthService.shared.cancelSchedule(scheduleId: scheduleId)
+            await loadServerDetail()
+            onScheduleChanged?()
+        } catch {
+            scheduleMutationError = "약속을 취소하지 못했어요. 다시 시도해 주세요."
+        }
+    }
     private var selectedContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(
@@ -354,5 +440,20 @@ struct ScheduleDetailView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct ScheduleActionButtonStyle: ButtonStyle {
+    let isPrimary: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(KIRITypography.button)
+            .foregroundStyle(isPrimary ? KIRIColor.Text.onGreen : KIRIColor.Text.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(isPrimary ? KIRIColor.Primary.default : KIRIColor.Background.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
