@@ -77,6 +77,7 @@ struct RecordBucketListView: View {
     @State private var isDeleting = false
     @State private var nextCursor: Int?
     @State private var hasNextPage = false
+    @State private var selectedScheduleItem: BucketItemResult?
 
 
 
@@ -192,6 +193,12 @@ struct RecordBucketListView: View {
             Button("취소", role: .cancel) {}
         } message: {
             Text("삭제한 버킷리스트는 다시 표시되지 않습니다.")
+        }
+        .sheet(item: $selectedScheduleItem) { item in
+            ScheduleCreationSheet(bucket: item) {
+                selectedScheduleItem = nil
+                Task { await loadBuckets(reset: true) }
+            }
         }
 
     }
@@ -389,31 +396,17 @@ struct RecordBucketListView: View {
 
 
 
+    @ViewBuilder
     private func bucketCard(
 
         _ item: BucketItem
 
     ) -> some View {
+        let serverItem = serverItems.first(where: { $0.bucketItemId == item.id })
 
         Button {
-
-            guard !item.isCompleted else {
-
-                return
-
-            }
-
-
-
-            guard let invitation = item.invitation else {
-
-                return
-
-            }
-
-
-
-            onSelectInvitation(invitation)
+            guard let serverItem, serverItem.schedulable, !item.isCompleted else { return }
+            selectedScheduleItem = serverItem
 
         } label: {
 
@@ -505,7 +498,7 @@ struct RecordBucketListView: View {
 
         .buttonStyle(.plain)
         .contextMenu {
-            if let serverItem = serverItems.first(where: { $0.bucketItemId == item.id }), serverItem.deletable {
+            if let serverItem, serverItem.deletable {
                 Button("버킷에서 삭제", role: .destructive) {
                     pendingDelete = serverItem
                     showingDeleteConfirmation = true
