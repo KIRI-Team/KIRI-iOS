@@ -33,18 +33,10 @@ struct RecordBucketListView: View {
 
 
 
-    private enum FamilyFilter: String, CaseIterable, Hashable {
-
-        case all = "전체"
-
-        case mom = "엄마 1"
-
-        case dad = "아빠 2"
-
-        case daughter = "딸 1"
-
-        case son = "아들 1"
-
+    /// 서버가 반환한 실제 저장자만 필터로 노출합니다.
+    private struct FamilyFilter: Identifiable, Hashable {
+        let id: Int?
+        let title: String
     }
 
 
@@ -59,7 +51,7 @@ struct RecordBucketListView: View {
 
         let savedBy: String
 
-        let owner: FamilyFilter?
+        let ownerId: Int
 
         let isCompleted: Bool
 
@@ -75,8 +67,9 @@ struct RecordBucketListView: View {
 
 
 
-    @State private var selectedFilter: FamilyFilter = .all
+    @State private var selectedFilter = FamilyFilter(id: nil, title: "전체")
     @State private var serverItems: [BucketItemResult] = []
+    @State private var serverSavers: [BucketSaver] = []
     @State private var isLoading = false
     @State private var loadError: String?
     @State private var pendingDelete: BucketItemResult?
@@ -110,21 +103,17 @@ struct RecordBucketListView: View {
             BucketItem(id: item.bucketItemId,
                        title: item.mission.title,
                        savedBy: "\(item.saver.nickname)이 저장했어요!",
-                       owner: familyFilter(for: item.saver.familyRole),
+                       ownerId: item.saver.memberId,
                        isCompleted: item.status == "COMPLETED",
                        invitation: nil)
         }
-        guard selectedFilter != .all else { return mapped }
-        return mapped.filter { $0.owner == selectedFilter }
+        guard let selectedMemberId = selectedFilter.id else { return mapped }
+        return mapped.filter { $0.ownerId == selectedMemberId }
     }
 
-    private func familyFilter(for role: String?) -> FamilyFilter? {
-        switch role {
-        case "MOTHER": return .mom
-        case "FATHER": return .dad
-        case "SON": return .son
-        case "DAUGHTER": return .daughter
-        default: return nil
+    private var availableFilters: [FamilyFilter] {
+        [FamilyFilter(id: nil, title: "전체")] + serverSavers.map {
+            FamilyFilter(id: $0.memberId, title: $0.nickname)
         }
     }
 
@@ -215,6 +204,7 @@ struct RecordBucketListView: View {
             nextCursor = nil
             hasNextPage = false
             serverItems = []
+            serverSavers = []
         } else if !hasNextPage {
             return
         }
@@ -224,9 +214,16 @@ struct RecordBucketListView: View {
             let result = try await AuthService.shared.bucketItems(cursor: nextCursor)
             if reset {
                 serverItems = result.bucketItems
+                serverSavers = result.savers
+                if let selectedMemberId = selectedFilter.id,
+                   !result.savers.contains(where: { $0.memberId == selectedMemberId }) {
+                    selectedFilter = FamilyFilter(id: nil, title: "전체")
+                }
             } else {
                 let existing = Set(serverItems.map(\.bucketItemId))
                 serverItems.append(contentsOf: result.bucketItems.filter { !existing.contains($0.bucketItemId) })
+                let existingSavers = Set(serverSavers.map(\.memberId))
+                serverSavers.append(contentsOf: result.savers.filter { !existingSavers.contains($0.memberId) })
             }
             nextCursor = result.nextCursor
             hasNextPage = result.hasNext && result.nextCursor != nil
@@ -322,7 +319,7 @@ struct RecordBucketListView: View {
 
                 ForEach(
 
-                    FamilyFilter.allCases,
+                    availableFilters,
 
                     id: \.self
 
@@ -330,7 +327,7 @@ struct RecordBucketListView: View {
 
                     KIRIChip(
 
-                        title: filter.rawValue,
+                        title: filter.title,
 
                         isSelected: selectedFilter == filter
 
