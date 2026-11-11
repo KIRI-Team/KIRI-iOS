@@ -104,6 +104,12 @@ struct AccountInfoView: View {
                     .font(KIRITypography.caption)
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.top, 2)
+                Image("figma_logout")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 20)
                 Spacer(minLength: 0)
                 HStack(spacing: 12) {
                     Button("취소") { isLogoutAlertPresented = false }
@@ -254,7 +260,9 @@ private struct MyPageDialogButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(KIRITypography.bodyMedium)
-            .foregroundStyle(KIRIColor.Text.primary)
+                // Figma 9901:26148: 강조 버튼은 밝은 초록 배경 위에 검정 텍스트를 사용합니다.
+                // 취소/중립 버튼은 기존 밝은 텍스트 색을 유지합니다.
+                .foregroundStyle(isPrimary ? Color.black : KIRIColor.Text.primary)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background(isPrimary ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
