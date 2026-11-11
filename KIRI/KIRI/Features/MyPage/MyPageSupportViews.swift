@@ -579,7 +579,8 @@ struct AddressSettingsView: View {
                 #if DEBUG
                 print("[KIRI][Address] geocode failure domain=\((error as NSError).domain) code=\((error as NSError).code)")
                 #endif
-                lastFailure = .unknown
+                let nsError = error as NSError
+                lastFailure = nsError.domain == NSURLErrorDomain ? .network : .unknown
             }
         }
 
