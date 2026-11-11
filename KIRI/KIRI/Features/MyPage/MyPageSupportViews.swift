@@ -25,10 +25,7 @@ private struct MyPageAppBar<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(KIRIColor.Icon.primary).frame(width: 52, height: 52)
-                }.buttonStyle(.plain)
+                KIRIBackButton { dismiss() }
                 Spacer()
                 Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
                 Spacer()
@@ -486,13 +483,27 @@ struct TasteTestView: View {
                     preferenceSection("비용", options: costs, selectedValue: $cost)
                     preferenceSection("활동시간", options: durations, selectedValue: $duration)
                     if let errorMessage { Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error) }
+                    let isTasteEnabled = !isSaving && !selectedActivities.isEmpty && !amount.isEmpty
                     Button {
                         Task { await saveTaste() }
                     } label: {
-                        HStack { Spacer(); if isSaving { ProgressView() } else { Text("저장") }; Spacer() }
+                        HStack {
+                            Spacer()
+                            if isSaving {
+                                ProgressView().tint(KIRIColor.Button.FilledAccent.contentDefault)
+                            } else {
+                                Text("저장")
+                            }
+                            Spacer()
+                        }
+                        .font(KIRITypography.button)
+                        .foregroundStyle(isTasteEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
                     }
-                    .frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
-                    .disabled(isSaving || selectedActivities.isEmpty || amount.isEmpty)
+                    .frame(maxWidth: .infinity).frame(height: 54)
+                    .background(isTasteEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .disabled(!isTasteEnabled)
+                    .buttonStyle(.plain)
                     Spacer()
                 }.padding(18)
             }
@@ -582,8 +593,14 @@ struct SuggestionView: View {
                     Text("끼리가 더 발전할 수 있도록\n얘기해주세요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
                     TextField("내용을 입력하세요.", text: $text, axis: .vertical).lineLimit(5...10)
                         .padding(16).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Button("보내기") {}.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
+                    let isSendEnabled = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    Button("보내기") {}.disabled(!isSendEnabled)
+                        .font(KIRITypography.button)
+                        .foregroundStyle(isSendEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
+                        .frame(maxWidth: .infinity).frame(height: 54)
+                        .background(isSendEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .buttonStyle(.plain)
                     Text("건의 전송 API가 없어 서버로 전송하지 않습니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                     Spacer()
                 }.padding(18)

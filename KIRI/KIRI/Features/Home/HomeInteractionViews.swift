@@ -61,15 +61,19 @@ struct HomeQuestionAnswerView: View {
     }
 
     private var answerSaveButton: some View {
-        Button("답변 저장") {
+        let isEnabled = !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && answer.count <= 500
+        return Button("답변 저장") {
             let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !normalized.isEmpty, normalized.count <= 500 else { return }
             onSave(normalized)
         }
-        .disabled(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || answer.count > 500)
-        .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
+        .disabled(!isEnabled)
+        .font(KIRITypography.button)
+        .foregroundStyle(isEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
         .frame(maxWidth: .infinity).frame(height: 54)
-        .background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
+        .background(isEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .buttonStyle(.plain)
     }
 }
 
@@ -92,9 +96,10 @@ struct HomeMissionDetailView: View {
                         Text("미션 완료는 일정과 필수 기록이 저장된 뒤에만 처리됩니다.")
                             .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                         Button("캘린더에 일정 만들기") { isScheduleSheetPresented = true }
-                            .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
+                            .font(KIRITypography.button).foregroundStyle(KIRIColor.Button.FilledAccent.contentDefault)
                             .frame(maxWidth: .infinity).frame(height: 54)
-                            .background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
+                            .background(KIRIColor.Button.FilledAccent.backgroundDefault).clipShape(RoundedRectangle(cornerRadius: 8))
+                            .buttonStyle(.plain)
                     }.padding(18)
                 }
             }
@@ -175,7 +180,7 @@ private struct HomeInteractionBar: View {
     var body: some View {
         ZStack {
             Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
-            HStack { Button(action: onBack) { Image(systemName: "chevron.left").foregroundStyle(KIRIColor.Icon.primary).frame(width: 52, height: 52) }.buttonStyle(.plain); Spacer() }.padding(.horizontal, 0)
+            HStack { KIRIBackButton(action: onBack); Spacer() }.padding(.horizontal, 0)
         }.frame(height: 62)
     }
 }
