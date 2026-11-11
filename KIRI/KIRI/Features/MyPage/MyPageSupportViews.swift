@@ -189,6 +189,7 @@ struct OpenLicenseView: View {
 }
 
 struct WithdrawalView: View {
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     let onDeleteAccount: () async -> String?
     @State private var confirmed = false
     @State private var isConfirmPresented = false
@@ -239,7 +240,12 @@ struct WithdrawalView: View {
                         .padding(.bottom, 40)
                 }
             }
-        }.toolbar(.hidden, for: .navigationBar)
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        // 상위 마이페이지의 생명주기와 관계없이 탈퇴 화면에서는 탭바를 숨깁니다.
+        // safeAreaInset의 버튼은 홈 인디케이터 영역 위에 배치됩니다.
+        .onAppear { tabBarVisibility.wrappedValue = false }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
         .alert("정말 탈퇴할까요?", isPresented: $isConfirmPresented) {
             Button("취소", role: .cancel) {}
             Button("탈퇴", role: .destructive) {

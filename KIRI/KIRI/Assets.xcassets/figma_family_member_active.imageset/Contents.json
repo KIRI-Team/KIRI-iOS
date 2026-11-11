@@ -1,0 +1,13 @@
+{
+  "images" : [
+    {
+      "filename" : "figma_family_member_active.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

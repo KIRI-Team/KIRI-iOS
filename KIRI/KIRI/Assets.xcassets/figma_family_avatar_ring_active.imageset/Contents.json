@@ -1,0 +1,16 @@
+{
+  "images" : [
+    {
+      "filename" : "figma_family_avatar_ring_active.svg",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "properties" : {
+    "preserves-vector-representation" : true
+  }
+}
