@@ -78,6 +78,15 @@ struct CreateFamilyRequest: Encodable, Sendable {
     let name: String
 }
 
+struct JoinFamilyRequest: Encodable, Sendable {
+    let inviteCode: String
+}
+
+struct JoinFamilyResult: Decodable, Sendable {
+    let familyId: Int
+    let familyName: String
+}
+
 struct UpdateFamilyNameRequest: Encodable, Sendable {
     let name: String
 }

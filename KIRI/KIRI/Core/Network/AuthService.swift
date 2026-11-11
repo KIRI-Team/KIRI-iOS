@@ -224,6 +224,23 @@ final class AuthService {
         return result
     }
 
+    /// 입력한 6자리 초대 코드로 현재 인증 사용자를 가족공간에 참여시킵니다.
+    func joinFamily(inviteCode: String) async throws -> JoinFamilyResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families/join/code",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<JoinFamilyResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: JoinFamilyRequest(inviteCode: inviteCode),
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func createFamily(name: String) async throws -> CreateFamilyResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/families",

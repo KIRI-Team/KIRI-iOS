@@ -285,8 +285,8 @@ final class AppRouter {
         appState = .authentication
     }
 
-    func enterFamilyMode(familyName: String, inviteCode: String) {
-        sessionStore.saveFamily(name: familyName, inviteCode: inviteCode)
+    func enterFamilyMode(familyName: String, inviteCode: String, familyId: Int? = nil) {
+        sessionStore.saveFamily(name: familyName, inviteCode: inviteCode, familyId: familyId)
         self.familyName = familyName
         self.familyInviteCode = inviteCode
         self.nickname = sessionStore.nickname
