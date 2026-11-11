@@ -152,62 +152,72 @@ struct HomeMemberQuestionView: View {
     }
 
     private var card: some View {
-        HStack(alignment: .center, spacing: 20) {
-            VStack(alignment: .leading, spacing: member.hasAnswered ? 2 : 2) {
-                Text(question)
-                    .font(KIRITypography.headingSmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-                Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
-                    .font(KIRITypography.title)
-                    .foregroundStyle(member.hasAnswered ? KIRIColor.Text.strong : KIRIColor.Text.tertiary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 0) {
+            // Figma Tooltip의 콘텐츠 영역은 카드 상단에서 44pt, 좌우 21pt에 고정됩니다.
+            HStack(alignment: .center, spacing: 0) {
+                VStack(alignment: .leading, spacing: member.hasAnswered ? 12 : 2) {
+                    Text(question)
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                    Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
+                        .font(KIRITypography.headingMedium)
+                        .foregroundStyle(member.hasAnswered ? KIRIColor.Text.strong : KIRIColor.Text.tertiary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
+                }
+                .frame(width: 190, alignment: .leading)
 
-            Rectangle()
-                .fill(KIRIColor.Border.default)
-                .frame(width: 1, height: 50)
+                Spacer(minLength: 0)
 
-            if !member.isMe {
-                Button {
-                    guard let memberId = member.memberId, !didPoke, !isPoking, !member.hasAnswered else { return }
-                    isPoking = true
-                    Task { @MainActor in
-                        let success = await onPoke(memberId)
-                        didPoke = success
-                        isPoking = false
-                    }
-                } label: {
-                    VStack(spacing: 8) {
-                        if !member.hasAnswered {
+                Rectangle()
+                    .fill(KIRIColor.Border.default)
+                    .frame(width: 1, height: 50)
+
+                Spacer(minLength: 0)
+
+                if !member.isMe {
+                    Button {
+                        guard let memberId = member.memberId, !didPoke, !isPoking, !member.hasAnswered else { return }
+                        isPoking = true
+                        Task { @MainActor in
+                            let success = await onPoke(memberId)
+                            didPoke = success
+                            isPoking = false
+                        }
+                    } label: {
+                        VStack(spacing: 8) {
+                            // 답변 완료 상태도 Figma처럼 손 아이콘은 유지하고, 라벨과 탭만 비활성화합니다.
                             Image("figma_gesture_tap")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 24, height: 24)
-                        } else {
-                            Color.clear.frame(width: 24, height: 24)
+                            Text(didPoke ? "콕 보냄" : "콕 찌르기")
+                                .font(KIRITypography.caption)
+                                .foregroundStyle(member.hasAnswered || didPoke ? KIRIColor.Text.tertiary : KIRIColor.Text.accent)
+                                .lineLimit(1)
                         }
-                        Text(didPoke ? "콕 보냄" : "콕 찌르기")
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(member.hasAnswered || didPoke ? KIRIColor.Text.tertiary : KIRIColor.Text.accent)
-                            .lineLimit(1)
+                        .frame(width: 55)
+                        .contentShape(Rectangle())
                     }
-                    .frame(width: 55)
-                    .contentShape(Rectangle())
+                    .disabled(member.hasAnswered || didPoke || isPoking || member.memberId == nil)
+                    .buttonStyle(.plain)
                 }
-                .disabled(member.hasAnswered || didPoke || isPoking || member.memberId == nil)
-                .buttonStyle(.plain)
             }
+            .frame(width: 262, alignment: .center)
+            .padding(.top, 44)
+
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 21)
-        .padding(.vertical, 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(KIRIColor.Background.primary)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .accessibilityAction(named: "닫기") {
+            onBack()
+        }
     }
 }
 
