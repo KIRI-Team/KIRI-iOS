@@ -334,7 +334,7 @@ struct TasteResult: Codable, Sendable {
 struct TasteRequest: Encodable, Sendable {
     let categories: [String]
     let indoorOutdoor: String?
-    let activityLevel: String
+    let activityLevel: String?
     let priceLevel: String?
     let durationLevel: String?
 }

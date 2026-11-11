@@ -33,6 +33,8 @@ struct MissionActivityDetailView: View {
     @State private var isSavingBookmark = false
     @State private var bookmarkError: String?
     @State private var isShowingBucketToast = false
+    @State private var bucketToastMessage = "버킷에 저장했어요"
+    @State private var isShowingBucketConfirmation = false
     @State private var selectedSegment: DetailSegment = .recommended
     @State private var familyRecommendation: FamilyRecommendationResult?
     @State private var recommendationError: String?
@@ -86,10 +88,32 @@ struct MissionActivityDetailView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 86) }
                 bottomBar
             }
+
+            if isShowingBucketConfirmation {
+                BucketSaveConfirmationModal(
+                    title: detail?.title ?? title,
+                    onCancel: { isShowingBucketConfirmation = false },
+                    onConfirm: {
+                        isShowingBucketConfirmation = false
+                        guard let missionId else { return }
+                        Task { await saveBookmark(missionId: missionId) }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(10)
+            }
         }
         .task {
             await loadDetail()
             await loadFamilyRecommendation()
+        }
+        .overlay(alignment: .top) {
+            if isShowingBucketToast {
+                KIRIToast(message: bucketToastMessage)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
         .fullScreenCover(item: $selectedRecommendation) { recommendation in
             MissionActivityDetailView(
@@ -357,10 +381,17 @@ struct MissionActivityDetailView: View {
 
     private var bottomBar: some View {
         Button {
-            guard !isBookmarked, detail?.bucketSaved != true, !isSavingBookmark, let missionId else { return }
-            Task { await saveBookmark(missionId: missionId) }
+            guard !isSavingBookmark else { return }
+            if isBookmarked {
+                guard let missionId else { return }
+                Task { await removeBookmark(missionId: missionId) }
+            } else {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isShowingBucketConfirmation = true
+                }
+            }
         } label: {
-            let saved = isBookmarked || detail?.bucketSaved == true
+            let saved = isBookmarked
             HStack(spacing: 10) {
                 Image(saved ? "mission_bookmark_active" : "mission_bookmark_disabled")
                     .resizable()
@@ -376,7 +407,7 @@ struct MissionActivityDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-        .disabled(isSavingBookmark || isBookmarked || detail?.bucketSaved == true)
+        .disabled(isSavingBookmark)
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(KIRIColor.Background.base)
@@ -387,17 +418,6 @@ struct MissionActivityDetailView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.bottom, 4)
                     .offset(y: -22)
-            }
-            if isShowingBucketToast {
-                Text("버킷에 저장했어요")
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.onGreen)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(KIRIColor.Primary.default)
-                    .clipShape(Capsule())
-                    .offset(y: -58)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }
@@ -410,6 +430,7 @@ struct MissionActivityDetailView: View {
             _ = try await AuthService.shared.saveMissionToBucket(missionId: missionId)
             isBookmarked = true
             await MainActor.run {
+                bucketToastMessage = "버킷에 저장했어요"
                 withAnimation(.easeOut(duration: 0.2)) {
                     isShowingBucketToast = true
                 }
@@ -422,6 +443,32 @@ struct MissionActivityDetailView: View {
             }
         } catch {
             bookmarkError = "버킷 저장에 실패했어요. 다시 시도해 주세요."
+        }
+    }
+
+    private func removeBookmark(missionId: Int) async {
+        isSavingBookmark = true
+        bookmarkError = nil
+        defer { isSavingBookmark = false }
+        do {
+            try await AuthService.shared.removeMissionFromBucket(missionId: missionId)
+            await MainActor.run {
+                isBookmarked = false
+                bucketToastMessage = "버킷에서 삭제했어요"
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isShowingBucketToast = true
+                }
+            }
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isShowingBucketToast = false
+                }
+            }
+        } catch {
+            await MainActor.run {
+                bookmarkError = "버킷 저장 해제에 실패했어요. 다시 시도해 주세요."
+            }
         }
     }
 
@@ -438,6 +485,72 @@ struct MissionActivityDetailView: View {
         } catch {
             await MainActor.run { detailError = error.localizedDescription; isLoadingDetail = false }
         }
+    }
+}
+
+/// Figma 9901:24278 `플레이스메인/저장 팝업`에 대응하는 저장 확인 모달입니다.
+/// Figma 원본에는 별도 이미지 레이어가 없으므로 임의 아이콘이나 이모지를 추가하지 않고,
+/// 서버 저장 전 확인·취소 동작만 제공합니다.
+struct BucketSaveConfirmationModal: View {
+    let title: String
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.58)
+                .ignoresSafeArea()
+                .onTapGesture { }
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("버킷리스트에 저장하시겠습니까?")
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .padding(.bottom, 24)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .lineLimit(2)
+                    Text("이 약속은 버킷리스트에서 확인하실 수 있습니다")
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 20)
+                .background(KIRIColor.Background.elevated)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                HStack(spacing: 16) {
+                    Button("취소", action: onCancel)
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .buttonStyle(.plain)
+
+                    Button("저장", action: onConfirm)
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.inverse)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(KIRIColor.Primary.default)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .buttonStyle(.plain)
+                }
+                .padding(.top, 24)
+            }
+            .padding(22)
+            .frame(maxWidth: 344)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 18)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("버킷리스트 저장 확인")
     }
 }
 

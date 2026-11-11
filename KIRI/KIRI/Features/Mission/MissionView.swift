@@ -49,6 +49,9 @@ struct MissionView: View {
     @State private var isLoadingMore = false
     @State private var errorMessage: String?
     @State private var savingMissionID: Int?
+    @State private var savedMissionIDs: Set<Int> = []
+    @State private var bookmarkConfirmationMissionID: Int?
+    @State private var bookmarkFeedback: String?
     // 필터·카테고리 변경으로 새 요청이 시작되면 이전 응답이 화면을 덮어쓰지 않도록 식별자를 갱신합니다.
     @State private var loadGeneration = UUID()
 
@@ -123,6 +126,29 @@ struct MissionView: View {
                 }
                 .refreshable { await load(reset: true) }
             }
+
+            if let missionID = bookmarkConfirmationMissionID,
+               let row = rows.first(where: { $0.id == missionID }) {
+                BucketSaveConfirmationModal(
+                    title: row.mission.title,
+                    onCancel: { bookmarkConfirmationMissionID = nil },
+                    onConfirm: {
+                        bookmarkConfirmationMissionID = nil
+                        Task { await save(missionID, value: true) }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(10)
+            }
+
+            if let bookmarkFeedback {
+                KIRIToast(message: bookmarkFeedback)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(11)
+            }
         }
         .task { await load(reset: true) }
         .fullScreenCover(isPresented: $isFilterPresented) {
@@ -133,7 +159,13 @@ struct MissionView: View {
             }
         }
         .fullScreenCover(item: $selectedMission) { row in
-            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: MissionDisplayLabel.category(row.mission.category) ?? "", rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
+            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: MissionDisplayLabel.category(row.mission.category) ?? "", rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in
+                // 상세 화면이 서버 저장·해제를 완료한 뒤 목록의 표시 상태만 갱신합니다.
+                // 상세 화면에서 다시 API를 호출하면 저장/해제가 중복 실행됩니다.
+                if let index = rows.firstIndex(where: { $0.id == row.id }) {
+                    rows[index].isBookmarked = value
+                }
+            }), onBack: { selectedMission = nil })
         }
     }
 
@@ -157,7 +189,16 @@ struct MissionView: View {
         } else {
             LazyVStack(spacing: 16) {
                 ForEach(filteredRows) { row in
-                    MissionPlaceCard(title: row.mission.title, placeName: row.mission.placeName, district: nil, rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }))
+                    MissionPlaceCard(title: row.mission.title, placeName: row.mission.placeName, district: nil, rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { _ in }), onBookmarkTapped: {
+                        guard savingMissionID == nil else { return }
+                        if row.isBookmarked {
+                            Task { await save(row.id, value: false) }
+                        } else {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                bookmarkConfirmationMissionID = row.id
+                            }
+                        }
+                    })
                         .contentShape(Rectangle()).onTapGesture { selectedMission = row }
                         .onAppear { if row.id == rows.last?.id, hasNext, !isLoadingMore { Task { await load(reset: false) } } }
                 }
@@ -187,7 +228,10 @@ struct MissionView: View {
             let cursor = reset ? nil : nextCursor
             let result = try await AuthService.shared.missionFeed(category: category, regionCode: filter.regionCode, distance: filter.distance, isFree: filter.isFree, maxPrice: filter.maxPrice, cursor: cursor)
             guard !Task.isCancelled, generation == loadGeneration else { return }
-            let newRows = result.missions.map { MissionRow(id: $0.missionId, mission: $0, isBookmarked: false) }
+            if reset {
+                await refreshSavedMissionIDs()
+            }
+            let newRows = result.missions.map { MissionRow(id: $0.missionId, mission: $0, isBookmarked: savedMissionIDs.contains($0.missionId)) }
             if reset { rows = newRows } else { rows.append(contentsOf: newRows) }
             nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil
         } catch {
@@ -201,11 +245,60 @@ struct MissionView: View {
     }
 
     private func save(_ missionID: Int, value: Bool) async {
-        guard value, savingMissionID == nil, let index = rows.firstIndex(where: { $0.id == missionID }), !rows[index].isBookmarked else { return }
+        guard savingMissionID == nil, rows.contains(where: { $0.id == missionID }) else { return }
         savingMissionID = missionID
-        do { _ = try await AuthService.shared.saveMissionToBucket(missionId: missionID); rows[index].isBookmarked = true }
-        catch { errorMessage = error.localizedDescription }
+        do {
+            if value {
+                _ = try await AuthService.shared.saveMissionToBucket(missionId: missionID)
+            } else {
+                try await AuthService.shared.removeMissionFromBucket(missionId: missionID)
+            }
+            savedMissionIDs = value ? savedMissionIDs.union([missionID]) : savedMissionIDs.subtracting([missionID])
+            if let index = rows.firstIndex(where: { $0.id == missionID }) {
+                rows[index].isBookmarked = value
+            }
+            showBookmarkFeedback(value ? "버킷에 저장했어요" : "버킷에서 삭제했어요")
+        } catch {
+            if value, case APIError.serverError(let code, _) = error, code == "BUCKET409_1" {
+                await refreshSavedMissionIDs()
+                if let index = rows.firstIndex(where: { $0.id == missionID }), savedMissionIDs.contains(missionID) {
+                    rows[index].isBookmarked = true
+                    savingMissionID = nil
+                    return
+                }
+            }
+            showBookmarkFeedback("버킷 저장 상태를 변경하지 못했어요. 다시 시도해 주세요.")
+        }
         savingMissionID = nil
+    }
+
+    private func showBookmarkFeedback(_ message: String) {
+        withAnimation(.easeOut(duration: 0.2)) { bookmarkFeedback = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) { bookmarkFeedback = nil }
+            }
+        }
+    }
+
+    private func refreshSavedMissionIDs() async {
+        do {
+            var cursor: Int?
+            var ids = Set<Int>()
+            while true {
+                let page = try await AuthService.shared.bucketItems(cursor: cursor)
+                ids.formUnion(page.bucketItems.map { $0.mission.missionId })
+                guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
+                cursor = nextCursor
+            }
+            savedMissionIDs = ids
+            for index in rows.indices {
+                rows[index].isBookmarked = ids.contains(rows[index].id)
+            }
+        } catch {
+            // 저장 목록 조회 실패 시 마지막으로 확인된 카드 상태를 유지합니다.
+        }
     }
 }
 
