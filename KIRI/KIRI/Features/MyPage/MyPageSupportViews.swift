@@ -488,10 +488,14 @@ struct TasteTestView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    // 저장 가능 조건은 서버 요청 모델과 동일하게 선호 활동과 활동량입니다.
-    // 저장 중에는 같은 요청을 다시 만들지 않도록 버튼을 비활성화합니다.
+    // 다섯 선호 그룹 중 하나라도 선택하면 저장할 수 있습니다.
+    // 선택하지 않은 그룹은 nil/빈 배열로 서버 계약에 맞춰 전달합니다.
     private var hasValidTasteSelection: Bool {
-        !selectedActivities.isEmpty && !amount.isEmpty
+        !selectedActivities.isEmpty ||
+        !space.isEmpty ||
+        !amount.isEmpty ||
+        !cost.isEmpty ||
+        !duration.isEmpty
     }
 
     private var canSaveTaste: Bool {
@@ -556,7 +560,10 @@ struct TasteTestView: View {
             Text(title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
                 ForEach(options, id: \.self) { option in
-                    Button { selectedValue.wrappedValue = option } label: { chip(option, isSelected: selectedValue.wrappedValue == option) }.buttonStyle(.plain)
+                    Button {
+                        // 단일 선택 그룹은 같은 항목을 다시 누르면 선택을 해제합니다.
+                        selectedValue.wrappedValue = selectedValue.wrappedValue == option ? "" : option
+                    } label: { chip(option, isSelected: selectedValue.wrappedValue == option) }.buttonStyle(.plain)
                 }
             }
         }
@@ -590,7 +597,7 @@ struct TasteTestView: View {
             _ = try await AuthService.shared.saveTaste(TasteRequest(
                 categories: selectedActivities.compactMap(tasteCategoryRaw),
                 indoorOutdoor: tasteSpaceRaw(space),
-                activityLevel: tasteActivityRaw(amount) ?? "MODERATE",
+                activityLevel: tasteActivityRaw(amount),
                 priceLevel: tastePriceRaw(cost),
                 durationLevel: tasteDurationRaw(duration)
             ))
