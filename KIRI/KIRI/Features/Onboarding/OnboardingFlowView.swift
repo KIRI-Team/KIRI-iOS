@@ -40,7 +40,7 @@ struct OnboardingFlowView: View {
 
     let invitation: FamilyInvitation?
 
-    let onEnterFamily: (String, String) -> Void
+    let onEnterFamily: (String, String, Int?) -> Void
     let onBrowse: () -> Void
     let onCancelInvitation: () -> Void
     let onBackToTerms: () -> Void
@@ -109,7 +109,7 @@ struct OnboardingFlowView: View {
                         step = .familyName
                     },
                     onComplete: {
-                        onEnterFamily(familyName, createdFamilyCode)
+                        onEnterFamily(familyName, createdFamilyCode, nil)
                     }
                 )
 
@@ -232,24 +232,60 @@ struct OnboardingFlowView: View {
         }
     }
 
-    // MARK: - Mock Manual Family Search
-
-    private func findFamily() {
-        familyOperationError = "가족 초대코드 조회 API가 현재 서버 명세에 없어 참여를 완료할 수 없습니다."
-    }
-
-    // MARK: - Mock Invitation Family Search
-
-    private func findInvitedFamily(
-        _ invitation: FamilyInvitation
-    ) {
-        familyOperationError = "초대 링크 검증 및 가족공간 참여 API가 현재 서버 명세에 없어 참여를 완료할 수 없습니다."
-    }
-
     // MARK: - Family Join
 
+    /// 코드 조회 전용 API가 없으므로, 확인 화면은 참여 의사를 명시적으로 받습니다.
+    /// 실제 코드 검증과 가족 이름 반환은 사용자가 참여를 누른 뒤 POST에서 수행합니다.
+    private func findFamily() {
+        guard !isSaving else { return }
+        familyOperationError = nil
+        joinedFamilyName = "입력한 초대 코드의 가족공간"
+        step = .familyJoinConfirm
+    }
+
+    private func findInvitedFamily(_ invitation: FamilyInvitation) {
+        guard !isSaving else { return }
+        enteredFamilyCode = invitation.code
+        familyOperationError = nil
+        joinedFamilyName = invitation.familyName ?? "입력한 초대 코드의 가족공간"
+        step = .familyJoinConfirm
+    }
+
     private func joinFamily() {
-        familyOperationError = "가족공간 참여 API가 현재 서버 명세에 없어 참여를 완료할 수 없습니다."
+        guard !isSaving else { return }
+        let code = enteredFamilyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard code.count == 6, code.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else {
+            familyOperationError = "초대 코드는 영문 대문자와 숫자 6자리여야 해요."
+            step = .familyCodeInput
+            return
+        }
+        isSaving = true
+        familyOperationError = nil
+        step = .familyJoinLoading
+        Task { @MainActor in
+            do {
+                let result = try await AuthService.shared.joinFamily(inviteCode: code)
+                AppSessionStore().saveFamily(name: result.familyName, inviteCode: code, familyId: result.familyId)
+                onEnterFamily(result.familyName, code, result.familyId)
+            } catch {
+                familyOperationError = Self.familyJoinMessage(for: error)
+                step = .familyCodeInput
+            }
+            isSaving = false
+        }
+    }
+
+    private static func familyJoinMessage(for error: Error) -> String {
+        guard let apiError = error as? APIError,
+              case let .serverError(code, _) = apiError else {
+            return "가족공간에 참여하지 못했어요. 잠시 후 다시 시도해 주세요."
+        }
+        switch code {
+        case "FAMILY404_2": return "유효하지 않은 초대 코드예요. 코드를 다시 확인해 주세요."
+        case "FAMILY410_1": return "초대 코드가 만료됐어요. 새로운 코드를 받아 주세요."
+        case "FAMILY409_2": return "이미 다른 가족공간에 가입되어 있어요."
+        default: return "가족공간에 참여하지 못했어요. 다시 시도해 주세요."
+        }
     }
 
     private func handleJoinConfirmBack() {
@@ -283,7 +319,7 @@ struct OnboardingFlowView: View {
 #Preview {
     OnboardingFlowView(
         invitation: nil,
-        onEnterFamily: { _, _ in },
+        onEnterFamily: { _, _, _ in },
         onBrowse: {},
         onCancelInvitation: {},
         onBackToTerms: {}

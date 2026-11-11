@@ -40,8 +40,8 @@ struct RootView: View {
                 case .onboarding:
                     OnboardingFlowView(
                         invitation: router.pendingInvitation,
-                        onEnterFamily: { name, code in
-                            enterMain(familyName: name, inviteCode: code)
+                        onEnterFamily: { name, code, familyId in
+                            enterMain(familyName: name, inviteCode: code, familyId: familyId)
                         },
                         onBrowse: {
                             enterMain(browse: true)
@@ -124,11 +124,11 @@ struct RootView: View {
         }
     }
 
-    private func enterMain(familyName: String? = nil, inviteCode: String? = nil, browse: Bool = false) {
+    private func enterMain(familyName: String? = nil, inviteCode: String? = nil, familyId: Int? = nil, browse: Bool = false) {
         if browse {
             router.enterBrowseMode()
         } else if let familyName, let inviteCode {
-            router.enterFamilyMode(familyName: familyName, inviteCode: inviteCode)
+            router.enterFamilyMode(familyName: familyName, inviteCode: inviteCode, familyId: familyId)
         }
     }
 
