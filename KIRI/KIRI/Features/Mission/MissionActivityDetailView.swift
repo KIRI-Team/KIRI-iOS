@@ -189,15 +189,7 @@ struct MissionActivityDetailView: View {
                 .font(KIRITypography.headingSmall)
                 .foregroundStyle(KIRIColor.Text.strong)
             HStack {
-                Button(action: onBack) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 20, weight: .regular))
-                        .foregroundStyle(KIRIColor.Text.strong)
-                        .frame(width: 52, height: 52)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("뒤로가기")
+                KIRIBackButton(action: onBack)
                 Spacer(minLength: 0)
             }
         }

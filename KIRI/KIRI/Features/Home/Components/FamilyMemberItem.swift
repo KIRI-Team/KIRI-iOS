@@ -24,6 +24,13 @@ struct FamilyMemberItem: View {
     }
 
     private var imageName: String {
+        // 내 답변이 완료되면 Figma Member Avatar Group(9898:15604)의
+        // 초록색 활성 캐릭터를 사용합니다. 역할별 회색 캐릭터와 분리해
+        // 링과 캐릭터가 함께 활성 상태가 되도록 합니다.
+        if isMe && hasAnswered {
+            return "figma_family_member_active"
+        }
+
         switch role?.uppercased() {
         case "MOTHER", "엄마": return "role_mom"
         case "FATHER", "아빠": return "role_dad"
@@ -48,7 +55,7 @@ struct FamilyMemberItem: View {
                     .frame(width: 24, height: 24)
                     .opacity(hasAnswered ? 1 : 0.45)
 
-                Image("figma_family_avatar_ring")
+                Image(hasAnswered ? "figma_family_avatar_ring_active" : "figma_family_avatar_ring")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 44, height: 44)

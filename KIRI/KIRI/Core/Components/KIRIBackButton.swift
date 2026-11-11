@@ -16,23 +16,19 @@ struct KIRIBackButton: View {
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: "chevron.left")
-                .font(
-                    .system(
-                        size: 16,
-                        weight: .regular
-                    )
-                )
-                .foregroundStyle(
-                    KIRIColor.Icon.primary
-                )
+            // Figma KIRI/Icon/Navigation/Back 원본을 사용합니다.
+            // SVG 내부의 24pt 캔버스와 52pt App Bar 슬롯을 분리해
+            // 화면마다 보이는 화살표 크기가 달라지지 않도록 합니다.
+            Image("figma_navigation_back")
+                .resizable()
+                .scaledToFit()
                 .frame(
                     width: 24,
                     height: 24
                 )
                 .frame(
-                    width: 44,
-                    height: 44
+                    width: 52,
+                    height: 52
                 )
                 .contentShape(Rectangle())
         }

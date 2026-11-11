@@ -154,9 +154,12 @@ struct FamilySettingsView: View {
     }
 
     private var editIcon: some View {
-        Image(systemName: "pencil")
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(0.5))
+        // 마이페이지 공통 수정 아이콘(figma_edit)을 사용합니다.
+        // Asset 원본과 동일한 비율을 유지하고 바깥 프레임은 터치 영역으로만 둡니다.
+        Image("figma_edit")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 24, height: 24)
             .frame(width: 30, height: 30)
     }
 
@@ -194,9 +197,12 @@ struct FamilySettingsView: View {
                             set: { self.nickname = $0 }
                         ))
                     } label: {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(KIRIColor.Icon.secondary)
+                        // 닉네임 변경도 가족 이름 변경과 같은 공통 Asset을 사용합니다.
+                        Image("figma_edit")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                            .frame(width: 30, height: 30)
                     }
                     .buttonStyle(.plain)
                 }

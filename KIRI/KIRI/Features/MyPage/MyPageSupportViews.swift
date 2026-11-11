@@ -25,10 +25,7 @@ private struct MyPageAppBar<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Button { dismiss() } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(KIRIColor.Icon.primary).frame(width: 52, height: 52)
-                }.buttonStyle(.plain)
+                KIRIBackButton { dismiss() }
                 Spacer()
                 Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
                 Spacer()
@@ -41,6 +38,20 @@ private struct MyPageAppBar<Content: View>: View {
     }
 }
 
+/// Figma 9901:25866의 KIRI/Icon/Navigation/Back 원본을 메뉴 방향으로 표시합니다.
+/// 아이콘 자체는 8×16pt이고, 메뉴 행의 터치·정렬 영역은 36×36pt입니다.
+struct MyPageChevron: View {
+    var body: some View {
+        Image("figma_navigation_back")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 8, height: 16)
+            .rotationEffect(.degrees(180))
+            .frame(width: 36, height: 36)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct MyPageRows: View {
     let rows: [(String, String)]
     var body: some View {
@@ -50,7 +61,7 @@ private struct MyPageRows: View {
                     Text(row.0).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
                     Spacer()
                     if !row.1.isEmpty { Text(row.1).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary) }
-                    Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(KIRIColor.Icon.secondary)
+                    MyPageChevron()
                 }.padding(.horizontal, 16).frame(height: 56)
             }
         }.background(KIRIColor.Background.secondary)
@@ -146,9 +157,7 @@ struct AccountInfoView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
             if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(KIRIColor.Icon.secondary)
+                MyPageChevron()
             }
         }
         .padding(.horizontal, 16)
@@ -166,7 +175,7 @@ struct TermsView: View {
                         Text("세부 약관").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.primary)
                         MyPageRows(rows: [("서비스 이용약관", ""), ("개인정보 처리방침", "")])
                         NavigationLink { OpenLicenseView() } label: {
-                            HStack { Text("오픈라이선스").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary); Spacer(); Image(systemName: "chevron.right").foregroundStyle(KIRIColor.Icon.secondary) }
+                            HStack { Text("오픈라이선스").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary); Spacer(); MyPageChevron() }
                                 .padding(.horizontal, 16).frame(height: 52)
                         }.buttonStyle(.plain).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
                         Text("약관 내용은 서버 정책 확정 후 연결됩니다.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
@@ -189,6 +198,7 @@ struct OpenLicenseView: View {
 }
 
 struct WithdrawalView: View {
+    @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     let onDeleteAccount: () async -> String?
     @State private var confirmed = false
     @State private var isConfirmPresented = false
@@ -239,7 +249,12 @@ struct WithdrawalView: View {
                         .padding(.bottom, 40)
                 }
             }
-        }.toolbar(.hidden, for: .navigationBar)
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        // 상위 마이페이지의 생명주기와 관계없이 탈퇴 화면에서는 탭바를 숨깁니다.
+        // safeAreaInset의 버튼은 홈 인디케이터 영역 위에 배치됩니다.
+        .onAppear { tabBarVisibility.wrappedValue = false }
+        .onDisappear { tabBarVisibility.wrappedValue = true }
         .alert("정말 탈퇴할까요?", isPresented: $isConfirmPresented) {
             Button("취소", role: .cancel) {}
             Button("탈퇴", role: .destructive) {
@@ -468,13 +483,27 @@ struct TasteTestView: View {
                     preferenceSection("비용", options: costs, selectedValue: $cost)
                     preferenceSection("활동시간", options: durations, selectedValue: $duration)
                     if let errorMessage { Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error) }
+                    let isTasteEnabled = !isSaving && !selectedActivities.isEmpty && !amount.isEmpty
                     Button {
                         Task { await saveTaste() }
                     } label: {
-                        HStack { Spacer(); if isSaving { ProgressView() } else { Text("저장") }; Spacer() }
+                        HStack {
+                            Spacer()
+                            if isSaving {
+                                ProgressView().tint(KIRIColor.Button.FilledAccent.contentDefault)
+                            } else {
+                                Text("저장")
+                            }
+                            Spacer()
+                        }
+                        .font(KIRITypography.button)
+                        .foregroundStyle(isTasteEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
                     }
-                    .frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
-                    .disabled(isSaving || selectedActivities.isEmpty || amount.isEmpty)
+                    .frame(maxWidth: .infinity).frame(height: 54)
+                    .background(isTasteEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .disabled(!isTasteEnabled)
+                    .buttonStyle(.plain)
                     Spacer()
                 }.padding(18)
             }
@@ -564,8 +593,14 @@ struct SuggestionView: View {
                     Text("끼리가 더 발전할 수 있도록\n얘기해주세요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
                     TextField("내용을 입력하세요.", text: $text, axis: .vertical).lineLimit(5...10)
                         .padding(16).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Button("보내기") {}.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
+                    let isSendEnabled = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    Button("보내기") {}.disabled(!isSendEnabled)
+                        .font(KIRITypography.button)
+                        .foregroundStyle(isSendEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
+                        .frame(maxWidth: .infinity).frame(height: 54)
+                        .background(isSendEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .buttonStyle(.plain)
                     Text("건의 전송 API가 없어 서버로 전송하지 않습니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                     Spacer()
                 }.padding(18)
