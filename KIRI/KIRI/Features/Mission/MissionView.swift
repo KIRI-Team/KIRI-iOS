@@ -63,6 +63,11 @@ struct MissionView: View {
     // 필터·카테고리 변경으로 새 요청이 시작되면 이전 응답이 화면을 덮어쓰지 않도록 식별자를 갱신합니다.
     @State private var loadGeneration = UUID()
 
+    private var hasFamilyAddressConfigured: Bool {
+        guard let familyId = AppSessionStore().familyId else { return false }
+        return AppSessionStore().hasFamilyAddressConfigured(for: familyId)
+    }
+
     private var filteredRows: [MissionRow] {
         let keyword = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !keyword.isEmpty else { return rows }
@@ -169,7 +174,7 @@ struct MissionView: View {
         }
         .task { await load(reset: true) }
         .fullScreenCover(isPresented: $isFilterPresented) {
-            MissionFilterView(initial: appliedFilter) { newFilter in
+            MissionFilterView(initial: appliedFilter, distanceAvailable: hasFamilyAddressConfigured) { newFilter in
                 appliedFilter = newFilter
                 isFilterPresented = false
                 // SwiftUI State 반영을 기다리며 다시 읽지 않고, 사용자가 방금
@@ -365,6 +370,7 @@ private struct MissionFilterView: View {
     }
 
     let initial: MissionView.MissionFilter
+    let distanceAvailable: Bool
     let onApply: (MissionView.MissionFilter) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var regionCode: String?
@@ -394,8 +400,9 @@ private struct MissionFilterView: View {
     private let distances: [(Int, String)] = [(1, "1km 이내"), (3, "3km 이내"), (5, "5km 이내"), (10, "10km 이내")]
     private let prices: [(Int, String)] = [(0, "무료"), (10000, "1만원 이하"), (30000, "3만원 이하")]
 
-    init(initial: MissionView.MissionFilter, onApply: @escaping (MissionView.MissionFilter) -> Void) {
+    init(initial: MissionView.MissionFilter, distanceAvailable: Bool, onApply: @escaping (MissionView.MissionFilter) -> Void) {
         self.initial = initial
+        self.distanceAvailable = distanceAvailable
         self.onApply = onApply
         _regionCode = State(initialValue: initial.regionCode)
         _distance = State(initialValue: initial.distance)
@@ -466,15 +473,20 @@ private struct MissionFilterView: View {
                         .id(FilterTab.region)
                         filterSection(title: "거리") {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("기준 위치가 없어 거리 필터를 적용할 수 없어요. 가족공간에 우리 집 위치를 등록해 주세요.")
-                                    .font(KIRITypography.caption)
-                                    .foregroundStyle(KIRIColor.Text.tertiary)
+                                if !distanceAvailable {
+                                    Text("기준 위치가 없어 거리 필터를 적용할 수 없어요. 가족공간에 우리 집 위치를 등록해 주세요.")
+                                        .font(KIRITypography.caption)
+                                        .foregroundStyle(KIRIColor.Text.tertiary)
+                                }
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 8) {
                                         ForEach(distances, id: \.0) { item in
-                                            chip(item.1, selected: false) {}
-                                                .opacity(0.45)
-                                                .allowsHitTesting(false)
+                                            chip(item.1, selected: distance == item.0) {
+                                                guard distanceAvailable else { return }
+                                                distance = distance == item.0 ? nil : item.0
+                                            }
+                                            .opacity(distanceAvailable ? 1 : 0.45)
+                                            .allowsHitTesting(distanceAvailable)
                                         }
                                     }
                                 }

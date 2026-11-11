@@ -27,6 +27,7 @@ final class AppSessionStore {
         static let familyId = "kiri.familyId"
         static let nickname = "kiri.nickname"
         static let familyRole = "kiri.familyRole"
+        static let familyAddressConfiguredPrefix = "kiri.familyAddressConfigured."
         static let accountSnapshotPrefix = "kiri.account.snapshot."
     }
 
@@ -66,6 +67,14 @@ final class AppSessionStore {
     var familyId: Int? { defaults.object(forKey: Key.familyId) as? Int }
     var nickname: String? { defaults.string(forKey: Key.nickname) }
     var familyRole: String? { defaults.string(forKey: Key.familyRole) }
+
+    func hasFamilyAddressConfigured(for familyId: Int) -> Bool {
+        defaults.bool(forKey: Key.familyAddressConfiguredPrefix + String(familyId))
+    }
+
+    func markFamilyAddressConfigured(for familyId: Int) {
+        defaults.set(true, forKey: Key.familyAddressConfiguredPrefix + String(familyId))
+    }
 
     func saveNickname(_ nickname: String) {
         defaults.set(nickname, forKey: Key.nickname)
