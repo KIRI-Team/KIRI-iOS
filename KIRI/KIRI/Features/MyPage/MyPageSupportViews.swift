@@ -1268,7 +1268,7 @@ struct SuggestionView: View {
     }
 
     private var addPhotoTile: some View {
-            ZStack(alignment: .topTrailing) {
+            ZStack {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(KIRIColor.Background.secondary)
                 if isLoadingPhoto {
