@@ -1184,30 +1184,33 @@ struct InviteLinkView: View {
     @State private var invite: InviteResult?
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var isDeleteConfirmationPresented = false
     @State private var toastMessage: String?
     @State private var toastIsError = false
     @State private var toastGeneration = 0
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "공용초대링크 관리") {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("가족이 모이면 더 즐거워져요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    Text("주소는 더 정확한 AI 미션 제공을 위해 사용됩니다").font(KIRITypography.body).foregroundStyle(KIRIColor.Text.tertiary)
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .center, spacing: 0) {
+                    Text("가족이 모이면 더 즐거워져요!")
+                        .font(KIRITypography.title)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 36)
                     if let invite {
                         inviteCard(label: "링크코드", value: invite.inviteCode)
+                            .padding(.top, 38)
                         inviteCard(label: "초대링크", value: invite.inviteUrl)
-                        if let expiresAt = invite.inviteExpiresAt { Text("\(expiresAt)까지 사용가능").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary) }
+                            .padding(.top, 16)
+                        Text(expirationText(invite.inviteExpiresAt))
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                            .padding(.top, 25)
                         Button("리셋하기") { Task { await reissue() } }
-                        .font(KIRITypography.bodySmall).underline().foregroundStyle(KIRIColor.Text.tertiary)
-                        Button("초대 링크 폐기") { isDeleteConfirmationPresented = true }
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Status.error)
-                        .disabled(isLoading)
-                        ShareLink(item: invite.inviteUrl) {
-                            Text("가족에게 초대보내기").font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
-                                .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
+                            .font(KIRITypography.bodySmall)
+                            .underline()
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                            .padding(.top, 4)
                     } else if isLoading { ProgressView().frame(maxWidth: .infinity) }
                     else {
                         VStack(alignment: .leading, spacing: 10) {
@@ -1222,8 +1225,27 @@ struct InviteLinkView: View {
                                 .foregroundStyle(KIRIColor.Text.accent)
                         }
                     }
-                    Spacer()
-                }.padding(.horizontal, 18).padding(.top, 28).padding(.bottom, 110)
+                    Color.clear.frame(height: 120)
+                    }
+                    .padding(.horizontal, 18)
+                }
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let invite {
+                ShareLink(item: invite.inviteUrl) {
+                    Text("가족에게 초대보내기")
+                        .font(KIRITypography.button)
+                        .foregroundStyle(KIRIColor.Text.onGreen)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(KIRIColor.Primary.default)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 0)
+                .padding(.bottom, 12)
+                .background(KIRIColor.Background.base)
             }
         }
         .overlay(alignment: .top) {
@@ -1236,12 +1258,6 @@ struct InviteLinkView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await loadInvite() }
-        .confirmationDialog("초대 링크를 폐기할까요?", isPresented: $isDeleteConfirmationPresented) {
-            Button("초대 링크 폐기", role: .destructive) { Task { await deleteInvite() } }
-            Button("취소", role: .cancel) {}
-        } message: {
-            Text("기존 초대 코드와 링크를 더 이상 사용할 수 없어요.")
-        }
     }
     private func loadInvite() async {
         guard let familyId, !isLoading else { return }
@@ -1255,17 +1271,21 @@ struct InviteLinkView: View {
         do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil; showToast("초대 링크를 새로 발급했어요.") }
         catch { showToast("초대 링크를 재발급하지 못했어요. 다시 시도해 주세요.", isError: true) }
     }
-    private func deleteInvite() async {
-        guard let familyId, !isLoading else { return }
-        isLoading = true; defer { isLoading = false }
-        do {
-            try await AuthService.shared.deleteFamilyInvite(familyId: familyId)
-            invite = nil
-            errorMessage = nil
-            showToast("초대 링크를 폐기했어요.")
-        } catch {
-            showToast("초대 링크를 폐기하지 못했어요. 다시 시도해 주세요.", isError: true)
+    private func expirationText(_ rawValue: String?) -> String {
+        guard let rawValue, !rawValue.isEmpty else { return "사용 기간을 확인할 수 없어요" }
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: rawValue) {
+            let calendar = Calendar(identifier: .gregorian)
+            return "\(calendar.component(.month, from: date))월 \(calendar.component(.day, from: date))일까지 사용 가능"
         }
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        if let date = dateFormatter.date(from: String(rawValue.prefix(10))) {
+            let calendar = Calendar(identifier: .gregorian)
+            return "\(calendar.component(.month, from: date))월 \(calendar.component(.day, from: date))일까지 사용 가능"
+        }
+        return "사용 기간을 확인할 수 없어요"
     }
     private func showToast(_ message: String, isError: Bool = false) {
         toastGeneration += 1
@@ -1287,7 +1307,10 @@ struct InviteLinkView: View {
                 Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                 HStack(spacing: 8) {
                     Text(value).font(label == "링크코드" ? KIRITypography.headingLarge : KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(1)
-                    Image(systemName: "doc.on.doc").foregroundStyle(KIRIColor.Icon.primary)
+                    Image("family_code_copy")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
                 }
             }
             .frame(width: 311)
