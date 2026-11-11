@@ -13,3 +13,6 @@ xcuserdata/
 # Environment
 .env
 .env.*
+
+# Local Kakao Local REST API key (never commit the populated file)
+KIRI/KIRI/Config/KIRI.Local.xcconfig

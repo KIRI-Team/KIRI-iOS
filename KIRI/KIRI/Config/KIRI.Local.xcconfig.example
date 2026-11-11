@@ -1,0 +1,2 @@
+// Copy this file to KIRI.Local.xcconfig and set the local-only REST key.
+KAKAO_LOCAL_REST_API_KEY =

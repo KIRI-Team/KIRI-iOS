@@ -549,8 +549,7 @@ struct AddressSettingsView: View {
 
         for query in queries {
             do {
-                let resolved = try await geocode(query: query, expectedAddress: value, expectedPostalCode: postalCode)
-                let coordinate = resolved.coordinate
+                let coordinate = try await resolveCoordinate(address: query, postalCode: postalCode)
                 if (-90...90).contains(coordinate.latitude),
                    (-180...180).contains(coordinate.longitude) {
                     await MainActor.run {
@@ -565,6 +564,19 @@ struct AddressSettingsView: View {
                 lastFailure = .noCoordinate
             } catch let failure as CoordinateResolutionFailure {
                 lastFailure = failure
+            } catch let failure as KakaoLocalGeocoderError {
+                switch failure {
+                case .missingAPIKey:
+                    lastFailure = .missingAPIKey
+                case .network:
+                    lastFailure = .network
+                case .noMatchingResult:
+                    lastFailure = .noResult
+                case .invalidCoordinate:
+                    lastFailure = .noCoordinate
+                case .invalidRequest:
+                    lastFailure = .unknown
+                }
             } catch let error as CLError {
                 #if DEBUG
                 print("[KIRI][Address] geocode failure domain=\((error as NSError).domain) code=\(error.code.rawValue)")
@@ -614,6 +626,17 @@ struct AddressSettingsView: View {
 
     private struct ResolvedCoordinate {
         let coordinate: CLLocationCoordinate2D
+    }
+
+    private func resolveCoordinate(address: String, postalCode: String) async throws -> CLLocationCoordinate2D {
+        do {
+            return try await KakaoLocalGeocoder.shared.resolve(address: address, postalCode: postalCode)
+        } catch KakaoLocalGeocoderError.missingAPIKey {
+            // 로컬 키가 없는 환경에서도 앱은 실행되어야 하므로 기존 MapKit
+            // 경로를 보조로 사용한다. 실제 운영 좌표 조회는 Kakao Local을 우선한다.
+            let resolved = try await geocode(query: address, expectedAddress: address, expectedPostalCode: postalCode)
+            return resolved.coordinate
+        }
     }
 
     private func geocode(query: String, expectedAddress: String, expectedPostalCode: String) async throws -> ResolvedCoordinate {
@@ -716,6 +739,7 @@ private enum CoordinateResolutionFailure: Error {
     case noResult
     case noCoordinate
     case mismatchedAddress
+    case missingAPIKey
     case cancelled
     case unknown
 
@@ -725,6 +749,7 @@ private enum CoordinateResolutionFailure: Error {
         case .noResult: return "선택한 주소의 위치를 찾지 못했어요. 다른 주소를 선택해 주세요."
         case .noCoordinate: return "주소 검색 결과에 좌표가 없어 다시 확인이 필요해요."
         case .mismatchedAddress: return "검색 결과가 선택한 주소와 일치하지 않아요. 다시 선택해 주세요."
+        case .missingAPIKey: return "주소 위치 확인 설정이 없어 저장할 수 없어요. 다시 시도해 주세요."
         case .cancelled: return "주소 위치 확인이 취소됐어요. 다시 시도해 주세요."
         case .unknown: return "주소 위치를 확인하지 못했어요. 다시 시도해 주세요."
         }
