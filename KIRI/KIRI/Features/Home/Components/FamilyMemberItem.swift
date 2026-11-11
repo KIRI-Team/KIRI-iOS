@@ -29,40 +29,41 @@ struct FamilyMemberItem: View {
         case "FATHER", "아빠": return "role_dad"
         case "SON", "아들": return "role_son"
         case "DAUGHTER", "딸": return "role_daughter"
-        default: return isMe ? "family-me" : "family-member"
+        default: return isMe ? "family-me" : "figma_family_member_default"
         }
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        // Figma KIRI/Member Avatar Item(8413:5804): 46pt 폭, 아바타 44pt,
+        // 내부 배경 40pt, 역할 캐릭터 24pt, 이름과의 간격 2pt를 사용합니다.
+        VStack(spacing: 2) {
             ZStack {
                 Circle()
-                    .stroke(
-                        borderColor,
-                        lineWidth: 1
-                    )
-                    .frame(width: 44, height: 44)
+                    .fill(KIRIColor.Background.secondary)
+                    .frame(width: 40, height: 40)
 
                 Image(imageName)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
+                    .frame(width: 24, height: 24)
                     .opacity(hasAnswered ? 1 : 0.45)
+
+                Image("figma_family_avatar_ring")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
             }
+            .frame(width: 44, height: 44)
 
             Text(name)
                 .font(KIRITypography.bodyMedium)
                 .foregroundStyle(KIRIColor.textPrimary)
                 .lineLimit(1)
+                .frame(width: 46)
         }
+        .frame(width: 46)
     }
 
-    private var borderColor: Color {
-        return hasAnswered
-            ? KIRIColor.Text.accent
-            : Color.white.opacity(0.25)
-    }
 }
 
 #Preview {
