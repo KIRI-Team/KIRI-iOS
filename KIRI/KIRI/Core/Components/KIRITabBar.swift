@@ -17,10 +17,21 @@ private struct KIRITabBarVisibilityKey: EnvironmentKey {
     static let defaultValue = Binding.constant(true)
 }
 
+/// 마이페이지 하위 화면이 연속으로 전환될 때 탭바가 잠깐 다시 나타나지 않도록
+/// 화면별 숨김 등록 수를 공유합니다. 루트 마이페이지는 0, 하위 화면은 1 이상입니다.
+private struct KIRITabBarSubscreenCountKey: EnvironmentKey {
+    static let defaultValue = Binding.constant(0)
+}
+
 extension EnvironmentValues {
     var kiriTabBarVisibility: Binding<Bool> {
         get { self[KIRITabBarVisibilityKey.self] }
         set { self[KIRITabBarVisibilityKey.self] = newValue }
+    }
+
+    var kiriTabBarSubscreenCount: Binding<Int> {
+        get { self[KIRITabBarSubscreenCountKey.self] }
+        set { self[KIRITabBarSubscreenCountKey.self] = newValue }
     }
 }
 

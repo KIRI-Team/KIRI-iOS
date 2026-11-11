@@ -14,6 +14,8 @@ import SwiftUI
 struct NicknameEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
+    @Environment(\.kiriTabBarSubscreenCount) private var tabBarSubscreenCount
+    @State private var didRegisterSubscreen = false
 
     @Binding var nickname: String
     var onSave: ((String) async -> String?)? = nil
@@ -86,9 +88,19 @@ struct NicknameEditView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             tabBarVisibility.wrappedValue = false
+            if !didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue += 1
+                didRegisterSubscreen = true
+            }
             editedNickname = nickname
         }
-        .onDisappear { tabBarVisibility.wrappedValue = true }
+        .onDisappear {
+            if didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue = max(0, tabBarSubscreenCount.wrappedValue - 1)
+                didRegisterSubscreen = false
+            }
+            tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
+        }
     }
 
     private var saveArea: some View {

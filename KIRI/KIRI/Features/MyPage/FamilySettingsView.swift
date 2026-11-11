@@ -14,6 +14,8 @@ import SwiftUI
 struct FamilySettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
+    @Environment(\.kiriTabBarSubscreenCount) private var tabBarSubscreenCount
+    @State private var didRegisterSubscreen = false
 
     let familyId: Int?
     let initialFamilyName: String?
@@ -81,8 +83,20 @@ struct FamilySettingsView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { tabBarVisibility.wrappedValue = false }
-        .onDisappear { tabBarVisibility.wrappedValue = true }
+        .onAppear {
+            tabBarVisibility.wrappedValue = false
+            if !didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue += 1
+                didRegisterSubscreen = true
+            }
+        }
+        .onDisappear {
+            if didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue = max(0, tabBarSubscreenCount.wrappedValue - 1)
+                didRegisterSubscreen = false
+            }
+            tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
+        }
         .alert("가족공간을 나갈까요?", isPresented: $isLeaveAlertPresented) {
             Button("취소", role: .cancel) {}
             Button("나가기", role: .destructive) {}

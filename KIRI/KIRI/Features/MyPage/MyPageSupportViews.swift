@@ -16,6 +16,8 @@ private struct MyPageAppBar<Content: View>: View {
     let content: () -> Content
     @Environment(\.dismiss) private var dismiss
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
+    @Environment(\.kiriTabBarSubscreenCount) private var tabBarSubscreenCount
+    @State private var didRegisterSubscreen = false
 
     init(title: String, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
@@ -33,19 +35,32 @@ private struct MyPageAppBar<Content: View>: View {
             }
             content()
         }
-        .onAppear { tabBarVisibility.wrappedValue = false }
-        .onDisappear { tabBarVisibility.wrappedValue = true }
+        .onAppear {
+            tabBarVisibility.wrappedValue = false
+            if !didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue += 1
+                didRegisterSubscreen = true
+            }
+        }
+        .onDisappear {
+            if didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue = max(0, tabBarSubscreenCount.wrappedValue - 1)
+                didRegisterSubscreen = false
+            }
+            tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
+        }
     }
 }
 
 /// Figma 9901:25866의 KIRI/Icon/Navigation/Back 원본을 메뉴 방향으로 표시합니다.
-/// 아이콘 자체는 8×16pt이고, 메뉴 행의 터치·정렬 영역은 36×36pt입니다.
+/// SVG는 24×24 캔버스 안에 8×16 path를 포함하므로, 이미지 프레임도 24pt로
+/// 유지해야 실제 화살표가 축소되지 않습니다. 행의 터치·정렬 영역은 36pt입니다.
 struct MyPageChevron: View {
     var body: some View {
         Image("figma_navigation_back")
             .resizable()
             .scaledToFit()
-            .frame(width: 8, height: 16)
+            .frame(width: 24, height: 24)
             .rotationEffect(.degrees(180))
             .frame(width: 36, height: 36)
             .accessibilityHidden(true)

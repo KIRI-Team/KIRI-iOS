@@ -37,6 +37,7 @@ struct MainTabView: View {
     @State private var selectedTab: AppTab = .home
     @State private var homeTutorialStore: HomeTutorialStore
     @State private var isTabBarVisible = true
+    @State private var tabBarSubscreenCount = 0
 
     init(
         userMode: AppRouter.UserMode,
@@ -101,15 +102,17 @@ struct MainTabView: View {
             // 좌우 19pt·하단 16pt 띄워 배치합니다.
             .padding(.horizontal, 19)
             .padding(.bottom, 16)
-            .opacity(isTabBarVisible ? 1 : 0)
-            .allowsHitTesting(isTabBarVisible)
+            .opacity(isTabBarVisible && tabBarSubscreenCount == 0 ? 1 : 0)
+            .allowsHitTesting(isTabBarVisible && tabBarSubscreenCount == 0)
             .zIndex(1)
 
         }
         .environment(\.kiriTabBarVisibility, $isTabBarVisible)
+        .environment(\.kiriTabBarSubscreenCount, $tabBarSubscreenCount)
         .onChange(of: selectedTab) { _, _ in
             // 탭을 전환하면 각 탭의 루트 화면에서 탭바를 다시 표시합니다.
             isTabBarVisible = true
+            tabBarSubscreenCount = 0
         }
     }
 
