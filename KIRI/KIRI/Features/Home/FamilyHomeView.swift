@@ -143,7 +143,8 @@ struct FamilyHomeView: View {
             case .memberDetail:
                 ZStack {
                     homeContent.allowsHitTesting(false)
-                    Color.black.opacity(0.56)
+                    // Figma의 alpha/black-60(실제 70%)과 동일한 밝기로 실제 홈을 어둡게 합니다.
+                    KIRIColor.Primitive.neutral1000.opacity(0.70)
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .onTapGesture { route = .home }
@@ -211,7 +212,8 @@ struct FamilyHomeView: View {
             }
         }
         .onChange(of: route) { _, newRoute in
-            tabBarVisibility.wrappedValue = newRoute == .home
+            // 답변 선택 말풍선은 홈 위에 표시되므로 Figma처럼 하단 탭바를 배경에 유지합니다.
+            tabBarVisibility.wrappedValue = newRoute == .home || newRoute == .memberDetail
         }
         .onDisappear {
             tabBarVisibility.wrappedValue = true
