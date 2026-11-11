@@ -14,6 +14,7 @@ import UserNotifications
 import CoreLocation
 import MapKit
 import WebKit
+import PhotosUI
 
 private struct MyPageAppBar<Content: View>: View {
     let title: String
@@ -1131,25 +1132,225 @@ struct TasteTestView: View {
 
 struct SuggestionView: View {
     @State private var text = ""
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var photoData: Data?
+    @State private var photoImage: UIImage?
+    @State private var isLoadingPhoto = false
+    @State private var isSubmitting = false
+    @State private var toastMessage: String?
+    @State private var toastIsError = false
+    @State private var toastGeneration = 0
+    @FocusState private var isEditorFocused: Bool
+
+    private var trimmedText: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var canSubmit: Bool {
+        !trimmedText.isEmpty && text.count <= 500 && !isSubmitting && !isLoadingPhoto
+    }
+
     var body: some View {
-        ZStack { KIRIColor.Background.base.ignoresSafeArea()
+        ZStack {
+            KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "건의함") {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("끼리가 더 발전할 수 있도록\n얘기해주세요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    TextField("내용을 입력하세요.", text: $text, axis: .vertical).lineLimit(5...10)
-                        .padding(16).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                    let isSendEnabled = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    Button("보내기") {}.disabled(!isSendEnabled)
-                        .font(KIRITypography.button)
-                        .foregroundStyle(isSendEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
-                        .frame(maxWidth: .infinity).frame(height: 54)
-                        .background(isSendEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .buttonStyle(.plain)
-                    Text("건의 전송 API가 없어 서버로 전송하지 않습니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                    Spacer()
-                }.padding(18)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("끼리가 더 발전할 수 있도록\n얘기해주세요!")
+                            .font(KIRITypography.title)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .padding(.top, 80)
+                            .padding(.bottom, 32)
+
+                        Text("내용")
+                            .font(KIRITypography.headingSmall)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .padding(.bottom, 8)
+                        inputCard
+
+                        Text("사진")
+                            .font(KIRITypography.headingSmall)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .padding(.top, 24)
+                            .padding(.bottom, 8)
+                        photoPicker
+
+                        Text("관련 화면을 함께 보내주시면 도움이 돼요.")
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                            .padding(.horizontal, 18)
+                            .padding(.top, 14)
+                            .padding(.bottom, 24)
+                    }
+                    .padding(.horizontal, 18)
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .safeAreaInset(edge: .bottom, spacing: 0) { submitButton }
             }
-        }.toolbar(.hidden, for: .navigationBar)
+            if let toastMessage {
+                KIRIToast(message: toastMessage, isError: toastIsError)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(2)
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .onChange(of: selectedPhoto) { _, item in
+            guard let item else { return }
+            Task { await loadPhoto(item) }
+        }
+    }
+
+    private var inputCard: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $text)
+                .focused($isEditorFocused)
+                .font(KIRITypography.body)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 18)
+                .padding(.top, 16)
+                .padding(.bottom, 28)
+                .frame(height: 149)
+                .onChange(of: text) { _, value in
+                    if value.count > 500 { text = String(value.prefix(500)) }
+                }
+            if text.isEmpty {
+                Text("끼리를 사용하면서 말해주고 싶으셨던 점에 대해 자유롭게 얘기해주세요!")
+                    .font(KIRITypography.body)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .padding(.horizontal, 23)
+                    .padding(.top, 24)
+                    .allowsHitTesting(false)
+            }
+            Text("\(text.count)/500")
+                .font(KIRITypography.caption)
+                .foregroundStyle(text.count > 500 ? KIRIColor.Status.error : KIRIColor.Text.tertiary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, 23)
+                .padding(.bottom, 14)
+                .allowsHitTesting(false)
+        }
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var photoPicker: some View {
+        Group {
+            if let photoImage {
+                ZStack(alignment: .topTrailing) {
+                    Image(uiImage: photoImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 137, height: 137)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    Button {
+                        selectedPhoto = nil
+                        photoData = nil
+                        self.photoImage = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 23))
+                            .foregroundStyle(.white)
+                            .padding(7)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("사진 삭제")
+                }
+                .frame(width: 137, height: 137)
+            } else {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                    addPhotoTile
+                }
+                .disabled(isLoadingPhoto)
+                .accessibilityLabel("사진 추가")
+            }
+        }
+    }
+
+    private var addPhotoTile: some View {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(KIRIColor.Background.secondary)
+                if isLoadingPhoto {
+                    ProgressView().tint(KIRIColor.Primary.default)
+                } else {
+                    Image("figma_suggestion_add")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
+            }
+            .frame(width: 137, height: 137)
+    }
+
+    private var submitButton: some View {
+        Button { submit() } label: {
+            Text(isSubmitting ? "보내는 중…" : "의견 보내기")
+                .font(KIRITypography.button)
+                .foregroundStyle(canSubmit ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSubmit)
+        .background(canSubmit ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
+        .background(KIRIColor.Background.base)
+    }
+
+    @MainActor
+    private func loadPhoto(_ item: PhotosPickerItem) async {
+        isLoadingPhoto = true
+        defer { isLoadingPhoto = false }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            selectedPhoto = nil
+            return
+        }
+        photoData = data
+        photoImage = image
+    }
+
+    private func submit() {
+        guard canSubmit else { return }
+        isSubmitting = true
+        Task { @MainActor in
+            defer { isSubmitting = false }
+            do {
+                var imageKey: String?
+                if let photoData {
+                    guard let uploadData = UIImage(data: photoData)?.jpegData(compressionQuality: 0.85) else {
+                        throw APIError.decodingFailed
+                    }
+                    let presigned = try await AuthService.shared.issuePresignedURL(contentType: "image/jpeg", contentLength: Int64(uploadData.count))
+                    try await AuthService.shared.uploadImage(data: uploadData, to: presigned.presignedUrl, contentType: "image/jpeg")
+                    imageKey = presigned.imageKey
+                }
+                _ = try await AuthService.shared.createSuggestion(content: trimmedText, imageKey: imageKey)
+                text = ""
+                selectedPhoto = nil
+                photoData = nil
+                photoImage = nil
+                isEditorFocused = false
+                showToast("의견을 보내주셔서 감사해요.")
+            } catch {
+                showToast("의견을 보내지 못했어요. 다시 시도해 주세요.", isError: true)
+            }
+        }
+    }
+
+    private func showToast(_ message: String, isError: Bool = false) {
+        toastGeneration += 1
+        let generation = toastGeneration
+        toastMessage = message
+        toastIsError = isError
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.2))
+            guard generation == toastGeneration else { return }
+            withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
+        }
     }
 }

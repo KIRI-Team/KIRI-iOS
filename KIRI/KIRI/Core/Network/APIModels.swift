@@ -19,6 +19,16 @@ struct APIEnvelope<Result: Decodable>: Decodable {
 
 struct EmptyAPIResult: Decodable {}
 
+/// 건의함 제출 요청. imageKey는 사진을 첨부한 경우에만 서버로 전달합니다.
+struct SuggestionCreateRequest: Encodable, Sendable {
+    let content: String
+    let imageKey: String?
+}
+
+struct SuggestionCreateResult: Decodable, Sendable {
+    let suggestionId: Int
+}
+
 enum SocialProvider: String, Codable, Sendable {
     case kakao = "KAKAO"
     case google = "GOOGLE"
