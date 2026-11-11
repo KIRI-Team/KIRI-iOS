@@ -19,6 +19,7 @@
 
 /* Begin PBXFileReference section */
 		956720A63066F0B800A000AA /* KIRI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KIRI.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A70000000000000000000001 /* KIRI/Config/KIRI.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = KIRI/Config/KIRI.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -66,6 +67,7 @@
 			children = (
 				956720A83066F0B800A000AA /* KIRI */,
 				956720A73066F0B800A000AA /* Products */,
+				95A2846730A4D33B004D11F9 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -75,6 +77,14 @@
 				956720A63066F0B800A000AA /* KIRI.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		95A2846730A4D33B004D11F9 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				A70000000000000000000001 /* KIRI/Config/KIRI.xcconfig */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -172,6 +182,7 @@
 /* Begin XCBuildConfiguration section */
 		956720AF3066F0BA00A000AA /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A70000000000000000000001 /* KIRI/Config/KIRI.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -236,6 +247,7 @@
 		};
 		956720B03066F0BA00A000AA /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A70000000000000000000001 /* KIRI/Config/KIRI.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;

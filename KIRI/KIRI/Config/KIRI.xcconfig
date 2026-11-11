@@ -1,0 +1,4 @@
+// Shared defaults. The optional local file is ignored by Git and may contain
+// developer-only values such as KAKAO_LOCAL_REST_API_KEY.
+KAKAO_LOCAL_REST_API_KEY =
+#include? "KIRI.Local.xcconfig"
