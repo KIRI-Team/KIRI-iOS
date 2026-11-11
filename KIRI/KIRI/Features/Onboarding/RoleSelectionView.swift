@@ -135,16 +135,14 @@ struct RoleSelectionView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 48, height: 48)
-                    // Keep the original facial details. The role PNGs contain
-                    // the eyes, nose and mouth, so template rendering would
-                    // flatten those layers into one solid color.
+                    // 역할별 원본 PNG를 유지하면서 선택 상태만 표현합니다.
+                    // 선택 해제 시 캐릭터별 실루엣을 보존한 회색 처리,
+                    // 선택 시 기존 원본 색상(아빠·엄마·아들은 초록 계열)을 사용합니다.
                     .grayscale(isSelected ? 0 : 1)
                     .colorMultiply(
                         isSelected && role != .daughter
                             ? KIRIColor.Primitive.green500
-                            : isSelected
-                                ? KIRIColor.Primitive.neutral0
-                                : KIRIColor.Primitive.neutral500
+                            : .white
                     )
 
                 Text(role.koreanName)
