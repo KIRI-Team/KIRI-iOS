@@ -27,14 +27,15 @@ final class HomeTutorialStore {
         self.mode = mode
         self.identity = identity
         migrateLegacyCompletionIfNeeded(familyId: familyId)
-        isActive = !UserDefaults.standard.bool(forKey: scopeKey)
+        isActive = mode == .family && !UserDefaults.standard.bool(forKey: scopeKey)
     }
 
     func updateScope(mode: HomeTutorialView.Mode, familyId: Int?) {
         self.mode = mode
         step = 0
         migrateLegacyCompletionIfNeeded(familyId: familyId)
-        isActive = !UserDefaults.standard.bool(forKey: scopeKey)
+        // 둘러보기는 튜토리얼 없이 Figma 9898:15398 Browse 홈으로 바로 진입합니다.
+        isActive = mode == .family && !UserDefaults.standard.bool(forKey: scopeKey)
     }
 
     private func migrateLegacyCompletionIfNeeded(familyId: Int?) {
@@ -154,24 +155,11 @@ struct HomeView: View {
             )
 
         case .browse:
-            if tutorialStore.isActive {
-                FamilyHomeView(
-                    familyName: familyName,
-                    familyId: nil,
-                    familyInviteCode: nil,
-                    nickname: nickname,
-                    familyRole: familyRole,
-                    tutorialStep: tutorialStore.step,
-                    loadsServerQuestion: false,
-                    onExploreMission: onExploreMission
-                )
-            } else {
-                BrowseHomeView(
-                    familyState: familyState,
-                    onFamilyCreated: onFamilyCreated,
-                    onRetryFamilyState: onRetryFamilyState
-                )
-            }
+            BrowseHomeView(
+                familyState: familyState,
+                onFamilyCreated: onFamilyCreated,
+                onRetryFamilyState: onRetryFamilyState
+            )
         }
     }
 

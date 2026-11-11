@@ -60,22 +60,28 @@ struct HomeTutorialView: View {
     @State private var isAdvancing = false
 
     var body: some View {
-        // The final Handoff frames are complete home states rather than a
-        // dimmed coach-mark overlay. Keep the home content visible and use a
-        // transparent interaction layer to advance between those states.
-        Color.clear
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 24)
-                    .onEnded { value in
-                        guard value.translation.width < -24 else { return }
-                        advance()
-                    }
-            )
-            .onTapGesture {
-                advance()
-            }
-        .ignoresSafeArea()
+        ZStack(alignment: .topLeading) {
+            // 실제 FamilyHomeView를 그대로 뒤에 두고, 튜토리얼 요소만 오버레이합니다.
+            // Figma 화면 전체를 이미지로 덮지 않으므로 구성원 수·기기 높이에 맞춰
+            // PreferenceKey로 측정한 실제 컴포넌트 위치를 사용합니다.
+            KIRIColor.Primitive.neutral1000.opacity(0.68)
+                .ignoresSafeArea()
+
+            highlights
+            guidance
+
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 24)
+                        .onEnded { value in
+                            guard value.translation.width < -24 else { return }
+                            advance()
+                        }
+                )
+                .onTapGesture { advance() }
+                .ignoresSafeArea()
+        }
         .onAppear {
             stepIndex = 0
             onStepChanged(0)
