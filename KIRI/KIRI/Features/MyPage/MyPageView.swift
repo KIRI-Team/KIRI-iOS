@@ -65,16 +65,18 @@ struct MyPageView: View {
 
     private var profileSection: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(KIRIColor.Background.tertiary)
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Image("family-me")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 38, height: 38)
-                        .clipShape(Circle())
-                }
+            // Figma 9901:25875~25889: 48pt 프로필 영역 안에 원본 아바타 벡터(약 29pt)를
+            // 중앙 배치합니다. SVG 자체가 배경과 캐릭터를 포함하므로 다시 Circle로 자르지 않습니다.
+            ZStack {
+                Circle()
+                    .fill(KIRIColor.Background.tertiary)
+                    .frame(width: 44, height: 44)
+                Image("family-me")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 29.28, height: 29.28)
+            }
+            .frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 4) {
                 Text(nickname ?? "닉네임을 설정해주세요").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
                 Text(profileSubtitle).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
