@@ -15,21 +15,26 @@ import SwiftUI
 struct BrowseHomeView: View {
     let familyState: AppRouter.FamilyState
     let onFamilyCreated: (String, String) -> Void
+    let onFamilyJoined: (String, String, Int?) -> Void
     let onRetryFamilyState: () -> Void
-    private let places = [
-        BrowsePlace(imageName: "browse_place_a", title: "경복궁에서 사진찍기", location: "경복궁 종로구"),
-        BrowsePlace(imageName: "browse_place_b", title: "경복궁에서 사진찍기", location: "경복궁 종로구")
-    ]
 
     @State private var isFamilyCreationPresented = false
+    @State private var isFamilyJoinPresented = false
+    @State private var missions: [MissionFeedItem] = []
+    @State private var isLoadingMissions = false
+    @State private var missionError: String?
+    @State private var selectedMission: MissionFeedItem?
+    @State private var selectedMissionBookmark = false
 
     init(
         familyState: AppRouter.FamilyState = .noFamily,
         onFamilyCreated: @escaping (String, String) -> Void,
+        onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onRetryFamilyState: @escaping () -> Void = {}
     ) {
         self.familyState = familyState
         self.onFamilyCreated = onFamilyCreated
+        self.onFamilyJoined = onFamilyJoined
         self.onRetryFamilyState = onRetryFamilyState
     }
 
@@ -64,6 +69,27 @@ struct BrowseHomeView: View {
                     onFamilyCreated: onFamilyCreated
                 )
             }
+            .fullScreenCover(isPresented: $isFamilyJoinPresented) {
+                BrowseFamilyJoinFlow(
+                    onDismiss: { isFamilyJoinPresented = false },
+                    onFamilyJoined: onFamilyJoined
+                )
+            }
+            .fullScreenCover(item: $selectedMission) { mission in
+                MissionActivityDetailView(
+                    missionId: mission.missionId,
+                    title: mission.title,
+                    placeName: mission.placeName,
+                    district: MissionDisplayLabel.category(mission.category) ?? "",
+                    rating: nil,
+                    tags: mission.displayTags,
+                    isRecommended: false,
+                    imageURL: mission.imageUrl,
+                    isBookmarked: $selectedMissionBookmark,
+                    onBack: { selectedMission = nil }
+                )
+            }
+            .task { await loadMissions() }
         }
     }
 
@@ -112,9 +138,35 @@ struct BrowseHomeView: View {
     }
 
     private var familyActionCard: some View {
-        Button {
-            isFamilyCreationPresented = true
-        } label: {
+        VStack(spacing: 10) {
+            Button {
+                isFamilyCreationPresented = true
+            } label: {
+                familyActionRow(
+                    title: "가족공간 만들기",
+                    subtitle: "가족과 함께 시작해요"
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                isFamilyJoinPresented = true
+            } label: {
+                familyActionRow(
+                    title: "초대코드로 참여하기",
+                    subtitle: "받은 코드로 가족공간에 참여해요"
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 18)
+        .frame(width: 354)
+        .background(KIRIColor.Background.primary)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func familyActionRow(title: String, subtitle: String) -> some View {
             HStack(spacing: 12) {
                 ZStack {
                     KIRIColor.Background.secondary
@@ -132,7 +184,7 @@ struct BrowseHomeView: View {
                         .font(KIRITypography.caption)
                         .foregroundStyle(KIRIColor.Text.tertiary)
 
-                    Text("가족공간 만들러 가기")
+                    Text(title)
                         .font(KIRITypography.headingSmall)
                         .foregroundStyle(KIRIColor.Text.strong)
                 }
@@ -144,13 +196,9 @@ struct BrowseHomeView: View {
                     .scaledToFit()
                     .frame(width: 24, height: 24)
             }
-            .padding(.horizontal, 18)
-            .frame(width: 354, height: 96)
-            .background(KIRIColor.Background.primary)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("가족공간 만들러 가기")
+            .frame(height: 62)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(title)
     }
 
     private func recommendationSection(title: String) -> some View {
@@ -160,20 +208,63 @@ struct BrowseHomeView: View {
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
 
+            missionContent
+        }
+    }
+
+    @ViewBuilder
+    private var missionContent: some View {
+        if isLoadingMissions && missions.isEmpty {
+            ProgressView().tint(KIRIColor.Primary.default).frame(height: 284)
+        } else if let missionError, missions.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("미션을 불러오지 못했어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                Button("다시 시도") { Task { await loadMissions() } }
+                    .font(KIRITypography.captionMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+            }
+            .frame(width: 251, height: 120, alignment: .center)
+        } else if missions.isEmpty {
+            Text("추천 미션이 아직 없어요")
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .frame(width: 251, height: 120, alignment: .center)
+        } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 24) {
-                    ForEach(places) { place in
-                        PlaceCard(
-                            title: place.title,
-                            location: place.location,
-                            rating: 4.6,
-                            description: "대중교통이 편리하고, 부모님이랑 가기 좋아요! 추천합니다",
-                            imageName: place.imageName
-                        )
+                    ForEach(missions) { mission in
+                        Button {
+                            selectedMission = mission
+                            selectedMissionBookmark = false
+                        } label: {
+                            PlaceCard(
+                                title: mission.title,
+                                location: mission.placeName,
+                                rating: nil,
+                                description: nil,
+                                imageURL: mission.imageUrl
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.trailing, 18)
             }
+        }
+    }
+
+    @MainActor
+    private func loadMissions() async {
+        guard !isLoadingMissions else { return }
+        isLoadingMissions = true
+        missionError = nil
+        defer { isLoadingMissions = false }
+        do {
+            missions = try await AuthService.shared.missionFeed().missions
+        } catch {
+            missionError = "미션 조회 실패"
         }
     }
 }
@@ -265,12 +356,65 @@ private struct BrowseFamilyCreationFlow: View {
     }
 }
 
-private struct BrowsePlace: Identifiable {
-    let imageName: String
-    let title: String
-    let location: String
+private struct BrowseFamilyJoinFlow: View {
+    enum Step { case code, confirm, loading }
+    @State private var step: Step = .code
+    @State private var code = ""
+    @State private var familyName = ""
+    @State private var errorMessage: String?
+    let onDismiss: () -> Void
+    let onFamilyJoined: (String, String, Int?) -> Void
 
-    var id: String { imageName }
+    var body: some View {
+        ZStack {
+            KIRIColor.Background.base.ignoresSafeArea()
+            switch step {
+            case .code:
+                FamilyCodeInputView(familyCode: $code, onBack: onDismiss, onNext: findFamily)
+            case .confirm:
+                FamilyJoinConfirmView(
+                    familyName: familyName,
+                    familyCode: code,
+                    onBack: { step = .code },
+                    onJoin: joinFamily
+                )
+            case .loading:
+                FamilyJoinLoadingView()
+            }
+        }
+        .alert("가족공간에 참여할 수 없어요", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) { Button("확인", role: .cancel) {} } message: {
+            Text(errorMessage ?? "잠시 후 다시 시도해 주세요.")
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private func findFamily() {
+        let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard normalized.count == 6, normalized.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else {
+            errorMessage = "초대 코드는 영문 대문자와 숫자 6자리여야 해요."
+            return
+        }
+        code = normalized
+        familyName = "입력한 초대 코드의 가족공간"
+        step = .confirm
+    }
+
+    private func joinFamily() {
+        step = .loading
+        Task { @MainActor in
+            do {
+                let result = try await AuthService.shared.joinFamily(inviteCode: code)
+                AppSessionStore().saveFamily(name: result.familyName, inviteCode: code, familyId: result.familyId)
+                onFamilyJoined(result.familyName, code, result.familyId)
+            } catch {
+                errorMessage = "가족공간에 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요."
+                step = .code
+            }
+        }
+    }
 }
 
 #Preview {
