@@ -1193,7 +1193,7 @@ struct InviteLinkView: View {
             MyPageAppBar(title: "공용초대링크 관리") {
                 VStack(alignment: .leading, spacing: 20) {
                     Text("가족이 모이면 더 즐거워져요!").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    Text("초대 링크는 7일 동안 사용할 수 있어요.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
+                    Text("주소는 더 정확한 AI 미션 제공을 위해 사용됩니다").font(KIRITypography.body).foregroundStyle(KIRIColor.Text.tertiary)
                     if let invite {
                         inviteCard(label: "링크코드", value: invite.inviteCode)
                         inviteCard(label: "초대링크", value: invite.inviteUrl)
@@ -1205,8 +1205,8 @@ struct InviteLinkView: View {
                         .foregroundStyle(KIRIColor.Status.error)
                         .disabled(isLoading)
                         ShareLink(item: invite.inviteUrl) {
-                        Text("초대 링크 공유").font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
-                            .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
+                            Text("가족에게 초대보내기").font(KIRITypography.button).foregroundStyle(KIRIColor.Text.onGreen)
+                                .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Primary.default).clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                     } else if isLoading { ProgressView().frame(maxWidth: .infinity) }
                     else {
@@ -1223,7 +1223,7 @@ struct InviteLinkView: View {
                         }
                     }
                     Spacer()
-                }.padding(18)
+                }.padding(.horizontal, 18).padding(.top, 28).padding(.bottom, 110)
             }
         }
         .overlay(alignment: .top) {
@@ -1290,8 +1290,9 @@ struct InviteLinkView: View {
                     Image(systemName: "doc.on.doc").foregroundStyle(KIRIColor.Icon.primary)
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: 311)
             .frame(height: 90)
+            .frame(maxWidth: .infinity)
             .background(KIRIColor.Background.elevated)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }

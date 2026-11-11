@@ -26,6 +26,9 @@ struct FamilySettingsView: View {
     @State private var familyName: String
     @State private var nickname: String
     @State private var isLeaveAlertPresented = false
+    @State private var members: [FamilyMemberInfoResult] = []
+    @State private var isLoadingMembers = false
+    @State private var memberLoadError: String?
 
     init(
         familyId: Int? = nil,
@@ -97,6 +100,7 @@ struct FamilySettingsView: View {
             }
             tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
         }
+        .task { await loadFamilyMembers() }
         .alert("가족공간을 나갈까요?", isPresented: $isLeaveAlertPresented) {
             Button("취소", role: .cancel) {}
             Button("나가기", role: .destructive) {}
@@ -185,56 +189,70 @@ struct FamilySettingsView: View {
                 .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(KIRIColor.textPrimary)
 
-            if familyId == nil {
+            if isLoadingMembers {
+                ProgressView().frame(maxWidth: .infinity)
+            } else if let memberLoadError {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(memberLoadError).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.secondary)
+                    Button("다시 시도") { Task { await loadFamilyMembers() } }.foregroundStyle(KIRIColor.Text.accent)
+                }
+            } else if members.isEmpty {
                 Text("가족 구성원 정보를 확인할 수 없습니다.")
                     .font(KIRITypography.bodyMedium)
                     .foregroundStyle(KIRIColor.Text.secondary)
             } else {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    memberCard(role: familyRole ?? "", nickname: nickname, isCurrentUser: true)
+                VStack(spacing: 8) {
+                    ForEach(members) { member in
+                        memberCard(member: member)
+                    }
                 }
             }
         }
     }
 
-    private func memberCard(role: String, nickname memberNickname: String, isCurrentUser: Bool) -> some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 4) {
-                Text("역할 I \(localizedRole(role))")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(KIRIColor.Text.primary)
-                    .lineLimit(1)
-                if isCurrentUser {
-                    NavigationLink {
-                        NicknameEditView(nickname: Binding(
-                            get: { self.nickname },
-                            set: { self.nickname = $0 }
-                        ))
-                    } label: {
-                        // 닉네임 변경도 가족 이름 변경과 같은 공통 Asset을 사용합니다.
-                        Image("figma_edit")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 24, height: 24)
-                            .frame(width: 30, height: 30)
-                    }
-                    .buttonStyle(.plain)
-                }
+    private func memberCard(member: FamilyMemberInfoResult) -> some View {
+        HStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 4).fill(KIRIColor.Background.secondary)
+                Image(memberAsset(for: member.familyRole))
+                    .resizable().scaledToFit().padding(4)
+            }.frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(member.nickname).font(.system(size: 16, weight: .regular)).foregroundStyle(KIRIColor.Text.strong)
+                Text(localizedRole(member.familyRole ?? "" )).font(.system(size: 12, weight: .medium)).foregroundStyle(KIRIColor.Text.primary)
             }
-
-            Text(memberNickname.isEmpty ? "닉네임 미설정" : memberNickname)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(KIRIColor.Text.strong)
-                .lineLimit(1)
+            Spacer()
+            if isCurrentMember(member) {
+                NavigationLink { NicknameEditView(nickname: Binding(get: { nickname }, set: { nickname = $0 })) } label: {
+                    Image("figma_edit").resizable().scaledToFit().frame(width: 18, height: 18).frame(width: 36, height: 36)
+                }.buttonStyle(.plain)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
-        .frame(minHeight: 73)
-        .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(KIRIColor.Background.primary)
-        )
+        .padding(.horizontal, 16).padding(.vertical, 8).frame(minHeight: 56)
+        .background(RoundedRectangle(cornerRadius: 8).fill(KIRIColor.Background.primary))
+    }
+
+    private func memberAsset(for role: String?) -> String {
+        switch role?.uppercased() {
+        case "MOTHER": return "role_mom"
+        case "FATHER": return "role_dad"
+        case "SON": return "role_son"
+        case "DAUGHTER": return "role_daughter"
+        default: return "family-member"
+        }
+    }
+
+    private func isCurrentMember(_ member: FamilyMemberInfoResult) -> Bool {
+        guard let currentRole = familyRole else { return member.nickname == nickname }
+        return member.nickname == nickname && localizedRole(currentRole) == localizedRole(member.familyRole ?? "")
+    }
+
+    private func loadFamilyMembers() async {
+        guard let familyId else { return }
+        isLoadingMembers = true; memberLoadError = nil
+        do { members = try await AuthService.shared.familyInfo(familyId: familyId).members }
+        catch { memberLoadError = "가족 구성원 정보를 불러오지 못했어요." }
+        isLoadingMembers = false
     }
 
     private func localizedRole(_ role: String) -> String {
