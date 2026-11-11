@@ -487,6 +487,17 @@ struct TasteTestView: View {
     @State private var isLoading = false
     @State private var isSaving = false
     @State private var errorMessage: String?
+
+    // 저장 가능 조건은 서버 요청 모델과 동일하게 선호 활동과 활동량입니다.
+    // 저장 중에는 같은 요청을 다시 만들지 않도록 버튼을 비활성화합니다.
+    private var hasValidTasteSelection: Bool {
+        !selectedActivities.isEmpty && !amount.isEmpty
+    }
+
+    private var canSaveTaste: Bool {
+        hasValidTasteSelection && !isSaving
+    }
+
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "내 취향 설정") {
@@ -498,26 +509,26 @@ struct TasteTestView: View {
                     preferenceSection("비용", options: costs, selectedValue: $cost)
                     preferenceSection("활동시간", options: durations, selectedValue: $duration)
                     if let errorMessage { Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error) }
-                    let isTasteEnabled = !isSaving && !selectedActivities.isEmpty && !amount.isEmpty
                     Button {
+                        guard canSaveTaste else { return }
                         Task { await saveTaste() }
                     } label: {
                         HStack {
                             Spacer()
                             if isSaving {
-                                ProgressView().tint(KIRIColor.Button.FilledAccent.contentDefault)
+                                ProgressView().tint(KIRIColor.Button.FilledNeutral.contentDefault)
                             } else {
                                 Text("저장")
                             }
                             Spacer()
                         }
                         .font(KIRITypography.button)
-                        .foregroundStyle(isTasteEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
+                        .foregroundStyle(canSaveTaste ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
                     }
                     .frame(maxWidth: .infinity).frame(height: 54)
-                    .background(isTasteEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                    .background(canSaveTaste ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .disabled(!isTasteEnabled)
+                    .disabled(!canSaveTaste)
                     .buttonStyle(.plain)
                     Spacer()
                 }.padding(18)
@@ -573,7 +584,7 @@ struct TasteTestView: View {
     }
 
     private func saveTaste() async {
-        guard !isSaving, !selectedActivities.isEmpty, !amount.isEmpty else { return }
+        guard canSaveTaste else { return }
         isSaving = true; defer { isSaving = false }
         do {
             _ = try await AuthService.shared.saveTaste(TasteRequest(
@@ -611,9 +622,9 @@ struct SuggestionView: View {
                     let isSendEnabled = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     Button("보내기") {}.disabled(!isSendEnabled)
                         .font(KIRITypography.button)
-                        .foregroundStyle(isSendEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
+                        .foregroundStyle(isSendEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
                         .frame(maxWidth: .infinity).frame(height: 54)
-                        .background(isSendEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                        .background(isSendEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                         .buttonStyle(.plain)
                     Text("건의 전송 API가 없어 서버로 전송하지 않습니다.").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
