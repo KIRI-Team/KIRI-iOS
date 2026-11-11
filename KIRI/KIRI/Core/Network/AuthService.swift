@@ -385,6 +385,18 @@ final class AuthService {
         if let isFree { queryItems.append(URLQueryItem(name: "isFree", value: String(isFree))) }
         if let maxPrice { queryItems.append(URLQueryItem(name: "maxPrice", value: String(maxPrice))) }
         if let cursor { queryItems.append(URLQueryItem(name: "cursor", value: String(cursor)) ) }
+#if DEBUG
+        // 인증 토큰이나 사용자 입력은 기록하지 않고, 필터 검증에 필요한
+        // 실제 GET 쿼리만 남깁니다. URLSession이 보내는 요청과 동일한
+        // URLQueryItem 배열이므로 누락·잘못된 이름을 확인할 수 있습니다.
+        let debugQuery = queryItems
+            .compactMap { item in
+                guard let value = item.value else { return item.name }
+                return "\(item.name)=\(value)"
+            }
+            .joined(separator: "&")
+        print("[KIRI][Mission] GET /api/v1/missions?\(debugQuery)")
+#endif
         let endpoint = APIEndpoint(
             path: "/api/v1/missions",
             method: .GET,
@@ -398,7 +410,23 @@ final class AuthService {
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
 #if DEBUG
-        print("[KIRI][Mission] response count=\(result.missions.count) hasNext=\(result.hasNext) nextCursorPresent=\(result.nextCursor != nil)")
+        let freeMatches = isFree.map { free in
+            result.missions.filter { (($0.price ?? -1) == 0) == free }.count
+        }
+        let budgetMatches = maxPrice.map { limit in
+            result.missions.filter { ($0.price ?? Int.max) <= limit }.count
+        }
+        let freeMatchDescription = freeMatches.map { String($0) } ?? "n/a"
+        let budgetMatchDescription = budgetMatches.map { String($0) } ?? "n/a"
+        print(
+            "[KIRI][Mission] response count=\(result.missions.count) "
+                + "hasNext=\(result.hasNext) nextCursorPresent=\(result.nextCursor != nil) "
+                // 현재 MissionFeedItem 응답에는 지역 필드가 없어 지역 결과의
+                // 항목별 일치 여부는 서버 응답 원문/백엔드 로그로 확인해야 합니다.
+                + "regionMatches=n/a "
+                + "freeMatches=\(freeMatchDescription) "
+                + "budgetMatches=\(budgetMatchDescription)"
+        )
 #endif
         return result
     }

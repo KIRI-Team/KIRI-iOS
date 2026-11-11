@@ -161,7 +161,10 @@ struct MissionView: View {
             MissionFilterView(initial: appliedFilter) { newFilter in
                 appliedFilter = newFilter
                 isFilterPresented = false
-                Task { await load(reset: true) }
+                // SwiftUI State 반영을 기다리며 다시 읽지 않고, 사용자가 방금
+                // 적용한 값을 요청에 직접 전달합니다. 첫 요청이 이전 필터를
+                // 사용하는 것을 막고 적용 직후 목록을 항상 새로 조회합니다.
+                Task { await load(reset: true, filterOverride: newFilter) }
             }
         }
         .fullScreenCover(item: $selectedMission) { row in
@@ -179,7 +182,12 @@ struct MissionView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(Category.allCases, id: \.self) { category in
-                    KIRIChip(title: category.rawValue, isSelected: selectedCategory == category) { selectedCategory = category; Task { await load(reset: true) } }
+                    KIRIChip(title: category.rawValue, isSelected: selectedCategory == category) {
+                        selectedCategory = category
+                        // 카테고리도 같은 상태 반영 시점 문제를 피하기 위해
+                        // 선택한 값을 현재 요청에 명시적으로 넘깁니다.
+                        Task { await load(reset: true, categoryOverride: category) }
+                    }
                 }
             }.padding(.horizontal, 18)
         }
@@ -213,7 +221,11 @@ struct MissionView: View {
         }
     }
 
-    private func load(reset: Bool) async {
+    private func load(
+        reset: Bool,
+        filterOverride: MissionFilter? = nil,
+        categoryOverride: Category? = nil
+    ) async {
         let generation: UUID
         if reset {
             generation = UUID()
@@ -229,8 +241,8 @@ struct MissionView: View {
             isLoadingMore = true
         }
         do {
-            let category = selectedCategory.apiValue
-            let filter = appliedFilter
+            let category = (categoryOverride ?? selectedCategory).apiValue
+            let filter = filterOverride ?? appliedFilter
             let cursor = reset ? nil : nextCursor
             let result = try await AuthService.shared.missionFeed(category: category, regionCode: filter.regionCode, distance: filter.distance, date: filter.date, time: filter.time, isFree: filter.isFree, maxPrice: filter.maxPrice, cursor: cursor)
             guard !Task.isCancelled, generation == loadGeneration else { return }
