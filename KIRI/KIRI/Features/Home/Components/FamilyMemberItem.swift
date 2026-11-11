@@ -23,21 +23,43 @@ struct FamilyMemberItem: View {
         self.hasAnswered = hasAnswered
     }
 
+    private var normalizedRole: String? {
+        switch role?.uppercased() {
+        case "MOTHER", "엄마": return "MOTHER"
+        case "FATHER", "아빠": return "FATHER"
+        case "SON", "아들": return "SON"
+        case "DAUGHTER", "딸": return "DAUGHTER"
+        default: return nil
+        }
+    }
+
     private var imageName: String {
-        // 내 답변이 완료되면 Figma Member Avatar Group(9898:15604)의
-        // 초록색 활성 캐릭터를 사용합니다. 역할별 회색 캐릭터와 분리해
-        // 링과 캐릭터가 함께 활성 상태가 되도록 합니다.
-        if isMe && hasAnswered {
-            return "figma_family_member_active"
+        // Figma KIRI/Member Avatar Group(8413:5880)의 역할별 원본을
+        // 답변 상태에 따라 명시적으로 선택합니다. 역할별 Asset을 먼저
+        // 고르므로 한 캐릭터를 다른 가족 역할에 재사용하지 않습니다.
+        if hasAnswered {
+            switch normalizedRole {
+            case "MOTHER": return "figma_family_member_active_mom"
+            case "FATHER": return "role_dad" // Figma 활성 아빠 원본은 미제공
+            case "SON": return "figma_family_member_active_son"
+            case "DAUGHTER": return "figma_family_member_active_daughter"
+            default: return isMe ? "figma_family_member_active" : "figma_family_member_default"
+            }
         }
 
-        switch role?.uppercased() {
-        case "MOTHER", "엄마": return "role_mom"
-        case "FATHER", "아빠": return "role_dad"
-        case "SON", "아들": return "role_son"
-        case "DAUGHTER", "딸": return "role_daughter"
+        switch normalizedRole {
+        case "MOTHER": return "role_mom"
+        case "FATHER": return "role_dad"
+        case "SON": return "role_son"
+        case "DAUGHTER": return "role_daughter"
         default: return isMe ? "family-me" : "figma_family_member_default"
         }
+    }
+
+    private var usesFallbackStateTreatment: Bool {
+        // Figma에서 활성 아빠/비활성 딸 원본이 제공되지 않아 해당
+        // 역할의 고유 원본을 보존한 채 상태만 보정합니다.
+        normalizedRole == "FATHER" && hasAnswered || normalizedRole == "DAUGHTER" && !hasAnswered
     }
 
     var body: some View {
@@ -53,7 +75,8 @@ struct FamilyMemberItem: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 24, height: 24)
-                    .opacity(hasAnswered ? 1 : 0.45)
+                    .grayscale(usesFallbackStateTreatment ? 1 : 0)
+                    .colorMultiply(normalizedRole == "FATHER" && hasAnswered ? KIRIColor.Primitive.green500 : .white)
 
                 Image(hasAnswered ? "figma_family_avatar_ring_active" : "figma_family_avatar_ring")
                     .resizable()
