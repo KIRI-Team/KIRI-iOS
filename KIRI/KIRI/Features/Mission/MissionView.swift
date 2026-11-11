@@ -58,6 +58,8 @@ struct MissionView: View {
     @State private var savedMissionIDs: Set<Int> = []
     @State private var bookmarkConfirmationMissionID: Int?
     @State private var bookmarkFeedback: String?
+    @State private var filterFeedback: String?
+    @State private var filterFeedbackIsError = false
     // 필터·카테고리 변경으로 새 요청이 시작되면 이전 응답이 화면을 덮어쓰지 않도록 식별자를 갱신합니다.
     @State private var loadGeneration = UUID()
 
@@ -155,6 +157,15 @@ struct MissionView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .zIndex(11)
             }
+
+            if let filterFeedback {
+                KIRIToast(message: filterFeedback, isError: filterFeedbackIsError)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(12)
+            }
         }
         .task { await load(reset: true) }
         .fullScreenCover(isPresented: $isFilterPresented) {
@@ -164,7 +175,13 @@ struct MissionView: View {
                 // SwiftUI State 반영을 기다리며 다시 읽지 않고, 사용자가 방금
                 // 적용한 값을 요청에 직접 전달합니다. 첫 요청이 이전 필터를
                 // 사용하는 것을 막고 적용 직후 목록을 항상 새로 조회합니다.
-                Task { await load(reset: true, filterOverride: newFilter) }
+                Task {
+                    guard let result = await load(reset: true, filterOverride: newFilter) else { return }
+                    showFilterFeedback(
+                        result ? "필터를 적용했어요" : "필터를 적용하지 못했어요. 다시 시도해 주세요.",
+                        isError: !result
+                    )
+                }
             }
         }
         .fullScreenCover(item: $selectedMission) { row in
@@ -225,7 +242,7 @@ struct MissionView: View {
         reset: Bool,
         filterOverride: MissionFilter? = nil,
         categoryOverride: Category? = nil
-    ) async {
+    ) async -> Bool? {
         let generation: UUID
         if reset {
             generation = UUID()
@@ -236,7 +253,7 @@ struct MissionView: View {
             nextCursor = nil
             hasNext = false
         } else {
-            guard hasNext, !isLoadingMore else { return }
+            guard hasNext, !isLoadingMore else { return nil }
             generation = loadGeneration
             isLoadingMore = true
         }
@@ -245,7 +262,7 @@ struct MissionView: View {
             let filter = filterOverride ?? appliedFilter
             let cursor = reset ? nil : nextCursor
             let result = try await AuthService.shared.missionFeed(category: category, regionCode: filter.regionCode, distance: filter.distance, date: filter.date, time: filter.time, isFree: filter.isFree, maxPrice: filter.maxPrice, cursor: cursor)
-            guard !Task.isCancelled, generation == loadGeneration else { return }
+            guard !Task.isCancelled, generation == loadGeneration else { return nil }
             if reset {
                 await refreshSavedMissionIDs()
             }
@@ -253,13 +270,14 @@ struct MissionView: View {
             if reset { rows = newRows } else { rows.append(contentsOf: newRows) }
             nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil
         } catch {
-            guard !Task.isCancelled, generation == loadGeneration else { return }
+            guard !Task.isCancelled, generation == loadGeneration else { return nil }
             errorMessage = error.localizedDescription
         }
         if generation == loadGeneration {
             isLoading = false
             isLoadingMore = false
         }
+        return errorMessage == nil
     }
 
     private func save(_ missionID: Int, value: Bool) async {
@@ -300,6 +318,19 @@ struct MissionView: View {
         }
     }
 
+    private func showFilterFeedback(_ message: String, isError: Bool) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            filterFeedback = message
+            filterFeedbackIsError = isError
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) { filterFeedback = nil }
+            }
+        }
+    }
+
     private func refreshSavedMissionIDs() async {
         do {
             var cursor: Int?
@@ -321,6 +352,13 @@ struct MissionView: View {
 }
 
 private struct MissionFilterView: View {
+    private enum FilterTab: String, CaseIterable, Hashable {
+        case schedule = "날짜·인원"
+        case region = "지역"
+        case distance = "거리"
+        case price = "가격"
+    }
+
     private struct Region: Identifiable, Hashable {
         let id: String
         let title: String
@@ -337,15 +375,21 @@ private struct MissionFilterView: View {
     @State private var selectedTime: String?
     @State private var peopleCount: Int?
     @State private var isScheduleSelectionPresented = false
+    @State private var selectedTab: FilterTab = .schedule
 
+    // 서버는 2자리 시·도 또는 5자리 시·군·구 코드만 받습니다.
+    // 충청·경상·전라처럼 여러 시·도를 합친 값은 단일 regionCode로
+    // 표현할 수 없으므로, 실제 요청 범위와 일치하는 시·도 단위로 나눕니다.
     private let regions = [
-        Region(id: "SEOUL", title: "서울"), Region(id: "INCHEON", title: "인천"),
-        Region(id: "GYEONGGI", title: "경기"), Region(id: "DAEJEON", title: "대전"),
-        Region(id: "SEJONG", title: "세종"), Region(id: "CHUNGCHEONG", title: "충청"),
-        Region(id: "DAEGU", title: "대구"), Region(id: "GYEONGSANG", title: "경상"),
-        Region(id: "ULSAN", title: "울산"), Region(id: "BUSAN", title: "부산"),
-        Region(id: "GWANGJU", title: "광주"), Region(id: "JEOLLA", title: "전라"),
-        Region(id: "GANGWON", title: "강원"), Region(id: "JEJU", title: "제주")
+        Region(id: "11", title: "서울"), Region(id: "28", title: "인천"),
+        Region(id: "41", title: "경기"), Region(id: "30", title: "대전"),
+        Region(id: "36", title: "세종"), Region(id: "43", title: "충북"),
+        Region(id: "44", title: "충남"), Region(id: "27", title: "대구"),
+        Region(id: "47", title: "경북"), Region(id: "48", title: "경남"),
+        Region(id: "31", title: "울산"), Region(id: "26", title: "부산"),
+        Region(id: "29", title: "광주"), Region(id: "45", title: "전북"),
+        Region(id: "46", title: "전남"), Region(id: "42", title: "강원"),
+        Region(id: "50", title: "제주")
     ]
     private let distances: [(Int, String)] = [(1, "1km 이내"), (3, "3km 이내"), (5, "5km 이내"), (10, "10km 이내")]
     private let prices: [(Int, String)] = [(0, "무료"), (10000, "1만원 이하"), (30000, "3만원 이하")]
@@ -403,52 +447,57 @@ private struct MissionFilterView: View {
     private var filterSheet: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                filterTab("날짜·인원", selected: true)
-                filterTab("지역", selected: false)
-                filterTab("거리", selected: false)
-                filterTab("가격", selected: false)
+                ForEach(FilterTab.allCases, id: \.self) { tab in
+                    filterTab(tab)
+                }
             }
             .padding(.horizontal, 18)
             .overlay(alignment: .bottom) { Rectangle().fill(KIRIColor.Border.default).frame(height: 1).padding(.horizontal, 18) }
 
-            Button { isScheduleSelectionPresented = true } label: {
-                HStack(spacing: 10) {
-                    Image("figma_calendar_active").resizable().scaledToFit().frame(width: 16, height: 16)
-                    Text(scheduleSummary).font(KIRITypography.bodySmall)
-                    Spacer()
-                    Image(systemName: "chevron.down").font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(KIRIColor.Text.secondary)
-                .padding(.horizontal, 14)
-                .frame(height: 50)
-                .background(KIRIColor.Background.primary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(KIRIColor.Border.default, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 18)
-            .padding(.top, 16)
-
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 26) {
-                    filterSection(title: "지역") {
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 10) {
-                            ForEach(regions) { region in chip(region.title, selected: regionCode == region.id) { regionCode = regionCode == region.id ? nil : region.id } }
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 26) {
+                        scheduleSummaryButton.id(FilterTab.schedule)
+                        filterSection(title: "지역") {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 10) {
+                                ForEach(regions) { region in chip(region.title, selected: regionCode == region.id) { regionCode = regionCode == region.id ? nil : region.id } }
+                            }
                         }
-                    }
-                    filterSection(title: "거리") {
-                        ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(distances, id: \.0) { item in chip(item.1, selected: distance == item.0) { distance = distance == item.0 ? nil : item.0 } } } }
-                    }
-                    filterSection(title: "가격") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("1인 기준 요금").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
-                            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(prices, id: \.0) { item in priceChip(item) } } }
+                        .id(FilterTab.region)
+                        filterSection(title: "거리") {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("기준 위치가 없어 거리 필터를 적용할 수 없어요. 가족공간에 우리 집 위치를 등록해 주세요.")
+                                    .font(KIRITypography.caption)
+                                    .foregroundStyle(KIRIColor.Text.tertiary)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(distances, id: \.0) { item in
+                                            chip(item.1, selected: false) {}
+                                                .opacity(0.45)
+                                                .allowsHitTesting(false)
+                                        }
+                                    }
+                                }
+                            }
                         }
+                        .id(FilterTab.distance)
+                        filterSection(title: "가격") {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("1인 기준 요금").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                                ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(prices, id: \.0) { item in priceChip(item) } } }
+                            }
+                        }
+                        .id(FilterTab.price)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 24)
+                    .padding(.bottom, 110)
+                }
+                .onChange(of: selectedTab) { _, tab in
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        proxy.scrollTo(tab, anchor: tab == .schedule ? .top : .center)
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 24)
-                .padding(.bottom, 110)
             }
             actionButtons
         }
@@ -457,12 +506,31 @@ private struct MissionFilterView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    private func filterTab(_ title: String, selected: Bool) -> some View {
-        Button {} label: {
-            Text(title).font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(selected ? KIRIColor.Text.strong : KIRIColor.Text.secondary)
+    private var scheduleSummaryButton: some View {
+        Button { isScheduleSelectionPresented = true } label: {
+            HStack(spacing: 10) {
+                Image("figma_calendar_active").resizable().scaledToFit().frame(width: 16, height: 16)
+                Text(scheduleSummary).font(KIRITypography.bodySmall)
+                Spacer()
+                Image(systemName: "chevron.down").font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(KIRIColor.Text.secondary)
+            .padding(.horizontal, 14)
+            .frame(height: 50)
+            .background(KIRIColor.Background.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(KIRIColor.Border.default, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 16)
+    }
+
+    private func filterTab(_ tab: FilterTab) -> some View {
+        Button { selectedTab = tab } label: {
+            Text(tab.rawValue).font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(selectedTab == tab ? KIRIColor.Text.strong : KIRIColor.Text.secondary)
                 .frame(maxWidth: .infinity).frame(height: 48)
-                .overlay(alignment: .bottom) { if selected { Rectangle().fill(KIRIColor.Text.strong).frame(height: 2) } }
+                .overlay(alignment: .bottom) { if selectedTab == tab { Rectangle().fill(KIRIColor.Text.strong).frame(height: 2) } }
         }.buttonStyle(.plain)
     }
 
