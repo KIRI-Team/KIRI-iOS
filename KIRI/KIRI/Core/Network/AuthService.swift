@@ -634,6 +634,24 @@ final class AuthService {
         return result
     }
 
+    /// 인증된 사용자의 건의를 서버에 등록합니다. 사진 업로드가 끝난 뒤 imageKey를 전달합니다.
+    func createSuggestion(content: String, imageKey: String?) async throws -> SuggestionCreateResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/suggestions",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let body = SuggestionCreateRequest(content: content, imageKey: imageKey)
+        let envelope: APIEnvelope<SuggestionCreateResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: body,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func uploadImage(data: Data, to presignedURL: URL, contentType: String) async throws {
         var request = URLRequest(url: presignedURL)
         request.httpMethod = "PUT"
