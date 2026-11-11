@@ -33,9 +33,15 @@ struct MissionView: View {
         var distance: Int?
         var isFree: Bool?
         var maxPrice: Int?
+        /// 날짜와 시간은 GET /api/v1/missions가 지원하는 query입니다.
+        var date: String?
+        var time: String?
+        /// Figma의 인원 선택값입니다. 현재 미션 목록 계약에는 인원 query가 없어
+        /// 화면 상태만 보존하고 서버 요청에는 보내지 않습니다.
+        var peopleCount: Int?
 
-        static let empty = MissionFilter(regionCode: nil, distance: nil, isFree: nil, maxPrice: nil)
-        var count: Int { [regionCode, distance, isFree, maxPrice].compactMap { $0 }.count }
+        static let empty = MissionFilter(regionCode: nil, distance: nil, isFree: nil, maxPrice: nil, date: nil, time: nil, peopleCount: nil)
+        var count: Int { [regionCode != nil, distance != nil, isFree != nil, maxPrice != nil, date != nil, time != nil, peopleCount != nil].filter { $0 }.count }
     }
     @State private var rows: [MissionRow] = []
     @State private var selectedMission: MissionRow?
@@ -226,7 +232,7 @@ struct MissionView: View {
             let category = selectedCategory.apiValue
             let filter = appliedFilter
             let cursor = reset ? nil : nextCursor
-            let result = try await AuthService.shared.missionFeed(category: category, regionCode: filter.regionCode, distance: filter.distance, isFree: filter.isFree, maxPrice: filter.maxPrice, cursor: cursor)
+            let result = try await AuthService.shared.missionFeed(category: category, regionCode: filter.regionCode, distance: filter.distance, date: filter.date, time: filter.time, isFree: filter.isFree, maxPrice: filter.maxPrice, cursor: cursor)
             guard !Task.isCancelled, generation == loadGeneration else { return }
             if reset {
                 await refreshSavedMissionIDs()
@@ -315,6 +321,10 @@ private struct MissionFilterView: View {
     @State private var distance: Int?
     @State private var isFree: Bool?
     @State private var maxPrice: Int?
+    @State private var selectedDate: Date?
+    @State private var selectedTime: String?
+    @State private var peopleCount: Int?
+    @State private var isScheduleSelectionPresented = false
 
     private let regions = [
         Region(id: "SEOUL", title: "서울"), Region(id: "INCHEON", title: "인천"),
@@ -335,57 +345,113 @@ private struct MissionFilterView: View {
         _distance = State(initialValue: initial.distance)
         _isFree = State(initialValue: initial.isFree)
         _maxPrice = State(initialValue: initial.maxPrice)
+        _selectedDate = State(initialValue: MissionFilterView.date(from: initial.date))
+        _selectedTime = State(initialValue: initial.time)
+        _peopleCount = State(initialValue: initial.peopleCount)
     }
 
     var body: some View {
         ZStack {
             KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44)
-                    }.buttonStyle(.plain)
-                    Spacer()
-                    Text("필터").font(KIRITypography.headingSmall)
-                    Spacer()
-                    Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }.buttonStyle(.plain)
-                }
-                .foregroundStyle(KIRIColor.Text.strong)
-                .padding(.horizontal, 8)
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 26) {
-                        filterSection(title: "지역") {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 10) {
-                                ForEach(regions) { region in chip(region.title, selected: regionCode == region.id) { regionCode = regionCode == region.id ? nil : region.id } }
-                            }
-                        }
-                        filterSection(title: "거리") {
-                            HStack(spacing: 8) { ForEach(distances, id: \.0) { item in chip(item.1, selected: distance == item.0) { distance = distance == item.0 ? nil : item.0 } } }
-                        }
-                        filterSection(title: "가격") {
-                            HStack(spacing: 8) {
-                                ForEach(prices, id: \.0) { item in
-                                    chip(item.1, selected: item.0 == 0 ? isFree == true : maxPrice == item.0) {
-                                        if item.0 == 0 {
-                                            isFree = isFree == true ? nil : true
-                                            maxPrice = nil
-                                        } else {
-                                            maxPrice = maxPrice == item.0 ? nil : item.0
-                                            isFree = nil
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.top, 18)
-                    .padding(.bottom, 100)
-                }
+                filterHeader
+                Spacer(minLength: 48)
+                filterSheet
             }
-            VStack { Spacer(); actionButtons }
         }
         .preferredColorScheme(.dark)
+        .fullScreenCover(isPresented: $isScheduleSelectionPresented) {
+            MissionFilterScheduleSelectionView(
+                initialDate: selectedDate,
+                initialTime: selectedTime,
+                initialPeopleCount: peopleCount,
+                onApply: { date, time, people in
+                    selectedDate = date
+                    selectedTime = time
+                    peopleCount = people
+                    isScheduleSelectionPresented = false
+                }
+            )
+        }
+    }
+
+    private var filterHeader: some View {
+        HStack {
+            Button { dismiss() } label: { Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }
+            Spacer()
+            Text("미션").font(KIRITypography.headingSmall)
+            Spacer()
+            Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }
+        }
+        .foregroundStyle(KIRIColor.Text.strong)
+        .padding(.horizontal, 8)
+        .frame(height: 62)
+    }
+
+    private var filterSheet: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                filterTab("날짜·인원", selected: true)
+                filterTab("지역", selected: false)
+                filterTab("거리", selected: false)
+                filterTab("가격", selected: false)
+            }
+            .padding(.horizontal, 18)
+            .overlay(alignment: .bottom) { Rectangle().fill(KIRIColor.Border.default).frame(height: 1).padding(.horizontal, 18) }
+
+            Button { isScheduleSelectionPresented = true } label: {
+                HStack(spacing: 10) {
+                    Image("figma_calendar_active").resizable().scaledToFit().frame(width: 16, height: 16)
+                    Text(scheduleSummary).font(KIRITypography.bodySmall)
+                    Spacer()
+                    Image(systemName: "chevron.down").font(.system(size: 12, weight: .medium))
+                }
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .padding(.horizontal, 14)
+                .frame(height: 50)
+                .background(KIRIColor.Background.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(KIRIColor.Border.default, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 26) {
+                    filterSection(title: "지역") {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 10) {
+                            ForEach(regions) { region in chip(region.title, selected: regionCode == region.id) { regionCode = regionCode == region.id ? nil : region.id } }
+                        }
+                    }
+                    filterSection(title: "거리") {
+                        ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(distances, id: \.0) { item in chip(item.1, selected: distance == item.0) { distance = distance == item.0 ? nil : item.0 } } } }
+                    }
+                    filterSection(title: "가격") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("1인 기준 요금").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(prices, id: \.0) { item in priceChip(item) } } }
+                        }
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 24)
+                .padding(.bottom, 110)
+            }
+            actionButtons
+        }
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private func filterTab(_ title: String, selected: Bool) -> some View {
+        Button {} label: {
+            Text(title).font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(selected ? KIRIColor.Text.strong : KIRIColor.Text.secondary)
+                .frame(maxWidth: .infinity).frame(height: 48)
+                .overlay(alignment: .bottom) { if selected { Rectangle().fill(KIRIColor.Text.strong).frame(height: 2) } }
+        }.buttonStyle(.plain)
     }
 
     private func filterSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -405,11 +471,30 @@ private struct MissionFilterView: View {
         }.buttonStyle(.plain)
     }
 
+    private func priceChip(_ item: (Int, String)) -> some View {
+        chip(item.1, selected: item.0 == 0 ? isFree == true : maxPrice == item.0) {
+            if item.0 == 0 { isFree = isFree == true ? nil : true; maxPrice = nil }
+            else { maxPrice = maxPrice == item.0 ? nil : item.0; isFree = nil }
+        }
+    }
+
+    private var scheduleSummary: String {
+        guard let selectedDate else { return "날짜·인원·시간" }
+        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "ko_KR"); formatter.dateFormat = "M.dd (E)"
+        let parts = [formatter.string(from: selectedDate), selectedTime, peopleCount.map { "\($0)명" }].compactMap { $0 }
+        return parts.joined(separator: " · ")
+    }
+
+    private static func date(from value: String?) -> Date? {
+        guard let value else { return nil }
+        let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"; return formatter.date(from: value)
+    }
+
     private var actionButtons: some View {
         HStack(spacing: 8) {
-            Button("초기화") { regionCode = nil; distance = nil; isFree = nil; maxPrice = nil }
+            Button("초기화") { regionCode = nil; distance = nil; isFree = nil; maxPrice = nil; selectedDate = nil; selectedTime = nil; peopleCount = nil }
                 .frame(maxWidth: .infinity).frame(height: 54).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-            Button("적용하기") { onApply(MissionView.MissionFilter(regionCode: regionCode, distance: distance, isFree: isFree, maxPrice: maxPrice)) }
+            Button("적용하기") { onApply(MissionView.MissionFilter(regionCode: regionCode, distance: distance, isFree: isFree, maxPrice: maxPrice, date: selectedDate.map { Self.apiDateFormatter.string(from: $0) }, time: selectedTime, peopleCount: peopleCount)) }
                 .frame(maxWidth: .infinity).frame(height: 54).foregroundStyle(.black).background(KIRIColor.Text.accent).clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .font(KIRITypography.bodyMedium)
@@ -417,6 +502,85 @@ private struct MissionFilterView: View {
         .padding(.bottom, 10)
         .background(KIRIColor.Background.base)
     }
+
+    private static let apiDateFormatter: DateFormatter = { let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"; return formatter }()
+}
+
+private struct MissionFilterScheduleSelectionView: View {
+    @Environment(\.dismiss) private var dismiss
+    let initialDate: Date?
+    let initialTime: String?
+    let initialPeopleCount: Int?
+    let onApply: (Date?, String?, Int?) -> Void
+    @State private var date: Date
+    @State private var displayedMonth: Date
+    @State private var time: String?
+    @State private var peopleCount: Int?
+    private let times = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00"]
+    private let people = Array(1...6)
+
+    init(initialDate: Date?, initialTime: String?, initialPeopleCount: Int?, onApply: @escaping (Date?, String?, Int?) -> Void) {
+        self.initialDate = initialDate; self.initialTime = initialTime; self.initialPeopleCount = initialPeopleCount; self.onApply = onApply
+        let resolvedDate = initialDate ?? Date()
+        _date = State(initialValue: resolvedDate); _displayedMonth = State(initialValue: Self.startOfMonth(resolvedDate)); _time = State(initialValue: initialTime); _peopleCount = State(initialValue: initialPeopleCount)
+    }
+
+    var body: some View {
+        ZStack {
+            KIRIColor.Background.base.ignoresSafeArea()
+            VStack(spacing: 0) {
+                HStack { Button { dismiss() } label: { Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }; Spacer(); Text("날짜 선택").font(KIRITypography.headingSmall); Spacer(); Color.clear.frame(width: 44, height: 44) }
+                    .foregroundStyle(KIRIColor.Text.strong).padding(.horizontal, 8).frame(height: 62)
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 28) {
+                        calendarView
+                        pickerSection("시간 선택", values: times, selection: $time)
+                        pickerSection("인원 선택", values: people.map(String.init), selection: Binding(get: { peopleCount.map(String.init) }, set: { peopleCount = $0.flatMap(Int.init) }))
+                    }.padding(.horizontal, 18).padding(.top, 20).padding(.bottom, 110)
+                }
+                HStack(spacing: 8) {
+                    Button("초기화") { date = Date(); time = nil; peopleCount = nil }.frame(maxWidth: .infinity).frame(height: 54).foregroundStyle(KIRIColor.Text.strong).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
+                    Button("적용하기") { onApply(date, time, peopleCount) }.frame(maxWidth: .infinity).frame(height: 54).foregroundStyle(.black).background(KIRIColor.Text.accent).clipShape(RoundedRectangle(cornerRadius: 8))
+                }.font(KIRITypography.bodyMedium).padding(.horizontal, 18).padding(.bottom, 10).background(KIRIColor.Background.base)
+            }
+        }.preferredColorScheme(.dark)
+    }
+
+    private func pickerSection(_ title: String, values: [String], selection: Binding<String?>) -> some View {
+        VStack(alignment: .leading, spacing: 14) { Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong); ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 8) { ForEach(values, id: \.self) { value in Button(value) { selection.wrappedValue = selection.wrappedValue == value ? nil : value }.font(KIRITypography.bodySmall).foregroundStyle(selection.wrappedValue == value ? KIRIColor.Text.accent : KIRIColor.Text.secondary).padding(.horizontal, 12).frame(height: 38).background(selection.wrappedValue == value ? KIRIColor.Background.greenSoft : KIRIColor.Background.tertiary).clipShape(Capsule()).buttonStyle(.plain) } } } }
+    }
+
+    private var calendarView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text(monthTitle).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong)
+                Spacer()
+                Button { displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth } label: { Image("figma_navigation_back").resizable().scaledToFit().frame(width: 20, height: 20) }.buttonStyle(.plain)
+                Button { displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth } label: { Image("figma_navigation_back").resizable().scaledToFit().rotationEffect(.degrees(180)).frame(width: 20, height: 20) }.buttonStyle(.plain)
+            }.foregroundStyle(KIRIColor.Text.strong)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 18) {
+                ForEach(weekdaySymbols, id: \.self) { Text($0).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).frame(maxWidth: .infinity) }
+                ForEach(Array(calendarDays.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        Button { date = day } label: {
+                            Text(String(calendar.component(.day, from: day))).font(KIRITypography.bodySmall).foregroundStyle(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Text.accent : KIRIColor.Text.strong).frame(width: 32, height: 32).background(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Background.greenSoft : .clear).clipShape(RoundedRectangle(cornerRadius: 8))
+                        }.buttonStyle(.plain)
+                    } else { Color.clear.frame(height: 32) }
+                }
+            }
+        }
+    }
+
+    private var calendar: Calendar { var value = Calendar(identifier: .gregorian); value.locale = Locale(identifier: "ko_KR"); value.firstWeekday = 2; return value }
+    private var weekdaySymbols: [String] { ["월", "화", "수", "목", "금", "토", "일"] }
+    private var monthTitle: String { let formatter = DateFormatter(); formatter.locale = Locale(identifier: "ko_KR"); formatter.dateFormat = "yyyy년 M월"; return formatter.string(from: displayedMonth) }
+    private var calendarDays: [Date?] {
+        guard let range = calendar.range(of: .day, in: .month, for: displayedMonth), let first = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)) else { return [] }
+        let weekday = calendar.component(.weekday, from: first)
+        let leading = (weekday - calendar.firstWeekday + 7) % 7
+        return Array(repeating: nil, count: leading) + range.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: first) }
+    }
+    private static func startOfMonth(_ date: Date) -> Date { Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: date)) ?? date }
 }
 
 #Preview { MissionView() }
