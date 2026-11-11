@@ -51,7 +51,7 @@ private struct MyPageRows: View {
                     Spacer()
                     if !row.1.isEmpty { Text(row.1).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary) }
                     Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(KIRIColor.Icon.secondary)
-                }.padding(.horizontal, 16).frame(height: 52)
+                }.padding(.horizontal, 16).frame(height: 56)
             }
         }.background(KIRIColor.Background.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -67,7 +67,7 @@ struct AccountInfoView: View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "계정 정보") {
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: 36) {
                         VStack(spacing: 0) {
                             NavigationLink { TermsView() } label: { accountRow("이용 약관") }
                             NavigationLink { OpenLicenseView() } label: { accountRow("오픈 라이선스") }
@@ -83,17 +83,44 @@ struct AccountInfoView: View {
                         }
                         .background(KIRIColor.Background.secondary)
                         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }.padding(18)
+                    }.padding(.horizontal, 18).padding(.top, 31).padding(.bottom, 24)
                 }
+            }
+            if isLogoutAlertPresented {
+                logoutDialog
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .alert("로그아웃할까요?", isPresented: $isLogoutAlertPresented) {
-            Button("취소", role: .cancel) {}
-            Button("로그아웃", role: .destructive, action: onLogout)
-        } message: {
-            Text("현재 계정에서 로그아웃합니다.")
+    }
+
+    private var logoutDialog: some View {
+        ZStack {
+            Color.black.opacity(0.58).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                Text("정말로 로그아웃 하시겠어요?")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Text("다시 로그인하면 우리 가족의 기록을 이어갈 수 있어요.")
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .padding(.top, 2)
+                Spacer(minLength: 0)
+                HStack(spacing: 12) {
+                    Button("취소") { isLogoutAlertPresented = false }
+                        .buttonStyle(MyPageDialogButtonStyle(isPrimary: false))
+                    Button("로그아웃") {
+                        isLogoutAlertPresented = false
+                        onLogout()
+                    }
+                    .buttonStyle(MyPageDialogButtonStyle(isPrimary: true))
+                }
+            }
+            .padding(22)
+            .frame(width: 340, height: 280, alignment: .topLeading)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+        .transition(.opacity)
     }
 
     private func accountRow(
@@ -119,7 +146,7 @@ struct AccountInfoView: View {
             }
         }
         .padding(.horizontal, 16)
-        .frame(height: 52)
+        .frame(height: 56)
         .contentShape(Rectangle())
     }
 }
@@ -164,21 +191,47 @@ struct WithdrawalView: View {
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "회원탈퇴") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("잠깐! 떠나기 전에 확인해주세요").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    Text("탈퇴하면 계정은 삭제되지만,\n가족이 함께한 기록은 남을 수 있어요.").font(KIRITypography.body).foregroundStyle(KIRIColor.Text.tertiary)
-                    Text("삭제되는 내 정보").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.primary).padding(.top, 24)
-                    ToggleRow(title: "탈퇴 내용을 확인했습니다", value: $confirmed)
-                        .background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                    Button("탈퇴 요청") { isConfirmPresented = true }
-                        .disabled(!confirmed || isSubmitting).frame(maxWidth: .infinity).frame(height: 54)
-                        .background(confirmed ? KIRIColor.Status.error : KIRIColor.Background.tertiary)
-                        .foregroundStyle(KIRIColor.Text.strong).clipShape(RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("잠깐! 떠나기 전에 확인해주세요")
+                        .font(KIRITypography.title)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .padding(.top, 24)
+                    Text("탈퇴하면 계정은 삭제되지만,\n가족이 함께한 기록은 남을 수 있어요.")
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                        .padding(.top, 4)
+                    Text("삭제되는 내 정보")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .padding(.top, 34)
+                    Text("• 계정 인증정보와 개인 프로필\n• 내 취향과 개인 설정\n• 가족공간의 내 참여 관계")
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .lineSpacing(0)
+                        .padding(.top, 12)
+                    Text("가족과 함께한 기록")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .padding(.top, 36)
+                    Text("• 가족의 과거 일정과 완료 활동은 유지돼요.\n• 기록의 작성자는 ‘탈퇴한 멤버’로 표시돼요.\n• 가족 활동 맥락에 필요한 버킷 항목은 남아요.")
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .lineSpacing(0)
+                        .padding(.top, 12)
                     if let errorMessage {
-                        Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                        Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error).padding(.top, 8)
                     }
-                    Spacer()
-                }.padding(18)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 18)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    Button("탈퇴할게요") { isConfirmPresented = true }
+                        .disabled(isSubmitting)
+                        .buttonStyle(MyPageDialogButtonStyle(isPrimary: false))
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 40)
+                }
             }
         }.toolbar(.hidden, for: .navigationBar)
         .alert("정말 탈퇴할까요?", isPresented: $isConfirmPresented) {
@@ -193,6 +246,20 @@ struct WithdrawalView: View {
         } message: {
             Text("회원탈퇴 후에는 계정을 복구할 수 없습니다.")
         }
+    }
+}
+
+private struct MyPageDialogButtonStyle: ButtonStyle {
+    let isPrimary: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(KIRITypography.bodyMedium)
+            .foregroundStyle(KIRIColor.Text.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(isPrimary ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
 
