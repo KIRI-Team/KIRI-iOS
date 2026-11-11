@@ -558,7 +558,15 @@ private struct ActivityDetailCard: View {
     let detail: MissionDetailResult?
     let fallbackPlace: String
 
-    private var place: String { detail?.place.name ?? fallbackPlace }
+    private var place: String {
+        guard let detailPlace = detail?.place else { return fallbackPlace }
+        let name = detailPlace.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = detailPlace.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !address.isEmpty, address != name else { return name.isEmpty ? fallbackPlace : name }
+        // 장소명과 전체 주소를 분리해 표시합니다. 주소는 축약하지 않고
+        // Text의 자연스러운 줄바꿈으로 카드 안에서 끝까지 보이게 합니다.
+        return name.isEmpty ? address : "\(name)\n\(address)"
+    }
     private var openingTime: String? {
         guard let value = detail?.openingTime, !value.isEmpty else { return nil }
         return value
