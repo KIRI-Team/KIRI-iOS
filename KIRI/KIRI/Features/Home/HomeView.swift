@@ -174,6 +174,14 @@ struct HomeView: View {
         }()
         tutorialStore.updateScope(mode: mode, familyId: familyId)
 
+        // 둘러보기 홈은 가족 튜토리얼의 대상이 아닙니다. updateScope에서
+        // 비활성화한 상태를 여기서 다시 활성화하지 않도록 모드를 먼저 종료합니다.
+        guard userMode == .family else {
+            tutorialStore.isActive = false
+            tutorialStore.step = 0
+            return
+        }
+
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-force-kiri-home-tutorial") {
             if !tutorialStore.isActive {
