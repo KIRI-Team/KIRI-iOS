@@ -541,12 +541,16 @@ struct AddressSettingsView: View {
             errorMessage = nil
         }
 
-        let queries = ["\(postalCode) \(value)", value]
+        // 좌표 조회에는 카카오 우편번호에서 선택한 기본 주소만 사용한다.
+        // 상세 주소는 서버 저장 요청에만 포함하며, 주소를 연달아 선택한 경우
+        // 가장 마지막 요청의 UUID만 결과를 반영한다.
+        let queries = [value]
         var lastFailure: CoordinateResolutionFailure = .noResult
 
         for query in queries {
             do {
-                let coordinate = try await geocode(query: query)
+                let resolved = try await geocode(query: query, expectedAddress: value, expectedPostalCode: postalCode)
+                let coordinate = resolved.coordinate
                 if (-90...90).contains(coordinate.latitude),
                    (-180...180).contains(coordinate.longitude) {
                     await MainActor.run {
@@ -575,6 +579,21 @@ struct AddressSettingsView: View {
                 default:
                     lastFailure = .unknown
                 }
+            } catch let error as NSError {
+                // iOS 26 MKGeocodingRequest는 주소를 찾지 못한 경우
+                // MKErrorDomain code 4 (MKErrorPlacemarkNotFound)를 반환한다.
+                // 이는 네트워크 장애와 달리 "주소에 해당하는 좌표 없음"으로
+                // 분류하고, 아래의 Core Location 대체 조회를 시도한다.
+                #if DEBUG
+                print("[KIRI][Address] geocode failure domain=\(error.domain) code=\(error.code)")
+                #endif
+                if error.domain == MKErrorDomain, error.code == 4 {
+                    lastFailure = .noResult
+                } else if error.domain == NSURLErrorDomain {
+                    lastFailure = .network
+                } else {
+                    lastFailure = .unknown
+                }
             } catch {
                 #if DEBUG
                 print("[KIRI][Address] geocode failure domain=\((error as NSError).domain) code=\((error as NSError).code)")
@@ -593,24 +612,68 @@ struct AddressSettingsView: View {
         }
     }
 
-    private func geocode(query: String) async throws -> CLLocationCoordinate2D {
+    private struct ResolvedCoordinate {
+        let coordinate: CLLocationCoordinate2D
+    }
+
+    private func geocode(query: String, expectedAddress: String, expectedPostalCode: String) async throws -> ResolvedCoordinate {
         if #available(iOS 26.0, *) {
-            guard let request = MKGeocodingRequest(addressString: query) else {
-                throw CoordinateResolutionFailure.noResult
+            do {
+                guard let request = MKGeocodingRequest(addressString: query) else {
+                    throw CoordinateResolutionFailure.noResult
+                }
+                let items = try await request.mapItems
+                guard let item = items.first else {
+                    throw CoordinateResolutionFailure.noResult
+                }
+                guard let coordinate = item.placemark.location?.coordinate else {
+                    throw CoordinateResolutionFailure.noCoordinate
+                }
+                guard coordinateMatches(item.placemark, expectedAddress: expectedAddress, expectedPostalCode: expectedPostalCode) else {
+                    throw CoordinateResolutionFailure.mismatchedAddress
+                }
+                return ResolvedCoordinate(coordinate: coordinate)
+            } catch let error as CoordinateResolutionFailure {
+                if case .noResult = error {
+                    // MKGeocodingRequest가 실패해도 iOS의 기존 CLGeocoder를
+                    // 대체 경로로 사용한다. 두 조회 모두 실패한 경우에만
+                    // 저장을 막고 재시도를 안내한다.
+                    return try await geocodeWithCoreLocation(query: query, expectedAddress: expectedAddress, expectedPostalCode: expectedPostalCode)
+                }
+                throw error
+            } catch let error as NSError {
+                if error.domain == MKErrorDomain, error.code == 4 {
+                    return try await geocodeWithCoreLocation(query: query, expectedAddress: expectedAddress, expectedPostalCode: expectedPostalCode)
+                }
+                throw error
             }
-            let items = try await request.mapItems
-            guard let coordinate = items.first?.placemark.coordinate else {
-                throw CoordinateResolutionFailure.noCoordinate
-            }
-            return coordinate
         }
 
+        return try await geocodeWithCoreLocation(query: query, expectedAddress: expectedAddress, expectedPostalCode: expectedPostalCode)
+    }
+
+    private func geocodeWithCoreLocation(query: String, expectedAddress: String, expectedPostalCode: String) async throws -> ResolvedCoordinate {
         let geocoder = CLGeocoder()
         let placemarks = try await geocoder.geocodeAddressString(query)
-        guard let coordinate = placemarks.first?.location?.coordinate else {
+        guard let placemark = placemarks.first,
+              let coordinate = placemark.location?.coordinate else {
             throw CoordinateResolutionFailure.noCoordinate
         }
-        return coordinate
+        guard coordinateMatches(placemark, expectedAddress: expectedAddress, expectedPostalCode: expectedPostalCode) else {
+            throw CoordinateResolutionFailure.mismatchedAddress
+        }
+        return ResolvedCoordinate(coordinate: coordinate)
+    }
+
+    private func coordinateMatches(_ placemark: CLPlacemark, expectedAddress: String, expectedPostalCode: String) -> Bool {
+        if let returnedPostalCode = placemark.postalCode, !returnedPostalCode.isEmpty {
+            return returnedPostalCode == expectedPostalCode
+        }
+        let candidate = [placemark.name, placemark.thoroughfare, placemark.locality, placemark.subLocality]
+            .compactMap { $0?.replacingOccurrences(of: " ", with: "") }
+            .joined()
+        let normalizedAddress = expectedAddress.replacingOccurrences(of: " ", with: "")
+        return !normalizedAddress.isEmpty && candidate.contains(normalizedAddress)
     }
 
     private func saveAddress() async {
@@ -652,6 +715,7 @@ private enum CoordinateResolutionFailure: Error {
     case network
     case noResult
     case noCoordinate
+    case mismatchedAddress
     case cancelled
     case unknown
 
@@ -660,6 +724,7 @@ private enum CoordinateResolutionFailure: Error {
         case .network: return "주소 위치 확인에 실패했어요. 네트워크를 확인하고 다시 시도해 주세요."
         case .noResult: return "선택한 주소의 위치를 찾지 못했어요. 다른 주소를 선택해 주세요."
         case .noCoordinate: return "주소 검색 결과에 좌표가 없어 다시 확인이 필요해요."
+        case .mismatchedAddress: return "검색 결과가 선택한 주소와 일치하지 않아요. 다시 선택해 주세요."
         case .cancelled: return "주소 위치 확인이 취소됐어요. 다시 시도해 주세요."
         case .unknown: return "주소 위치를 확인하지 못했어요. 다시 시도해 주세요."
         }
