@@ -11,6 +11,8 @@
 import SwiftUI
 import UIKit
 import UserNotifications
+import CoreLocation
+import WebKit
 
 private struct MyPageAppBar<Content: View>: View {
     let title: String
@@ -343,39 +345,309 @@ private struct ToggleRow: View {
 }
 
 struct AddressSettingsView: View {
+    let familyId: Int?
+    @Binding var savedAddress: FamilyAddressUpdateResult?
+    @Environment(\.dismiss) private var dismiss
     @State private var address = ""
     @State private var postalCode = ""
+    @State private var detailAddress = ""
+    @State private var regionCode = ""
+    @State private var latitude: Double?
+    @State private var longitude: Double?
     @State private var isSearchPresented = false
-    var body: some View {
-        ZStack { KIRIColor.Background.base.ignoresSafeArea()
-            MyPageAppBar(title: "우리집 주소 설정") {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("우리 집 주소 작성하기").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong)
-                    HStack(spacing: 6) {
-                        KIRITextField(placeholder: "주소를 입력해주세요", text: $address)
-                        Button("우편번호 찾기") { isSearchPresented = true }
-                            .font(KIRITypography.button).foregroundStyle(KIRIColor.Text.primary)
-                            .frame(width: 113, height: 54).background(KIRIColor.Background.elevated)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    }
-                    KIRITextField(placeholder: "상세 주소를 입력해주세요", text: $postalCode)
-                    Text("주소 검색 API가 연결되기 전까지 입력값은 저장하지 않습니다.")
-                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                    Spacer()
-                }.padding(18)
-            }
-        }.toolbar(.hidden, for: .navigationBar)
-            .sheet(isPresented: $isSearchPresented) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("주소 검색").font(KIRITypography.headingMedium)
-                        Text("주소 검색 API 미연동 상태입니다.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
-                        Spacer()
-                    }.padding(18).background(KIRIColor.Background.base).foregroundStyle(KIRIColor.Text.strong)
-                }
-                .presentationDetents([.medium])
-            }
+    @State private var isEditing = false
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @State private var toastMessage: String?
+    @State private var toastIsError = false
+
+    init(familyId: Int?, savedAddress: Binding<FamilyAddressUpdateResult?>) {
+        self.familyId = familyId
+        self._savedAddress = savedAddress
     }
+
+    var body: some View {
+        ZStack {
+            KIRIColor.Background.base.ignoresSafeArea()
+            MyPageAppBar(title: "우리집 주소 설정") {
+                if familyId == nil {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("가족공간에 참여하면 우리집 주소를 설정할 수 있어요")
+                            .font(KIRITypography.headingMedium)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                        Text("가족공간을 만들거나 초대 링크로 참여한 뒤 다시 시도해주세요.")
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 28)
+                } else if let savedAddress, !isEditing {
+                    savedContent(savedAddress)
+                } else {
+                    formContent
+                }
+            }
+            if let toastMessage {
+                KIRIToast(message: toastMessage, isError: toastIsError)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                    .zIndex(4)
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $isSearchPresented) {
+            AddressPostcodePicker(
+                onSelected: { selection in
+                    isSearchPresented = false
+                    address = selection.address
+                    postalCode = selection.zonecode
+                    regionCode = selection.bcode
+                    latitude = nil
+                    longitude = nil
+                    Task { await resolveCoordinates(for: selection.address) }
+                },
+                onFailure: { message in
+                    isSearchPresented = false
+                    showToast(message, isError: true)
+                }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .onAppear {
+            if let savedAddress, !isEditing, address.isEmpty {
+                address = savedAddress.address
+                postalCode = savedAddress.postalCode
+                detailAddress = savedAddress.detailAddress ?? ""
+                regionCode = savedAddress.regionCode
+                latitude = savedAddress.latitude
+                longitude = savedAddress.longitude
+            }
+        }
+    }
+
+    private func savedContent(_ value: FamilyAddressUpdateResult) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("우리 집 주소가 등록되었어요")
+                .font(KIRITypography.headingMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("등록된 주소").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                Text(value.displayAddress).font(KIRITypography.body).foregroundStyle(KIRIColor.Text.primary).fixedSize(horizontal: false, vertical: true)
+                Text("우편번호 \(value.postalCode)").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Button("수정") {
+                isEditing = true
+                address = value.address
+                postalCode = value.postalCode
+                detailAddress = value.detailAddress ?? ""
+                regionCode = value.regionCode
+                latitude = value.latitude
+                longitude = value.longitude
+            }
+            .font(KIRITypography.button)
+            .foregroundStyle(KIRIColor.Text.onGreen)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(KIRIColor.Primary.default)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 28)
+    }
+
+    private var formContent: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                Text(isEditing ? "우리 집 주소를 수정해주세요" : "우리 집 주소 작성하기")
+                    .font(KIRITypography.headingMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Text("우편번호 찾기에서 기본 주소를 선택한 뒤 상세 주소를 입력해주세요.")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                HStack(spacing: 8) {
+                    KIRITextField(placeholder: "우편번호", text: $postalCode, state: .disabled)
+                    Button("우편번호 찾기") { isSearchPresented = true }
+                        .font(KIRITypography.button)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .frame(width: 118, height: 54)
+                        .background(KIRIColor.Background.elevated)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                KIRITextField(placeholder: "기본 주소", text: $address, state: .disabled)
+                KIRITextField(placeholder: "상세 주소 (선택)", text: $detailAddress)
+                if let errorMessage {
+                    Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 28)
+            .padding(.bottom, 110)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Button(isSaving ? "저장 중..." : "저장") { Task { await saveAddress() } }
+                .font(KIRITypography.button)
+                .foregroundStyle(isSaveEnabled ? KIRIColor.Text.onGreen : KIRIColor.Text.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(isSaveEnabled ? KIRIColor.Primary.default : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .disabled(!isSaveEnabled)
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
+                .padding(.bottom, 10)
+                .background(KIRIColor.Background.base)
+        }
+    }
+
+    private var isSaveEnabled: Bool {
+        guard familyId != nil, !isSaving,
+              postalCode.range(of: "^[0-9]{5}$", options: .regularExpression) != nil,
+              !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              regionCode.range(of: "^[0-9]{10}$", options: .regularExpression) != nil,
+              let latitude, let longitude else { return false }
+        return (-90...90).contains(latitude) && (-180...180).contains(longitude)
+    }
+
+    private func resolveCoordinates(for value: String) async {
+        do {
+            let geocoder = CLGeocoder()
+            let placemarks = try await geocoder.geocodeAddressString(value)
+            guard let coordinate = placemarks.first?.location?.coordinate else { throw AddressSettingsError.geocodingFailed }
+            await MainActor.run {
+                latitude = coordinate.latitude
+                longitude = coordinate.longitude
+                errorMessage = nil
+            }
+        } catch {
+            await MainActor.run {
+                latitude = nil
+                longitude = nil
+                errorMessage = "주소 위치를 확인하지 못했어요. 다시 주소를 선택해주세요."
+            }
+        }
+    }
+
+    private func saveAddress() async {
+        guard let familyId, isSaveEnabled, let latitude, let longitude else { return }
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+        let request = FamilyAddressUpdateRequest(
+            postalCode: postalCode,
+            address: address,
+            detailAddress: detailAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : detailAddress,
+            regionCode: regionCode,
+            latitude: latitude,
+            longitude: longitude
+        )
+        do {
+            let result = try await AuthService.shared.updateFamilyAddress(familyId: familyId, request: request)
+            savedAddress = result
+            isEditing = false
+            showToast("주소를 저장했어요", isError: false)
+        } catch {
+            errorMessage = "주소를 저장하지 못했어요. 다시 시도해 주세요."
+            showToast(errorMessage ?? "주소를 저장하지 못했어요. 다시 시도해 주세요.", isError: true)
+        }
+    }
+
+    private func showToast(_ message: String, isError: Bool) {
+        toastIsError = isError
+        withAnimation(.easeOut(duration: 0.2)) { toastMessage = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run { withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil } }
+        }
+    }
+}
+
+private enum AddressSettingsError: Error { case geocodingFailed }
+
+private struct PostcodeSelection: Equatable {
+    let zonecode: String
+    let address: String
+    let bcode: String
+}
+
+private struct AddressPostcodePicker: View {
+    @Environment(\.dismiss) private var dismiss
+    let onSelected: (PostcodeSelection) -> Void
+    let onFailure: (String) -> Void
+
+    var body: some View {
+        NavigationStack {
+            AddressSearchWebView(onSelected: onSelected, onFailure: onFailure)
+                .navigationTitle("주소 검색")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .topBarLeading) { Button("닫기") { dismiss() } } }
+        }
+    }
+}
+
+private struct AddressSearchWebView: UIViewRepresentable {
+    let onSelected: (PostcodeSelection) -> Void
+    let onFailure: (String) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onSelected: onSelected, onFailure: onFailure) }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        let view = WKWebView(frame: .zero, configuration: configuration)
+        view.navigationDelegate = context.coordinator
+        view.backgroundColor = UIColor(KIRIColor.Background.base)
+        view.loadHTMLString(Self.html, baseURL: URL(string: "https://postcode.map.kakao.com/")!)
+        return view
+    }
+
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        let onSelected: (PostcodeSelection) -> Void
+        let onFailure: (String) -> Void
+        init(onSelected: @escaping (PostcodeSelection) -> Void, onFailure: @escaping (String) -> Void) { self.onSelected = onSelected; self.onFailure = onFailure }
+
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = navigationAction.request.url else { decisionHandler(.cancel); return }
+            if url.scheme == "kiri-address" {
+                if url.host == "error" { onFailure("주소 검색을 불러오지 못했어요. 다시 시도해주세요.") }
+                if url.host == "selected", let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                   let zonecode = components.queryItems?.first(where: { $0.name == "zip" })?.value,
+                   let address = components.queryItems?.first(where: { $0.name == "address" })?.value,
+                   let bcode = components.queryItems?.first(where: { $0.name == "region" })?.value,
+                   zonecode.range(of: "^[0-9]{5}$", options: .regularExpression) != nil,
+                   bcode.range(of: "^[0-9]{10}$", options: .regularExpression) != nil,
+                   !address.isEmpty {
+                    onSelected(PostcodeSelection(zonecode: zonecode, address: address, bcode: bcode))
+                } else if url.host == "selected" {
+                    onFailure("선택한 주소를 확인하지 못했어요. 다른 주소를 선택해주세요.")
+                }
+                decisionHandler(.cancel); return
+            }
+            if navigationAction.targetFrame?.isMainFrame == true,
+               let host = url.host,
+               !["postcode.map.kakao.com", "postcode.map.daum.net", "t1.kakaocdn.net"].contains(host) {
+                decisionHandler(.cancel); return
+            }
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { onFailure("주소 검색을 불러오지 못했어요. 다시 시도해주세요.") }
+    }
+
+    private static let html = """
+    <!doctype html><html lang=\"ko\"><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>
+    <body style=\"margin:0;background:#1A1A1A\"><div id=\"picker\" style=\"width:100%;height:100vh\"></div>
+    <script>function fail(){location.href='kiri-address://error';}function openPicker(){try{var P=(window.kakao&&kakao.Postcode)||(window.daum&&daum.Postcode);if(!P){fail();return;}new P({oncomplete:function(d){var a=d.userSelectedType==='R'?(d.roadAddress||d.autoRoadAddress):(d.jibunAddress||d.autoJibunAddress);a=a||d.roadAddress||d.jibunAddress||'';location.href='kiri-address://selected?zip='+encodeURIComponent(d.zonecode||'')+'&address='+encodeURIComponent(a)+'&region='+encodeURIComponent(d.bcode||'');},width:'100%',height:'100%'}).embed(document.getElementById('picker'),{autoClose:false});}catch(e){fail();}}</script>
+    <script src=\"https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js\" onload=\"openPicker()\" onerror=\"fail()\"></script></body></html>
+    """
 }
 
 struct InviteLinkView: View {

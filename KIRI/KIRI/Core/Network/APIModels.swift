@@ -77,6 +77,31 @@ struct FamilyNameUpdateResult: Decodable, Sendable {
     let name: String
 }
 
+struct FamilyAddressUpdateRequest: Encodable, Sendable {
+    let postalCode: String
+    let address: String
+    let detailAddress: String?
+    let regionCode: String
+    let latitude: Double
+    let longitude: Double
+}
+
+struct FamilyAddressUpdateResult: Decodable, Sendable, Equatable {
+    let familyId: Int
+    let postalCode: String
+    let address: String
+    let detailAddress: String?
+    let regionCode: String
+    let latitude: Double
+    let longitude: Double
+
+    var displayAddress: String {
+        let base = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detail = detailAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return detail.isEmpty ? base : "\(base) \(detail)"
+    }
+}
+
 struct CreateFamilyResult: Decodable, Sendable {
     let familyId: Int
     let name: String

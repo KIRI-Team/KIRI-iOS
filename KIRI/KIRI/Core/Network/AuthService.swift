@@ -256,6 +256,22 @@ final class AuthService {
         return result
     }
 
+    func updateFamilyAddress(familyId: Int, request: FamilyAddressUpdateRequest) async throws -> FamilyAddressUpdateResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families/\(familyId)/address",
+            method: .PUT,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyAddressUpdateResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: request,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func myTaste() async throws -> TasteResult {
         let endpoint = APIEndpoint(path: "/api/v1/members/taste", requiresAuthentication: true)
         let tokens = try authenticatedTokens()
