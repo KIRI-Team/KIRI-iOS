@@ -133,7 +133,13 @@ struct MissionView: View {
             }
         }
         .fullScreenCover(item: $selectedMission) { row in
-            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: MissionDisplayLabel.category(row.mission.category) ?? "", rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in Task { await save(row.id, value: value) } }), onBack: { selectedMission = nil })
+            MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: MissionDisplayLabel.category(row.mission.category) ?? "", rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in
+                // 상세 화면이 서버 저장·해제를 완료한 뒤 목록의 표시 상태만 갱신합니다.
+                // 상세 화면에서 다시 API를 호출하면 저장/해제가 중복 실행됩니다.
+                if let index = rows.firstIndex(where: { $0.id == row.id }) {
+                    rows[index].isBookmarked = value
+                }
+            }), onBack: { selectedMission = nil })
         }
     }
 

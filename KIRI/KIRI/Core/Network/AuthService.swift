@@ -479,6 +479,26 @@ final class AuthService {
         }
     }
 
+    /// 미션 ID만 알고 있는 상세 화면에서 버킷 항목을 해제합니다.
+    /// 삭제 API는 bucketItemId를 요구하므로 서버 목록을 조회해 실제 항목 ID를
+    /// 찾은 뒤 삭제합니다. 목록에 없는 항목을 로컬에서 삭제된 것처럼 처리하지 않습니다.
+    func removeMissionFromBucket(missionId: Int) async throws {
+        var cursor: Int?
+        while true {
+            let page = try await bucketItems(cursor: cursor)
+            if let item = page.bucketItems.first(where: { $0.mission.missionId == missionId }) {
+                guard item.deletable else {
+                    throw APIError.serverError(code: "BUCKET403_2", message: "이 버킷은 삭제할 수 없어요.")
+                }
+                try await deleteBucketItem(bucketItemId: item.bucketItemId)
+                return
+            }
+            guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
+            cursor = nextCursor
+        }
+        throw APIError.serverError(code: "BUCKET404_1", message: "저장된 버킷을 찾을 수 없어요.")
+    }
+
     func createSchedule(bucketItemId: Int, request: CreateScheduleRequest) async throws -> ScheduleResult {
         let endpoint = APIEndpoint(path: "/api/v1/bucket-items/\(bucketItemId)/schedules", method: .POST, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
