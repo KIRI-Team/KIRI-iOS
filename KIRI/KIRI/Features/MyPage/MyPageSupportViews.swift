@@ -12,6 +12,7 @@ import SwiftUI
 import UIKit
 import UserNotifications
 import CoreLocation
+import MapKit
 import WebKit
 
 private struct MyPageAppBar<Content: View>: View {
@@ -357,6 +358,8 @@ struct AddressSettingsView: View {
     @State private var isSearchPresented = false
     @State private var isEditing = false
     @State private var isSaving = false
+    @State private var isResolvingCoordinates = false
+    @State private var coordinateResolutionID = UUID()
     @State private var errorMessage: String?
     @State private var toastMessage: String?
     @State private var toastIsError = false
@@ -406,7 +409,10 @@ struct AddressSettingsView: View {
                     regionCode = selection.bcode
                     latitude = nil
                     longitude = nil
-                    Task { await resolveCoordinates(for: selection.address) }
+                    detailAddress = ""
+                    let resolutionID = UUID()
+                    coordinateResolutionID = resolutionID
+                    Task { await resolveCoordinates(for: selection.address, postalCode: selection.zonecode, id: resolutionID) }
                 },
                 onFailure: { message in
                     isSearchPresented = false
@@ -484,7 +490,18 @@ struct AddressSettingsView: View {
                 KIRITextField(placeholder: "기본 주소", text: $address, state: .disabled)
                 KIRITextField(placeholder: "상세 주소 (선택)", text: $detailAddress)
                 if let errorMessage {
-                    Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error)
+                        if !isResolvingCoordinates, !address.isEmpty {
+                            Button("좌표 다시 확인") {
+                                let resolutionID = UUID()
+                                coordinateResolutionID = resolutionID
+                                Task { await resolveCoordinates(for: address, postalCode: postalCode, id: resolutionID) }
+                            }
+                            .font(KIRITypography.captionMedium)
+                            .foregroundStyle(KIRIColor.Text.accent)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 18)
@@ -508,7 +525,7 @@ struct AddressSettingsView: View {
     }
 
     private var isSaveEnabled: Bool {
-        guard familyId != nil, !isSaving,
+        guard familyId != nil, !isSaving, !isResolvingCoordinates,
               postalCode.range(of: "^[0-9]{5}$", options: .regularExpression) != nil,
               !address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               regionCode.range(of: "^[0-9]{10}$", options: .regularExpression) != nil,
@@ -516,23 +533,83 @@ struct AddressSettingsView: View {
         return (-90...90).contains(latitude) && (-180...180).contains(longitude)
     }
 
-    private func resolveCoordinates(for value: String) async {
-        do {
-            let geocoder = CLGeocoder()
-            let placemarks = try await geocoder.geocodeAddressString(value)
-            guard let coordinate = placemarks.first?.location?.coordinate else { throw AddressSettingsError.geocodingFailed }
-            await MainActor.run {
-                latitude = coordinate.latitude
-                longitude = coordinate.longitude
-                errorMessage = nil
-            }
-        } catch {
-            await MainActor.run {
-                latitude = nil
-                longitude = nil
-                errorMessage = "주소 위치를 확인하지 못했어요. 다시 주소를 선택해주세요."
+    private func resolveCoordinates(for value: String, postalCode: String, id: UUID) async {
+        await MainActor.run {
+            isResolvingCoordinates = true
+            latitude = nil
+            longitude = nil
+            errorMessage = nil
+        }
+
+        let queries = ["\(postalCode) \(value)", value]
+        var lastFailure: CoordinateResolutionFailure = .noResult
+
+        for query in queries {
+            do {
+                let coordinate = try await geocode(query: query)
+                if (-90...90).contains(coordinate.latitude),
+                   (-180...180).contains(coordinate.longitude) {
+                    await MainActor.run {
+                        guard coordinateResolutionID == id else { return }
+                        latitude = coordinate.latitude
+                        longitude = coordinate.longitude
+                        isResolvingCoordinates = false
+                        errorMessage = nil
+                    }
+                    return
+                }
+                lastFailure = .noCoordinate
+            } catch let failure as CoordinateResolutionFailure {
+                lastFailure = failure
+            } catch let error as CLError {
+                #if DEBUG
+                print("[KIRI][Address] geocode failure domain=\((error as NSError).domain) code=\(error.code.rawValue)")
+                #endif
+                switch error.code {
+                case .network:
+                    lastFailure = .network
+                case .geocodeCanceled:
+                    lastFailure = .cancelled
+                case .geocodeFoundNoResult:
+                    lastFailure = .noResult
+                default:
+                    lastFailure = .unknown
+                }
+            } catch {
+                #if DEBUG
+                print("[KIRI][Address] geocode failure domain=\((error as NSError).domain) code=\((error as NSError).code)")
+                #endif
+                lastFailure = .unknown
             }
         }
+
+        await MainActor.run {
+            guard coordinateResolutionID == id else { return }
+            isResolvingCoordinates = false
+            latitude = nil
+            longitude = nil
+            errorMessage = lastFailure.message
+        }
+    }
+
+    private func geocode(query: String) async throws -> CLLocationCoordinate2D {
+        if #available(iOS 26.0, *) {
+            guard let request = MKGeocodingRequest(addressString: query) else {
+                throw CoordinateResolutionFailure.noResult
+            }
+            let items = try await request.mapItems
+            guard let coordinate = items.first?.placemark.coordinate else {
+                throw CoordinateResolutionFailure.noCoordinate
+            }
+            return coordinate
+        }
+
+        let geocoder = CLGeocoder()
+        let placemarks = try await geocoder.geocodeAddressString(query)
+        guard let coordinate = placemarks.first?.location?.coordinate else {
+            throw CoordinateResolutionFailure.noCoordinate
+        }
+        return coordinate
     }
 
     private func saveAddress() async {
@@ -570,7 +647,23 @@ struct AddressSettingsView: View {
     }
 }
 
-private enum AddressSettingsError: Error { case geocodingFailed }
+private enum CoordinateResolutionFailure: Error {
+    case network
+    case noResult
+    case noCoordinate
+    case cancelled
+    case unknown
+
+    var message: String {
+        switch self {
+        case .network: return "주소 위치 확인에 실패했어요. 네트워크를 확인하고 다시 시도해 주세요."
+        case .noResult: return "선택한 주소의 위치를 찾지 못했어요. 다른 주소를 선택해 주세요."
+        case .noCoordinate: return "주소 검색 결과에 좌표가 없어 다시 확인이 필요해요."
+        case .cancelled: return "주소 위치 확인이 취소됐어요. 다시 시도해 주세요."
+        case .unknown: return "주소 위치를 확인하지 못했어요. 다시 시도해 주세요."
+        }
+    }
+}
 
 private struct PostcodeSelection: Equatable {
     let zonecode: String
