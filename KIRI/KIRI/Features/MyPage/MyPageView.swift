@@ -112,14 +112,8 @@ struct MyPageView: View {
         HStack {
             Text(title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
             Spacer()
-            // Figma 9901:25902 / KIRI/Icon/Navigation/Back 원본을 오른쪽 방향으로 사용합니다.
-            // SF Symbol을 쓰지 않아 Figma의 8×16pt 선 굵기와 색상을 유지합니다.
-            Image("figma_navigation_back")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 8, height: 16)
-                .rotationEffect(.degrees(180))
-                .frame(width: 36, height: 36)
+            // Figma 9901:25902의 원본 화살표와 36pt 정렬 프레임을 공통 사용합니다.
+            MyPageChevron()
         }.padding(.horizontal, 16).frame(height: 56).contentShape(Rectangle())
     }
 }

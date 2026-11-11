@@ -41,6 +41,20 @@ private struct MyPageAppBar<Content: View>: View {
     }
 }
 
+/// Figma 9901:25866의 KIRI/Icon/Navigation/Back 원본을 메뉴 방향으로 표시합니다.
+/// 아이콘 자체는 8×16pt이고, 메뉴 행의 터치·정렬 영역은 36×36pt입니다.
+struct MyPageChevron: View {
+    var body: some View {
+        Image("figma_navigation_back")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 8, height: 16)
+            .rotationEffect(.degrees(180))
+            .frame(width: 36, height: 36)
+            .accessibilityHidden(true)
+    }
+}
+
 private struct MyPageRows: View {
     let rows: [(String, String)]
     var body: some View {
@@ -50,7 +64,7 @@ private struct MyPageRows: View {
                     Text(row.0).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
                     Spacer()
                     if !row.1.isEmpty { Text(row.1).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary) }
-                    Image(systemName: "chevron.right").font(.system(size: 13)).foregroundStyle(KIRIColor.Icon.secondary)
+                    MyPageChevron()
                 }.padding(.horizontal, 16).frame(height: 56)
             }
         }.background(KIRIColor.Background.secondary)
@@ -146,9 +160,7 @@ struct AccountInfoView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
             if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13))
-                    .foregroundStyle(KIRIColor.Icon.secondary)
+                MyPageChevron()
             }
         }
         .padding(.horizontal, 16)
@@ -166,7 +178,7 @@ struct TermsView: View {
                         Text("세부 약관").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.primary)
                         MyPageRows(rows: [("서비스 이용약관", ""), ("개인정보 처리방침", "")])
                         NavigationLink { OpenLicenseView() } label: {
-                            HStack { Text("오픈라이선스").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary); Spacer(); Image(systemName: "chevron.right").foregroundStyle(KIRIColor.Icon.secondary) }
+                            HStack { Text("오픈라이선스").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary); Spacer(); MyPageChevron() }
                                 .padding(.horizontal, 16).frame(height: 52)
                         }.buttonStyle(.plain).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
                         Text("약관 내용은 서버 정책 확정 후 연결됩니다.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
