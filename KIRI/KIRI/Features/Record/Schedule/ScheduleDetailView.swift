@@ -26,6 +26,8 @@ struct ScheduleDetailView: View {
     @State private var serverDetailError: String?
     @State private var isMutatingSchedule = false
     @State private var scheduleMutationError: String?
+    @State private var toastMessage: String?
+    @State private var toastGeneration = 0
     @State private var showingCancelConfirmation = false
     @State private var showingEditSheet = false
     @State private var nearbyMissions: [NearbyMissionResult] = []
@@ -191,6 +193,7 @@ struct ScheduleDetailView: View {
                             await loadServerDetail()
                             await loadNearbyMissions()
                             onScheduleChanged?()
+                            showToast("일정을 변경했어요.")
                         }
                     }
                 )
@@ -221,6 +224,14 @@ struct ScheduleDetailView: View {
             await loadServerDetail()
             await loadNearbyMissions()
             await loadReviews()
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                KIRIToast(message: toastMessage)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
     }
 
@@ -479,6 +490,7 @@ struct ScheduleDetailView: View {
             await loadServerDetail()
             await loadNearbyMissions()
             onScheduleChanged?()
+            showToast(action == "ACCEPTED" ? "일정 참여를 수락했어요." : "일정 참여를 거절했어요.")
         } catch {
             scheduleMutationError = "일정 응답을 저장하지 못했어요. 다시 시도해 주세요."
         }
@@ -494,8 +506,19 @@ struct ScheduleDetailView: View {
             await loadServerDetail()
             await loadNearbyMissions()
             onScheduleChanged?()
+            showToast("약속을 취소했어요.")
         } catch {
             scheduleMutationError = "약속을 취소하지 못했어요. 다시 시도해 주세요."
+        }
+    }
+    private func showToast(_ message: String) {
+        toastGeneration += 1
+        let generation = toastGeneration
+        toastMessage = message
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.2))
+            guard generation == toastGeneration else { return }
+            withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
         }
     }
     private var selectedContent: some View {

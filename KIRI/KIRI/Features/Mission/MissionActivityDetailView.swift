@@ -91,6 +91,14 @@ struct MissionActivityDetailView: View {
             await loadDetail()
             await loadFamilyRecommendation()
         }
+        .overlay(alignment: .top) {
+            if isShowingBucketToast {
+                KIRIToast(message: "버킷에 저장했어요")
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
         .fullScreenCover(item: $selectedRecommendation) { recommendation in
             MissionActivityDetailView(
                 missionId: recommendation.missionId,
@@ -387,17 +395,6 @@ struct MissionActivityDetailView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.bottom, 4)
                     .offset(y: -22)
-            }
-            if isShowingBucketToast {
-                Text("버킷에 저장했어요")
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.onGreen)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(KIRIColor.Primary.default)
-                    .clipShape(Capsule())
-                    .offset(y: -58)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }

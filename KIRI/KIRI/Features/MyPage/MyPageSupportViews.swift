@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UIKit
 import UserNotifications
 
 private struct MyPageAppBar<Content: View>: View {
@@ -382,9 +383,10 @@ struct InviteLinkView: View {
     @State private var invite: InviteResult?
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var feedbackMessage: String?
-    @State private var feedbackIsError = false
     @State private var isDeleteConfirmationPresented = false
+    @State private var toastMessage: String?
+    @State private var toastIsError = false
+    @State private var toastGeneration = 0
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "공용초대링크 관리") {
@@ -419,15 +421,19 @@ struct InviteLinkView: View {
                                 .foregroundStyle(KIRIColor.Text.accent)
                         }
                     }
-                    if let feedbackMessage {
-                        Text(feedbackMessage)
-                            .font(KIRITypography.caption)
-                            .foregroundStyle(feedbackIsError ? KIRIColor.Status.error : KIRIColor.Text.accent)
-                    }
                     Spacer()
                 }.padding(18)
             }
-        }.toolbar(.hidden, for: .navigationBar)
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                KIRIToast(message: toastMessage, isError: toastIsError)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
         .task { await loadInvite() }
         .confirmationDialog("초대 링크를 폐기할까요?", isPresented: $isDeleteConfirmationPresented) {
             Button("초대 링크 폐기", role: .destructive) { Task { await deleteInvite() } }
@@ -439,14 +445,14 @@ struct InviteLinkView: View {
     private func loadInvite() async {
         guard let familyId, !isLoading else { return }
         isLoading = true; defer { isLoading = false }
-        do { invite = try await AuthService.shared.familyInvite(familyId: familyId); errorMessage = nil; feedbackMessage = nil }
-        catch { errorMessage = "초대 링크를 불러오지 못했어요."; feedbackMessage = nil }
+        do { invite = try await AuthService.shared.familyInvite(familyId: familyId); errorMessage = nil }
+        catch { errorMessage = "초대 링크를 불러오지 못했어요." }
     }
     private func reissue() async {
         guard let familyId, !isLoading else { return }
         isLoading = true; defer { isLoading = false }
-        do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil; feedbackMessage = "초대 링크를 새로 발급했어요."; feedbackIsError = false }
-        catch { feedbackMessage = "초대 링크를 재발급하지 못했어요."; feedbackIsError = true }
+        do { invite = try await AuthService.shared.reissueFamilyInvite(familyId: familyId); errorMessage = nil; showToast("초대 링크를 새로 발급했어요.") }
+        catch { showToast("초대 링크를 재발급하지 못했어요. 다시 시도해 주세요.", isError: true) }
     }
     private func deleteInvite() async {
         guard let familyId, !isLoading else { return }
@@ -455,21 +461,40 @@ struct InviteLinkView: View {
             try await AuthService.shared.deleteFamilyInvite(familyId: familyId)
             invite = nil
             errorMessage = nil
-            feedbackMessage = "초대 링크를 폐기했어요."
-            feedbackIsError = false
+            showToast("초대 링크를 폐기했어요.")
         } catch {
-            feedbackMessage = "초대 링크를 폐기하지 못했어요. 다시 시도해 주세요."
-            feedbackIsError = true
+            showToast("초대 링크를 폐기하지 못했어요. 다시 시도해 주세요.", isError: true)
+        }
+    }
+    private func showToast(_ message: String, isError: Bool = false) {
+        toastGeneration += 1
+        let generation = toastGeneration
+        toastMessage = message
+        toastIsError = isError
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.2))
+            guard generation == toastGeneration else { return }
+            withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
         }
     }
     private func inviteCard(label: String, value: String) -> some View {
-        VStack(spacing: 2) {
-            Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-            HStack(spacing: 8) {
-                Text(value).font(label == "링크코드" ? KIRITypography.headingLarge : KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(1)
-                Image(systemName: "doc.on.doc").foregroundStyle(KIRIColor.Icon.primary)
+        Button {
+            UIPasteboard.general.string = value
+            showToast(label == "링크코드" ? "링크코드를 복사했어요." : "초대 링크를 복사했어요.")
+        } label: {
+            VStack(spacing: 2) {
+                Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                HStack(spacing: 8) {
+                    Text(value).font(label == "링크코드" ? KIRITypography.headingLarge : KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(1)
+                    Image(systemName: "doc.on.doc").foregroundStyle(KIRIColor.Icon.primary)
+                }
             }
-        }.frame(maxWidth: .infinity).frame(height: 90).background(KIRIColor.Background.elevated).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .frame(maxWidth: .infinity)
+            .frame(height: 90)
+            .background(KIRIColor.Background.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -487,6 +512,9 @@ struct TasteTestView: View {
     @State private var isLoading = false
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var toastMessage: String?
+    @State private var toastIsError = false
+    @State private var toastGeneration = 0
 
     // 다섯 선호 그룹 중 하나라도 선택하면 저장할 수 있습니다.
     // 선택하지 않은 그룹은 nil/빈 배열로 서버 계약에 맞춰 전달합니다.
@@ -537,7 +565,17 @@ struct TasteTestView: View {
                     Spacer()
                 }.padding(18)
             }
-        }.toolbar(.hidden, for: .navigationBar).task { await loadTaste() }
+        }
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                KIRIToast(message: toastMessage, isError: toastIsError)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .task { await loadTaste() }
     }
 
     private func preferenceSection(_ title: String, options: [String], selected: Binding<Set<String>>, limit: Int) -> some View {
@@ -602,7 +640,24 @@ struct TasteTestView: View {
                 durationLevel: tasteDurationRaw(duration)
             ))
             errorMessage = nil
-        } catch { errorMessage = "취향을 저장하지 못했어요." }
+            showToast("취향을 저장했어요.")
+        } catch {
+            // 실패해도 현재 선택값은 유지해 즉시 재시도할 수 있습니다.
+            errorMessage = nil
+            showToast("취향을 저장하지 못했어요. 다시 시도해 주세요.", isError: true)
+        }
+    }
+
+    private func showToast(_ message: String, isError: Bool = false) {
+        toastGeneration += 1
+        let generation = toastGeneration
+        toastMessage = message
+        toastIsError = isError
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.2))
+            guard generation == toastGeneration else { return }
+            withAnimation(.easeOut(duration: 0.2)) { toastMessage = nil }
+        }
     }
 
     private func tasteCategoryLabel(_ raw: String) -> String? { ["EXHIBITION":"전시·문화", "POPUP":"팝업·행사", "PERFORMANCE":"공연", "FOOD_CAFE":"맛집·카페", "OUTDOOR":"산책·야외", "EXPERIENCE":"체험·놀거리"][raw] }
