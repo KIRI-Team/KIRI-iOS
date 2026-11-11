@@ -21,6 +21,7 @@ struct MyPageView: View {
     let onUpdateNickname: (String) async -> String?
     let onUpdateFamilyName: (String) async -> String?
     @State private var editedNickname = ""
+    @State private var savedFamilyAddress: FamilyAddressUpdateResult?
 
     var body: some View {
         NavigationStack {
@@ -48,7 +49,9 @@ struct MyPageView: View {
                                     onUpdateFamilyName: onUpdateFamilyName
                                 )
                             } label: { menuRow("가족 기본 설정") }
-                            NavigationLink { AddressSettingsView() } label: { menuRow("우리집 주소 설정") }
+                            NavigationLink {
+                                AddressSettingsView(familyId: familyId, savedAddress: $savedFamilyAddress)
+                            } label: { menuRow("우리집 주소 설정") }
                             NavigationLink { InviteLinkView(familyId: familyId) } label: { menuRow("공용초대링크 관리") }
                         }.padding(.top, 48)
                         menuSection(title: "설정") {
