@@ -69,9 +69,9 @@ struct HomeQuestionAnswerView: View {
         }
         .disabled(!isEnabled)
         .font(KIRITypography.button)
-        .foregroundStyle(isEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledAccent.contentDisabled)
+        .foregroundStyle(isEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
         .frame(maxWidth: .infinity).frame(height: 54)
-        .background(isEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+        .background(isEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .buttonStyle(.plain)
     }
