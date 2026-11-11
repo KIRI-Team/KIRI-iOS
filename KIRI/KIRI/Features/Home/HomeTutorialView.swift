@@ -153,19 +153,33 @@ struct HomeTutorialView: View {
         placement: GuidancePlacement
     ) -> some View {
         if let rect = frames[target] {
-            Text(text)
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
-                .multilineTextAlignment(target == .invite ? .trailing : .leading)
-                .foregroundStyle(KIRIColor.Text.primary)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: placement.maxWidth)
-                .position(
-                    x: rect.midX,
-                    y: placement == .above
-                        ? rect.minY - placement.verticalGap
-                        : rect.maxY + placement.verticalGap
-                )
+            ZStack {
+                Text(text)
+                    .font(KIRITypography.headingSmall)
+                    .tracking(-0.72)
+                    .multilineTextAlignment(target == .invite ? .trailing : .leading)
+                    .foregroundStyle(KIRIColor.Text.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: placement.maxWidth)
+                    .position(
+                        x: rect.midX,
+                        y: placement == .above
+                            ? rect.minY - placement.verticalGap
+                            : rect.maxY + placement.verticalGap
+                    )
+
+                // 실제 홈 프레임을 기준으로 안내 방향을 표시합니다. 화면 전체를
+                // 이미지로 덮지 않고 대상 컴포넌트가 움직이면 함께 이동합니다.
+                Image(systemName: placement == .above ? "arrow.down" : "arrow.up")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(KIRIColor.Primary.default)
+                    .position(
+                        x: rect.midX,
+                        y: placement == .above
+                            ? rect.minY - 12
+                            : rect.maxY + 12
+                    )
+            }
         }
     }
 
