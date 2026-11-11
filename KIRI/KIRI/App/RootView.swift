@@ -70,6 +70,9 @@ struct RootView: View {
                         onFamilyCreated: { name, code in
                             enterMain(familyName: name, inviteCode: code)
                         },
+                        onFamilyJoined: { name, code, familyId in
+                            enterMain(familyName: name, inviteCode: code, familyId: familyId)
+                        },
                         onLogout: {
                             shouldAnimateLoginEntrance = false
                             Task { await router.logout() }

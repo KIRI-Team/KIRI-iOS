@@ -64,6 +64,7 @@ struct HomeView: View {
     let onRetryFamilyState: () -> Void
     let tutorialStore: HomeTutorialStore
     let onFamilyCreated: (String, String) -> Void
+    let onFamilyJoined: (String, String, Int?) -> Void
     let onExploreMission: () -> Void
 
     @State private var didApplyDebugReset = false
@@ -80,6 +81,7 @@ struct HomeView: View {
         onRetryFamilyState: @escaping () -> Void = {},
         tutorialStore: HomeTutorialStore,
         onFamilyCreated: @escaping (String, String) -> Void,
+        onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onExploreMission: @escaping () -> Void
     ) {
         self.userMode = userMode
@@ -92,6 +94,7 @@ struct HomeView: View {
         self.onRetryFamilyState = onRetryFamilyState
         self.tutorialStore = tutorialStore
         self.onFamilyCreated = onFamilyCreated
+        self.onFamilyJoined = onFamilyJoined
         self.onExploreMission = onExploreMission
     }
 
@@ -158,6 +161,7 @@ struct HomeView: View {
             BrowseHomeView(
                 familyState: familyState,
                 onFamilyCreated: onFamilyCreated,
+                onFamilyJoined: onFamilyJoined,
                 onRetryFamilyState: onRetryFamilyState
             )
         }

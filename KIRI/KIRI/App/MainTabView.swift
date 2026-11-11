@@ -29,6 +29,7 @@ struct MainTabView: View {
     let familyState: AppRouter.FamilyState
     let onRetryFamilyState: () -> Void
     let onFamilyCreated: (String, String) -> Void
+    let onFamilyJoined: (String, String, Int?) -> Void
     let onLogout: () -> Void
     let onDeleteAccount: () async -> String?
     let onUpdateNickname: (String) async -> String?
@@ -50,6 +51,7 @@ struct MainTabView: View {
         familyState: AppRouter.FamilyState = .unknown,
         onRetryFamilyState: @escaping () -> Void = {},
         onFamilyCreated: @escaping (String, String) -> Void,
+        onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onLogout: @escaping () -> Void
         , onDeleteAccount: @escaping () async -> String? = { nil },
         onUpdateNickname: @escaping (String) async -> String? = { _ in nil },
@@ -65,6 +67,7 @@ struct MainTabView: View {
         self.familyState = familyState
         self.onRetryFamilyState = onRetryFamilyState
         self.onFamilyCreated = onFamilyCreated
+        self.onFamilyJoined = onFamilyJoined
         self.onLogout = onLogout
         self.onDeleteAccount = onDeleteAccount
         self.onUpdateNickname = onUpdateNickname
@@ -131,6 +134,7 @@ struct MainTabView: View {
                 onRetryFamilyState: onRetryFamilyState,
                 tutorialStore: homeTutorialStore,
                 onFamilyCreated: onFamilyCreated,
+                onFamilyJoined: onFamilyJoined,
                 onExploreMission: { selectedTab = .mission }
             )
 

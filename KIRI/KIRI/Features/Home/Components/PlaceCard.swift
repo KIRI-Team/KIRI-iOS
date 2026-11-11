@@ -14,7 +14,7 @@ struct PlaceCard: View {
     let title: String
     let location: String
     let rating: Double?
-    let description: String
+    let description: String?
     var imageName: String? = nil
     var imageURL: URL? = nil
 
@@ -55,18 +55,20 @@ struct PlaceCard: View {
                         .foregroundStyle(KIRIColor.Text.secondary)
                 }
 
-                HStack(alignment: .top, spacing: 5) {
-                    Image("browse_quote")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 12, height: 12)
+                if let description, !description.isEmpty {
+                    HStack(alignment: .top, spacing: 5) {
+                        Image("browse_quote")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 12, height: 12)
 
-                    Text(description)
-                        .font(KIRITypography.caption)
-                        .lineSpacing(2)
-                        .lineLimit(2)
+                        Text(description)
+                            .font(KIRITypography.caption)
+                            .lineSpacing(2)
+                            .lineLimit(2)
+                    }
+                    .foregroundStyle(KIRIColor.Text.tertiary)
                 }
-                .foregroundStyle(KIRIColor.Text.tertiary)
             }
             .padding(.horizontal, 19)
             .padding(.top, 18)
