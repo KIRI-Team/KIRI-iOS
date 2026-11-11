@@ -14,6 +14,8 @@ import SwiftUI
 struct FamilyNameEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
+    @Environment(\.kiriTabBarSubscreenCount) private var tabBarSubscreenCount
+    @State private var didRegisterSubscreen = false
 
     @Binding var familyName: String
     var onSave: ((String) async -> String?)? = nil
@@ -83,9 +85,19 @@ struct FamilyNameEditView: View {
         }
         .onAppear {
             tabBarVisibility.wrappedValue = false
+            if !didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue += 1
+                didRegisterSubscreen = true
+            }
             editedFamilyName = familyName
         }
-        .onDisappear { tabBarVisibility.wrappedValue = true }
+        .onDisappear {
+            if didRegisterSubscreen {
+                tabBarSubscreenCount.wrappedValue = max(0, tabBarSubscreenCount.wrappedValue - 1)
+                didRegisterSubscreen = false
+            }
+            tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
+        }
     }
 
     private var saveArea: some View {
