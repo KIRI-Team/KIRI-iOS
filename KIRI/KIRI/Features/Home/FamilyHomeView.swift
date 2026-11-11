@@ -10,6 +10,14 @@
 
 import SwiftUI
 
+private struct FamilyMemberFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
 struct FamilyHomeView: View {
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -35,6 +43,9 @@ struct FamilyHomeView: View {
     @State private var familyAnswers: [FamilyAnswer] = []
     @State private var isLoadingFamilyAnswers = false
     @State private var familyAnswersError: String?
+    @State private var memberFrames: [Int: CGRect] = [:]
+    @State private var pokeToastMessage: String?
+    @State private var pokeToastIsError = false
     @State private var recommendedMissions: [MissionFeedItem] = []
     @State private var isLoadingRecommendations = false
     @State private var recommendationError: String?
@@ -132,10 +143,15 @@ struct FamilyHomeView: View {
             case .memberDetail:
                 ZStack {
                     homeContent.allowsHitTesting(false)
-                    Color.black.opacity(0.56).ignoresSafeArea()
+                    Color.black.opacity(0.56)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture { route = .home }
                     if let selectedMember {
                         HomeMemberQuestionView(
                             member: selectedMember,
+                            question: serverQuestion?.question ?? "오늘의 질문",
+                            anchorFrame: selectedMember.memberId.flatMap { memberFrames[$0] },
                             onBack: { route = .home },
                             onPoke: { memberId in
                                 do {
@@ -143,12 +159,26 @@ struct FamilyHomeView: View {
                                     if let questionId = serverQuestion?.questionId {
                                         await loadFamilyAnswers(questionId: questionId)
                                     }
+                                    await MainActor.run {
+                                        showPokeToast("\(selectedMember.name)님을 콕 찔렀어요!", isError: false)
+                                    }
                                     return true
                                 } catch {
+                                    await MainActor.run {
+                                        showPokeToast("콕 찌르기에 실패했어요. 다시 시도해 주세요.", isError: true)
+                                    }
                                     return false
                                 }
                             }
                         )
+                        .id(selectedMember.id)
+                    }
+                    if let pokeToastMessage {
+                        KIRIToast(message: pokeToastMessage, isError: pokeToastIsError)
+                            .padding(.horizontal, 18)
+                            .safeAreaPadding(.top, 8)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                            .zIndex(2)
                     }
                 }
             }
@@ -186,6 +216,10 @@ struct FamilyHomeView: View {
         .onDisappear {
             tabBarVisibility.wrappedValue = true
         }
+        .coordinateSpace(name: "familyHome")
+        .onPreferenceChange(FamilyMemberFramePreferenceKey.self) { frames in
+            memberFrames = frames
+        }
         .task {
             guard loadsServerQuestion else {
                 didLoadTodayQuestion = true
@@ -195,6 +229,18 @@ struct FamilyHomeView: View {
         }
         .task {
             await loadRecommendations()
+        }
+    }
+
+    private func showPokeToast(_ message: String, isError: Bool) {
+        pokeToastMessage = message
+        pokeToastIsError = isError
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.4))
+            guard pokeToastMessage == message else { return }
+            withAnimation(.easeOut(duration: 0.2)) {
+                pokeToastMessage = nil
+            }
         }
     }
 
@@ -397,6 +443,14 @@ struct FamilyHomeView: View {
                                 FamilyMemberItem(name: member.name, role: member.role, isMe: member.isMe, hasAnswered: member.hasAnswered)
                             }
                             .buttonStyle(.plain)
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: FamilyMemberFramePreferenceKey.self,
+                                        value: member.memberId.map { [$0: proxy.frame(in: .named("familyHome"))] } ?? [:]
+                                    )
+                                }
+                            )
                         }
                     }
                 }

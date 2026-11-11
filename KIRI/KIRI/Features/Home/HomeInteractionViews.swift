@@ -121,56 +121,104 @@ struct HomeMissionDetailView: View {
 
 struct HomeMemberQuestionView: View {
     let member: HomeMember
+    let question: String
+    let anchorFrame: CGRect?
     let onBack: () -> Void
     let onPoke: (Int) async -> Bool
     @State private var didPoke = false
     @State private var isPoking = false
+
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("\(member.name)의 가장 좋아하는 음식은")
-                        .font(KIRITypography.body)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                    Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
-                        .font(KIRITypography.headingSmall)
-                        .foregroundStyle(KIRIColor.Text.strong)
+        GeometryReader { proxy in
+            let cardWidth = min(303, max(280, proxy.size.width - 36))
+            let cardHeight: CGFloat = 124
+            let targetX = anchorFrame?.midX ?? proxy.size.width / 2
+            let clampedX = min(max(targetX, cardWidth / 2 + 18), proxy.size.width - cardWidth / 2 - 18)
+            let targetTop = anchorFrame.map { min($0.maxY + 14, proxy.size.height - cardHeight - 24) } ?? proxy.size.height * 0.35
+            let targetY = max(cardHeight / 2 + 16, targetTop + cardHeight / 2)
+
+            card
+                .frame(width: cardWidth, height: cardHeight)
+                .overlay(alignment: .top) {
+                    SpeechTail()
+                        .fill(KIRIColor.Background.primary)
+                        .frame(width: 22, height: 12)
+                        .offset(x: min(max(targetX - clampedX, -cardWidth / 2 + 22), cardWidth / 2 - 22), y: -8)
                 }
-                Rectangle()
-                    .fill(KIRIColor.Border.default)
-                    .frame(width: 1, height: 50)
-                if !member.isMe {
-                    Button(didPoke ? "콕 보냄" : "콕 찌르기") {
-                        guard let memberId = member.memberId, !didPoke, !isPoking else { return }
-                        isPoking = true
-                        Task { @MainActor in
-                            let success = await onPoke(memberId)
-                            didPoke = success
-                            isPoking = false
-                        }
+                .position(x: clampedX, y: targetY)
+        }
+        .ignoresSafeArea()
+        .accessibilityAddTraits(.isModal)
+    }
+
+    private var card: some View {
+        HStack(alignment: .center, spacing: 20) {
+            VStack(alignment: .leading, spacing: member.hasAnswered ? 2 : 2) {
+                Text(question)
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
+                    .font(KIRITypography.title)
+                    .foregroundStyle(member.hasAnswered ? KIRIColor.Text.strong : KIRIColor.Text.tertiary)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Rectangle()
+                .fill(KIRIColor.Border.default)
+                .frame(width: 1, height: 50)
+
+            if !member.isMe {
+                Button {
+                    guard let memberId = member.memberId, !didPoke, !isPoking, !member.hasAnswered else { return }
+                    isPoking = true
+                    Task { @MainActor in
+                        let success = await onPoke(memberId)
+                        didPoke = success
+                        isPoking = false
                     }
-                        .disabled(didPoke || isPoking || member.memberId == nil)
-                        .font(KIRITypography.caption)
-                        .overlay(alignment: .top) {
+                } label: {
+                    VStack(spacing: 8) {
+                        if !member.hasAnswered {
                             Image("figma_gesture_tap")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(width: 24, height: 24)
-                                .offset(y: -28)
+                        } else {
+                            Color.clear.frame(width: 24, height: 24)
                         }
-                        .foregroundStyle(didPoke ? KIRIColor.Text.tertiary : KIRIColor.Primary.default)
-                        .frame(width: 55)
+                        Text(didPoke ? "콕 보냄" : "콕 찌르기")
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(member.hasAnswered || didPoke ? KIRIColor.Text.tertiary : KIRIColor.Text.accent)
+                            .lineLimit(1)
+                    }
+                    .frame(width: 55)
+                    .contentShape(Rectangle())
                 }
+                .disabled(member.hasAnswered || didPoke || isPoking || member.memberId == nil)
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
         }
+        .padding(.horizontal, 21)
+        .padding(.vertical, 0)
         .background(KIRIColor.Background.primary)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .padding(.horizontal, 28)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
-        .onTapGesture { onBack() }
-        .accessibilityAddTraits(.isModal)
+        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+private struct SpeechTail: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
