@@ -18,8 +18,7 @@ struct BrowseHomeView: View {
     let onFamilyJoined: (String, String, Int?) -> Void
     let onRetryFamilyState: () -> Void
 
-    @State private var isFamilyCreationPresented = false
-    @State private var isFamilyJoinPresented = false
+    @State private var isFamilyEntryPresented = false
     @State private var missions: [MissionFeedItem] = []
     @State private var isLoadingMissions = false
     @State private var missionError: String?
@@ -63,15 +62,10 @@ struct BrowseHomeView: View {
                     .padding(.leading, 18)
                 }
             }
-            .fullScreenCover(isPresented: $isFamilyCreationPresented) {
-                BrowseFamilyCreationFlow(
-                    onDismiss: { isFamilyCreationPresented = false },
-                    onFamilyCreated: onFamilyCreated
-                )
-            }
-            .fullScreenCover(isPresented: $isFamilyJoinPresented) {
-                BrowseFamilyJoinFlow(
-                    onDismiss: { isFamilyJoinPresented = false },
+            .fullScreenCover(isPresented: $isFamilyEntryPresented) {
+                BrowseFamilyEntryFlow(
+                    onDismiss: { isFamilyEntryPresented = false },
+                    onFamilyCreated: onFamilyCreated,
                     onFamilyJoined: onFamilyJoined
                 )
             }
@@ -138,56 +132,25 @@ struct BrowseHomeView: View {
     }
 
     private var familyActionCard: some View {
-        VStack(spacing: 10) {
-            Button {
-                isFamilyCreationPresented = true
-            } label: {
-                familyActionRow(
-                    title: "가족공간 만들기",
-                    subtitle: "가족과 함께 시작해요"
-                )
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                isFamilyJoinPresented = true
-            } label: {
-                familyActionRow(
-                    title: "초대코드로 참여하기",
-                    subtitle: "받은 코드로 가족공간에 참여해요"
-                )
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 18)
-        .frame(width: 354)
-        .background(KIRIColor.Background.primary)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func familyActionRow(title: String, subtitle: String) -> some View {
+        Button {
+            isFamilyEntryPresented = true
+        } label: {
             HStack(spacing: 12) {
                 ZStack {
                     KIRIColor.Background.secondary
 
                     Image("browse_action_icon")
                         .resizable()
+                        .renderingMode(.original)
                         .scaledToFit()
                         .frame(width: 24, height: 24)
                 }
                 .frame(width: 48, height: 48)
                 .clipShape(Circle())
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("아직 가족 공간이 없군요!")
-                        .font(KIRITypography.caption)
-                        .foregroundStyle(KIRIColor.Text.tertiary)
-
-                    Text(title)
-                        .font(KIRITypography.headingSmall)
-                        .foregroundStyle(KIRIColor.Text.strong)
-                }
+                Text("아직 가족 공간이 없군요!")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
 
                 Spacer()
 
@@ -196,9 +159,13 @@ struct BrowseHomeView: View {
                     .scaledToFit()
                     .frame(width: 24, height: 24)
             }
-            .frame(height: 62)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(title)
+            .padding(.horizontal, 18)
+            .frame(width: 354, height: 96)
+            .background(KIRIColor.Background.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("가족공간 만들러 가기")
     }
 
     private func recommendationSection(title: String) -> some View {
@@ -269,21 +236,26 @@ struct BrowseHomeView: View {
     }
 }
 
-private struct BrowseFamilyCreationFlow: View {
+private struct BrowseFamilyEntryFlow: View {
     private enum Step {
         case entry
         case familyName
         case loading
         case code
+        case familyCodeInput
+        case familyJoinLoading
+        case familyJoinConfirm
     }
 
     @State private var step: Step = .entry
     @State private var familyName = ""
     @State private var familyCode = ""
+    @State private var joinedFamilyName = ""
     @State private var errorMessage: String?
 
     let onDismiss: () -> Void
     let onFamilyCreated: (String, String) -> Void
+    let onFamilyJoined: (String, String, Int?) -> Void
 
     var body: some View {
         ZStack {
@@ -293,12 +265,14 @@ private struct BrowseFamilyCreationFlow: View {
             switch step {
             case .entry:
                 FamilyEntryView(
-                    mode: .creationOnly,
                     onBack: onDismiss,
                     onCreateFamily: {
                         step = .familyName
                     },
-                    onEnterFamilyCode: {},
+                    onEnterFamilyCode: {
+                        familyCode = ""
+                        step = .familyCodeInput
+                    },
                     onBrowse: {}
                 )
 
@@ -326,9 +300,27 @@ private struct BrowseFamilyCreationFlow: View {
                     },
                     onComplete: { onFamilyCreated(familyName, familyCode) }
                 )
+
+            case .familyCodeInput:
+                FamilyCodeInputView(
+                    familyCode: $familyCode,
+                    onBack: { step = .entry },
+                    onNext: findFamily
+                )
+
+            case .familyJoinLoading:
+                FamilyJoinLoadingView()
+
+            case .familyJoinConfirm:
+                FamilyJoinConfirmView(
+                    familyName: joinedFamilyName,
+                    familyCode: familyCode,
+                    onBack: { step = .familyCodeInput },
+                    onJoin: joinFamily
+                )
             }
         }
-        .alert("가족공간을 만들 수 없어요", isPresented: Binding(
+        .alert("가족공간을 처리할 수 없어요", isPresented: Binding(
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )) { Button("확인", role: .cancel) {} } message: {
@@ -354,64 +346,28 @@ private struct BrowseFamilyCreationFlow: View {
             }
         }
     }
-}
-
-private struct BrowseFamilyJoinFlow: View {
-    enum Step { case code, confirm, loading }
-    @State private var step: Step = .code
-    @State private var code = ""
-    @State private var familyName = ""
-    @State private var errorMessage: String?
-    let onDismiss: () -> Void
-    let onFamilyJoined: (String, String, Int?) -> Void
-
-    var body: some View {
-        ZStack {
-            KIRIColor.Background.base.ignoresSafeArea()
-            switch step {
-            case .code:
-                FamilyCodeInputView(familyCode: $code, onBack: onDismiss, onNext: findFamily)
-            case .confirm:
-                FamilyJoinConfirmView(
-                    familyName: familyName,
-                    familyCode: code,
-                    onBack: { step = .code },
-                    onJoin: joinFamily
-                )
-            case .loading:
-                FamilyJoinLoadingView()
-            }
-        }
-        .alert("가족공간에 참여할 수 없어요", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) { Button("확인", role: .cancel) {} } message: {
-            Text(errorMessage ?? "잠시 후 다시 시도해 주세요.")
-        }
-        .preferredColorScheme(.dark)
-    }
 
     private func findFamily() {
-        let normalized = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let normalized = familyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard normalized.count == 6, normalized.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else {
             errorMessage = "초대 코드는 영문 대문자와 숫자 6자리여야 해요."
             return
         }
-        code = normalized
-        familyName = "입력한 초대 코드의 가족공간"
-        step = .confirm
+        familyCode = normalized
+        joinedFamilyName = "입력한 초대 코드의 가족공간"
+        step = .familyJoinConfirm
     }
 
     private func joinFamily() {
-        step = .loading
+        step = .familyJoinLoading
         Task { @MainActor in
             do {
-                let result = try await AuthService.shared.joinFamily(inviteCode: code)
-                AppSessionStore().saveFamily(name: result.familyName, inviteCode: code, familyId: result.familyId)
-                onFamilyJoined(result.familyName, code, result.familyId)
+                let result = try await AuthService.shared.joinFamily(inviteCode: familyCode)
+                AppSessionStore().saveFamily(name: result.familyName, inviteCode: familyCode, familyId: result.familyId)
+                onFamilyJoined(result.familyName, familyCode, result.familyId)
             } catch {
                 errorMessage = "가족공간에 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요."
-                step = .code
+                step = .familyCodeInput
             }
         }
     }
