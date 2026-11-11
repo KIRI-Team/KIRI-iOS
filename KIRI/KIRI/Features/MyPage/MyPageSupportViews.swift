@@ -187,22 +187,98 @@ struct AccountInfoView: View {
 }
 
 struct TermsView: View {
+    @State private var terms: [Term] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "이용 약관") {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("세부 약관").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.primary)
-                        MyPageRows(rows: [("서비스 이용약관", ""), ("개인정보 처리방침", "")])
-                        NavigationLink { OpenLicenseView() } label: {
-                            HStack { Text("오픈라이선스").font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary); Spacer(); MyPageChevron() }
-                                .padding(.horizontal, 16).frame(height: 52)
-                        }.buttonStyle(.plain).background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                        Text("약관 내용은 서버 정책 확정 후 연결됩니다.").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary)
-                    }.padding(18)
-                }
+                content
             }
         }.toolbar(.hidden, for: .navigationBar)
+        .task { await loadTerms() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if isLoading {
+            ProgressView().tint(KIRIColor.Text.accent).frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let errorMessage {
+            VStack(spacing: 12) {
+                Text(errorMessage).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.secondary).multilineTextAlignment(.center)
+                Button("다시 시도") { Task { await loadTerms() } }
+                    .buttonStyle(.borderedProminent)
+                    .tint(KIRIColor.Button.FilledAccent.backgroundDefault)
+                    .foregroundStyle(KIRIColor.Button.FilledAccent.contentDefault)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(18)
+        } else {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    Text("약관")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                    VStack(spacing: 0) {
+                        ForEach(terms) { term in
+                            NavigationLink { SharedTermDetailView(term: term) } label: {
+                                HStack(alignment: .center, spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(term.title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
+                                        Text(term.isRequired ? "필수" : "선택").font(KIRITypography.caption).foregroundStyle(term.isRequired ? KIRIColor.Text.accent : KIRIColor.Text.secondary)
+                                    }
+                                    Spacer()
+                                    MyPageChevron()
+                                }
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 64)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            if term.id != terms.last?.id { Divider().overlay(KIRIColor.Border.subtle) }
+                        }
+                    }
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }.padding(18)
+            }
+        }
+    }
+
+    private func loadTerms() async {
+        await MainActor.run { isLoading = true; errorMessage = nil }
+        do {
+            let result = try await AuthService.shared.terms()
+            await MainActor.run {
+                terms = result.filter { !$0.title.localizedCaseInsensitiveContains("라이선스") && !$0.title.localizedCaseInsensitiveContains("license") }
+                isLoading = false
+                if terms.isEmpty { errorMessage = "약관 정보를 불러오지 못했어요." }
+            }
+        } catch {
+            await MainActor.run { isLoading = false; errorMessage = "약관 정보를 불러오지 못했어요. 다시 시도해 주세요." }
+        }
+    }
+}
+
+/// 서버가 내려준 약관 전문을 열람하는 공통 화면입니다.
+/// 가입 화면과 마이페이지가 동일한 description을 사용하므로 오래된 하드코딩 본문이 노출되지 않습니다.
+struct SharedTermDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    let term: Term
+
+    var body: some View {
+        ZStack { KIRIColor.Background.base.ignoresSafeArea()
+            MyPageAppBar(title: term.title) {
+                ScrollView {
+                    Text(term.description)
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .lineSpacing(6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(18)
+                }
+            }
+        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -210,11 +286,44 @@ struct OpenLicenseView: View {
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "오픈라이선스") {
-                ScrollView { Text("KIRI가 사용하는 오픈소스 라이선스 정보\n\n실제 라이선스 원문은 배포 전 제공된 목록으로 교체합니다.")
-                    .font(KIRITypography.body).foregroundStyle(KIRIColor.Text.primary).frame(maxWidth: .infinity, alignment: .leading).padding(18) }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("앱에 포함된 외부 패키지")
+                            .font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.primary)
+                        ForEach(VerifiedLicense.entries) { entry in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(entry.name).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
+                                Text(entry.license).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.accent)
+                                Text(entry.notice).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                            .background(KIRIColor.Background.secondary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        Text("라이선스 원문과 NOTICE는 실제 배포 번들에 포함된 패키지 고지 파일을 기준으로 제공합니다.")
+                            .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                    }.padding(18)
+                }
             }
         }.toolbar(.hidden, for: .navigationBar)
     }
+}
+
+private struct VerifiedLicense: Identifiable {
+    let id = UUID()
+    let name: String
+    let license: String
+    let notice: String
+
+    // Package.resolved 및 각 checkout의 LICENSE/NOTICE를 확인한 직접 의존성만 표시합니다.
+    static let entries = [
+        Self(name: "Alamofire 5.12.2", license: "MIT License", notice: "Copyright © Alamofire Software Foundation."),
+        Self(name: "Kakao iOS SDK 2.29.0", license: "Apache License 2.0", notice: "Kakao iOS SDK notice.html 기준."),
+        Self(name: "Google Sign-In iOS 10.0.0", license: "Apache License 2.0", notice: "Google LLC LICENSE 기준."),
+        Self(name: "Firebase iOS SDK 12.19.3", license: "Apache License 2.0", notice: "Firebase SDK LICENSE 및 CoreOnly/NOTICES 기준."),
+        Self(name: "AppAuth-iOS 3.0.0", license: "Apache License 2.0", notice: "OpenID Foundation LICENSE 기준.")
+    ]
 }
 
 struct WithdrawalView: View {
