@@ -143,8 +143,7 @@ struct FamilyHomeView: View {
             case .memberDetail:
                 ZStack {
                     homeContent.allowsHitTesting(false)
-                    // Figma의 alpha/black-60(실제 70%)과 동일한 밝기로 실제 홈을 어둡게 합니다.
-                    KIRIColor.Primitive.neutral1000.opacity(0.70)
+                    Color.black.opacity(0.56)
                         .ignoresSafeArea()
                         .contentShape(Rectangle())
                         .onTapGesture { route = .home }
@@ -164,12 +163,26 @@ struct FamilyHomeView: View {
                                         showPokeToast("\(selectedMember.name)님을 콕 찔렀어요!", isError: false)
                                     }
                                     return true
+                                } catch let error as APIError {
+                                    if isAlreadyPokeError(error) {
+                                        await MainActor.run {
+                                            showPokeToast("이미 \(selectedMember.name)님을 콕 찔렀어요!", isError: false)
+                                        }
+                                        return true
+                                    }
+                                    await MainActor.run {
+                                        showPokeToast("콕 찌르기에 실패했어요. 다시 시도해 주세요.", isError: true)
+                                    }
+                                    return false
                                 } catch {
                                     await MainActor.run {
                                         showPokeToast("콕 찌르기에 실패했어요. 다시 시도해 주세요.", isError: true)
                                     }
                                     return false
                                 }
+                            },
+                            onAlreadyPoked: {
+                                showPokeToast("이미 \(selectedMember.name)님을 콕 찔렀어요!", isError: false)
                             }
                         )
                         .id(selectedMember.id)
@@ -212,8 +225,7 @@ struct FamilyHomeView: View {
             }
         }
         .onChange(of: route) { _, newRoute in
-            // 답변 선택 말풍선은 홈 위에 표시되므로 Figma처럼 하단 탭바를 배경에 유지합니다.
-            tabBarVisibility.wrappedValue = newRoute == .home || newRoute == .memberDetail
+            tabBarVisibility.wrappedValue = newRoute == .home
         }
         .onDisappear {
             tabBarVisibility.wrappedValue = true
@@ -244,6 +256,14 @@ struct FamilyHomeView: View {
                 pokeToastMessage = nil
             }
         }
+    }
+
+    private func isAlreadyPokeError(_ error: APIError) -> Bool {
+        guard case let .serverError(code, _) = error else { return false }
+        let normalizedCode = code.uppercased()
+        return normalizedCode.contains("409")
+            || normalizedCode.contains("ALREADY")
+            || normalizedCode.contains("DUPLICATE")
     }
 
     // MARK: - Home
