@@ -24,6 +24,7 @@ struct MissionPlaceCard: View {
     let imageURL: URL?
 
     @Binding var isBookmarked: Bool
+    let onBookmarkTapped: (() -> Void)?
 
     init(
         title: String,
@@ -34,7 +35,8 @@ struct MissionPlaceCard: View {
         isRecommended: Bool,
         mockAssetName: String? = nil,
         imageURL: URL? = nil,
-        isBookmarked: Binding<Bool>
+        isBookmarked: Binding<Bool>,
+        onBookmarkTapped: (() -> Void)? = nil
     ) {
         self.title = title
         self.placeName = placeName
@@ -45,6 +47,7 @@ struct MissionPlaceCard: View {
         self.mockAssetName = mockAssetName
         self.imageURL = imageURL
         self._isBookmarked = isBookmarked
+        self.onBookmarkTapped = onBookmarkTapped
     }
 
     var body: some View {
@@ -204,7 +207,11 @@ struct MissionPlaceCard: View {
 
     private var bookmarkButton: some View {
         Button {
-            isBookmarked.toggle()
+            if let onBookmarkTapped {
+                onBookmarkTapped()
+            } else {
+                isBookmarked.toggle()
+            }
         } label: {
             // Figma KIRI/Icon/Action/Bookmark의 24pt 원본 SVG를 상태별로 사용합니다.
             Image(isBookmarked ? "mission_bookmark_active" : "mission_bookmark_disabled")

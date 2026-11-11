@@ -491,7 +491,7 @@ struct MissionActivityDetailView: View {
 /// Figma 9901:24278 `플레이스메인/저장 팝업`에 대응하는 저장 확인 모달입니다.
 /// Figma 원본에는 별도 이미지 레이어가 없으므로 임의 아이콘이나 이모지를 추가하지 않고,
 /// 서버 저장 전 확인·취소 동작만 제공합니다.
-private struct BucketSaveConfirmationModal: View {
+struct BucketSaveConfirmationModal: View {
     let title: String
     let onCancel: () -> Void
     let onConfirm: () -> Void
