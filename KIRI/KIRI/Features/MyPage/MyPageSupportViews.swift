@@ -551,6 +551,7 @@ struct AddressSettingsView: View {
         do {
             let result = try await AuthService.shared.updateFamilyAddress(familyId: familyId, request: request)
             savedAddress = result
+            AppSessionStore().markFamilyAddressConfigured(for: familyId)
             isEditing = false
             showToast("주소를 저장했어요", isError: false)
         } catch {
