@@ -44,6 +44,9 @@ struct FamilyHomeView: View {
     @State private var isLoadingFamilyAnswers = false
     @State private var familyAnswersError: String?
     @State private var memberFrames: [Int: CGRect] = [:]
+    // 콕 찌르기 성공 상태는 말풍선을 닫았다 다시 열어도 유지해야 합니다.
+    // 서버 응답이 성공 또는 중복 전송으로 확인된 memberId만 저장합니다.
+    @State private var pokedMemberIDs: Set<Int> = []
     @State private var pokeToastMessage: String?
     @State private var pokeToastIsError = false
     @State private var recommendedMissions: [MissionFeedItem] = []
@@ -152,6 +155,7 @@ struct FamilyHomeView: View {
                             member: selectedMember,
                             question: serverQuestion?.question ?? "오늘의 질문",
                             anchorFrame: selectedMember.memberId.flatMap { memberFrames[$0] },
+                            initiallyPoked: selectedMember.memberId.map { pokedMemberIDs.contains($0) } ?? false,
                             onBack: { route = .home },
                             onPoke: { memberId in
                                 do {
@@ -160,12 +164,14 @@ struct FamilyHomeView: View {
                                         await loadFamilyAnswers(questionId: questionId)
                                     }
                                     await MainActor.run {
+                                        pokedMemberIDs.insert(memberId)
                                         showPokeToast("\(selectedMember.name)님을 콕 찔렀어요!", isError: false)
                                     }
                                     return true
                                 } catch let error as APIError {
                                     if isAlreadyPokeError(error) {
                                         await MainActor.run {
+                                            pokedMemberIDs.insert(memberId)
                                             showPokeToast("이미 \(selectedMember.name)님을 콕 찔렀어요!", isError: false)
                                         }
                                         return true
