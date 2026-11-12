@@ -56,6 +56,8 @@ struct MissionView: View {
     @State private var errorMessage: String?
     @State private var savingMissionID: Int?
     @State private var savedMissionIDs: Set<Int> = []
+    // 미션별 서버 버킷 항목을 보존해 해제 시 실제 bucketItemId와 권한을 사용합니다.
+    @State private var bucketItemsByMissionID: [Int: BucketItemResult] = [:]
     @State private var bookmarkConfirmationMissionID: Int?
     @State private var bookmarkFeedback: String?
     @State private var filterFeedback: String?
@@ -290,11 +292,31 @@ struct MissionView: View {
         savingMissionID = missionID
         do {
             if value {
-                _ = try await AuthService.shared.saveMissionToBucket(missionId: missionID)
+                let result = try await AuthService.shared.saveMissionToBucket(missionId: missionID)
+                #if DEBUG
+                print("[KIRI][Bucket] save missionId=\(missionID) bucketItemId=\(result.bucketItemId)")
+                #endif
+                savedMissionIDs.insert(missionID)
             } else {
-                try await AuthService.shared.removeMissionFromBucket(missionId: missionID)
+                var item = bucketItemsByMissionID[missionID]
+                if item == nil {
+                    // 목록이 오래된 경우 최신 페이지에서 실제 bucketItemId를 다시 확인합니다.
+                    await refreshSavedMissionIDs()
+                    item = bucketItemsByMissionID[missionID]
+                }
+                guard let item else {
+                    throw APIError.serverError(code: "BUCKET404_1", message: "저장된 버킷을 찾을 수 없어요.")
+                }
+                guard item.deletable else {
+                    throw APIError.serverError(code: "BUCKET403_2", message: "내가 저장한 버킷만 해제할 수 있어요.")
+                }
+                #if DEBUG
+                print("[KIRI][Bucket] delete missionId=\(missionID) bucketItemId=\(item.bucketItemId)")
+                #endif
+                try await AuthService.shared.deleteBucketItem(bucketItemId: item.bucketItemId)
+                bucketItemsByMissionID[missionID] = nil
+                savedMissionIDs.remove(missionID)
             }
-            savedMissionIDs = value ? savedMissionIDs.union([missionID]) : savedMissionIDs.subtracting([missionID])
             if let index = rows.firstIndex(where: { $0.id == missionID }) {
                 rows[index].isBookmarked = value
             }
@@ -308,7 +330,11 @@ struct MissionView: View {
                     return
                 }
             }
-            showBookmarkFeedback("버킷 저장 상태를 변경하지 못했어요. 다시 시도해 주세요.")
+            if case APIError.serverError(let code, let message) = error, code == "BUCKET403_2" {
+                showBookmarkFeedback(message)
+            } else {
+                showBookmarkFeedback("버킷 저장 상태를 변경하지 못했어요. 다시 시도해 주세요.")
+            }
         }
         savingMissionID = nil
     }
@@ -340,13 +366,18 @@ struct MissionView: View {
         do {
             var cursor: Int?
             var ids = Set<Int>()
+            var itemsByMissionID: [Int: BucketItemResult] = [:]
             while true {
                 let page = try await AuthService.shared.bucketItems(cursor: cursor)
-                ids.formUnion(page.bucketItems.map { $0.mission.missionId })
+                for item in page.bucketItems {
+                    ids.insert(item.mission.missionId)
+                    itemsByMissionID[item.mission.missionId] = item
+                }
                 guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
                 cursor = nextCursor
             }
             savedMissionIDs = ids
+            bucketItemsByMissionID = itemsByMissionID
             for index in rows.indices {
                 rows[index].isBookmarked = ids.contains(rows[index].id)
             }

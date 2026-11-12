@@ -169,6 +169,11 @@ struct FamilyHomeView: View {
                                     }
                                     return true
                                 } catch let error as APIError {
+                                    #if DEBUG
+                                    if case let .serverError(code, _) = error {
+                                        print("[KIRI][Home] poke failed code=\(code)")
+                                    }
+                                    #endif
                                     if isAlreadyPokeError(error) {
                                         await MainActor.run {
                                             pokedMemberIDs.insert(memberId)
@@ -278,6 +283,11 @@ struct FamilyHomeView: View {
         }
 
         let normalized = "\(code) \(message)".uppercased()
+        // QUESTION404_3은 현재 확인 가능한 계약상 중복 전송 코드가 아니므로
+        // 이미 전송된 상태로 처리하지 않고 질문 상태 확인 실패로 안내합니다.
+        if code.uppercased() == "QUESTION404_3" {
+            return "오늘 질문 상태를 확인할 수 없어 콕을 보내지 못했어요. 다시 시도해 주세요."
+        }
         if normalized.contains("ANSWERED") || normalized.contains("ALREADY_ANSWER") {
             return "이 가족에게는 지금 콕을 보낼 수 없어요."
         }
