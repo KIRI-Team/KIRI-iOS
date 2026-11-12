@@ -425,7 +425,10 @@ struct RecordBucketListView: View {
     private func bucketCard(_ group: BucketItemGroup) -> some View {
         let item = group.representative
         let canSchedule = group.items.contains(where: \.schedulable)
-        let savedBy = group.items.map { "\($0.saver.nickname)이 저장했어요!" }.joined(separator: " · ")
+        let saverNames = group.items.map(\.saver.nickname).joined(separator: ", ")
+        let savedBy = group.items.count == 1
+            ? "\(saverNames)이 저장했어요!"
+            : "\(saverNames)이 함께 저장했어요!"
         Button {
             selectedBucketGroup = group
         } label: {
@@ -536,6 +539,8 @@ struct RecordBucketListView: View {
             .padding(.horizontal, 8)
 
             .padding(.vertical, 6)
+
+            .fixedSize(horizontal: false, vertical: true)
 
             .background(
 
