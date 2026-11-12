@@ -204,6 +204,8 @@ struct FamilyHomeView: View {
                         KIRIToast(message: pokeToastMessage, isError: pokeToastIsError)
                             .padding(.horizontal, 18)
                             .safeAreaPadding(.top, 8)
+                            // 말풍선·dim과 같은 ZStack 안에서도 토스트는 화면 최상단에 고정합니다.
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                             .transition(.move(edge: .top).combined(with: .opacity))
                             .zIndex(2)
                     }
