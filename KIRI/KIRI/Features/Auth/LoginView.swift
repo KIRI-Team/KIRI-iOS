@@ -267,7 +267,9 @@ private final class AppleSignInCoordinator: NSObject,
     ASAuthorizationControllerPresentationContextProviding {
     private let onCompletion: (Result<ASAuthorization, Error>, String?) -> Void
     private var authorizationController: ASAuthorizationController?
-    private var rawNonce: String?
+    /// Apple request와 서버 로그인 요청에 함께 사용할 해시된 nonce입니다.
+    /// KIRI-SERVER는 JWT nonce 클레임과 요청 nonce를 그대로 비교합니다.
+    private var hashedNonce: String?
     private var presentationWindow: UIWindow?
 
     init(
@@ -286,11 +288,12 @@ private final class AppleSignInCoordinator: NSObject,
         }
 
         let nonce = Self.randomNonce()
+        let hashedNonce = Self.sha256(nonce)
         let request = ASAuthorizationAppleIDProvider().createRequest()
         request.requestedScopes = [.fullName, .email]
-        request.nonce = Self.sha256(nonce)
+        request.nonce = hashedNonce
 
-        rawNonce = nonce
+        self.hashedNonce = hashedNonce
         presentationWindow = window
 
         let controller = ASAuthorizationController(authorizationRequests: [request])
@@ -310,7 +313,7 @@ private final class AppleSignInCoordinator: NSObject,
         controller: ASAuthorizationController,
         didCompleteWithAuthorization authorization: ASAuthorization
     ) {
-        onCompletion(.success(authorization), rawNonce)
+        onCompletion(.success(authorization), hashedNonce)
         finish()
     }
 
@@ -325,7 +328,7 @@ private final class AppleSignInCoordinator: NSObject,
     private func finish() {
         authorizationController = nil
         presentationWindow = nil
-        rawNonce = nil
+        hashedNonce = nil
     }
 
     private static func activeKeyWindow() -> UIWindow? {
