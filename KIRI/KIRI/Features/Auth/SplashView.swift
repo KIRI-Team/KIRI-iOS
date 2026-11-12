@@ -27,7 +27,6 @@ struct SplashView: View {
 
             if let player = coordinator.player {
                 SplashVideoPlayer(player: player)
-                    .aspectRatio(390.0 / 844.0, contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -38,8 +37,6 @@ struct SplashView: View {
 }
 
 private final class SplashVideoCoordinator: NSObject, ObservableObject {
-    private let transitionTime = CMTime(seconds: 2.0, preferredTimescale: 600)
-
     let player: AVPlayer?
 
     private var finish: (() -> Void)?
@@ -48,7 +45,7 @@ private final class SplashVideoCoordinator: NSObject, ObservableObject {
     private var timeObserver: Any?
 
     override init() {
-        if let url = Bundle.main.url(forResource: "최종스플래시", withExtension: "mp4") {
+        if let url = Bundle.main.url(forResource: "real_splash", withExtension: "mp4") {
             let item = AVPlayerItem(url: url)
             let avPlayer = AVPlayer(playerItem: item)
             avPlayer.isMuted = true
@@ -95,13 +92,6 @@ private final class SplashVideoCoordinator: NSObject, ObservableObject {
             return
         }
 
-        timeObserver = player.addBoundaryTimeObserver(
-            forTimes: [NSValue(time: transitionTime)],
-            queue: .main
-        ) { [weak self] in
-            self?.finishOnce()
-        }
-
         player.seek(to: .zero)
         player.play()
     }
@@ -137,6 +127,7 @@ private struct SplashVideoPlayer: UIViewRepresentable {
 
     func makeUIView(context: Context) -> PlayerView {
         let view = PlayerView()
+        view.backgroundColor = UIColor(red: 26.0 / 255.0, green: 26.0 / 255.0, blue: 26.0 / 255.0, alpha: 1)
         view.playerLayer.player = player
         view.playerLayer.videoGravity = .resizeAspect
         return view
