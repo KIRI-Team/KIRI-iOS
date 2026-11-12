@@ -40,7 +40,8 @@ struct LoginView: View {
                 Image("kiri_character")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 52, height: 52)
+                    .frame(width: 57, height: 57)
+                    .offset(y: 14)
 
                 Spacer(minLength: 36)
 
