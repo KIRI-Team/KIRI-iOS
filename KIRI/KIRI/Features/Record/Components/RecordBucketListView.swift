@@ -43,22 +43,12 @@ struct RecordBucketListView: View {
 
 
 
-    private struct BucketItem: Identifiable {
+    fileprivate struct BucketItemGroup: Identifiable {
+        let missionId: Int
+        let items: [BucketItemResult]
 
-        let id: Int
-
-
-
-        let title: String
-
-        let savedBy: String
-
-        let ownerId: Int
-
-        let isCompleted: Bool
-
-        let invitation: InvitationData?
-
+        var id: Int { missionId }
+        var representative: BucketItemResult { items[0] }
     }
 
 
@@ -79,7 +69,7 @@ struct RecordBucketListView: View {
     @State private var isDeleting = false
     @State private var nextCursor: Int?
     @State private var hasNextPage = false
-    @State private var selectedBucketItem: BucketItemResult?
+    @State private var selectedBucketGroup: BucketItemGroup?
     @State private var selectedScheduleItem: BucketItemResult?
 
 
@@ -102,17 +92,21 @@ struct RecordBucketListView: View {
 
     // 운영 화면에서는 GET /api/v1/bucket-items 응답만 사용합니다.
 
-    private var filteredItems: [BucketItem] {
-        let mapped = serverItems.map { item in
-            BucketItem(id: item.bucketItemId,
-                       title: item.mission.title,
-                       savedBy: "\(item.saver.nickname)이 저장했어요!",
-                       ownerId: item.saver.memberId,
-                       isCompleted: item.status == "COMPLETED",
-                       invitation: nil)
+    private var filteredItems: [BucketItemGroup] {
+        let visible = selectedFilter.id.map { memberId in
+            serverItems.filter { $0.saver.memberId == memberId }
+        } ?? serverItems
+
+        var groups: [Int: [BucketItemResult]] = [:]
+        var order: [Int] = []
+        for item in visible {
+            if groups[item.mission.missionId] == nil { order.append(item.mission.missionId) }
+            groups[item.mission.missionId, default: []].append(item)
         }
-        guard let selectedMemberId = selectedFilter.id else { return mapped }
-        return mapped.filter { $0.ownerId == selectedMemberId }
+        return order.compactMap { missionId in
+            guard let items = groups[missionId], !items.isEmpty else { return nil }
+            return BucketItemGroup(missionId: missionId, items: items)
+        }
     }
 
     private var availableFilters: [FamilyFilter] {
@@ -205,26 +199,23 @@ struct RecordBucketListView: View {
             .presentationDetents([.large])
             .presentationDragIndicator(.hidden)
         }
-        .sheet(item: $selectedBucketItem) { item in
+        .sheet(item: $selectedBucketGroup) { group in
             BucketItemActionSheet(
-                item: item,
-                onClose: { selectedBucketItem = nil },
-                onSuggestSchedule: {
-                    selectedBucketItem = nil
-                    // 시트가 닫힌 뒤 기존 일정 요청서 화면을 엽니다.
-                    DispatchQueue.main.async {
-                        selectedScheduleItem = item
-                    }
+                group: group,
+                onClose: { selectedBucketGroup = nil },
+                onSuggestSchedule: { item in
+                    selectedBucketGroup = nil
+                    DispatchQueue.main.async { selectedScheduleItem = item }
                 },
-                onDelete: {
-                    selectedBucketItem = nil
+                onDelete: { item in
+                    selectedBucketGroup = nil
                     DispatchQueue.main.async {
                         pendingDelete = item
                         showingDeleteConfirmation = true
                     }
                 }
             )
-            .presentationDetents([.height(344)])
+            .presentationDetents(group.items.count > 1 ? [.medium] : [.height(344)])
             .presentationDragIndicator(.hidden)
             .presentationCornerRadius(28)
             .presentationBackground(KIRIColor.Background.secondary)
@@ -431,17 +422,18 @@ struct RecordBucketListView: View {
 
 
     @ViewBuilder
-    private func bucketCard(_ item: BucketItem) -> some View {
-        let serverItem = serverItems.first(where: { $0.bucketItemId == item.id })
+    private func bucketCard(_ group: BucketItemGroup) -> some View {
+        let item = group.representative
+        let canSchedule = group.items.contains(where: \.schedulable)
+        let savedBy = group.items.map { "\($0.saver.nickname)이 저장했어요!" }.joined(separator: " · ")
         Button {
-            guard let serverItem else { return }
-            selectedBucketItem = serverItem
+            selectedBucketGroup = group
         } label: {
             HStack(alignment: .top, spacing: 14) {
-                missionImage(serverItem?.mission.imageUrl)
+                missionImage(item.mission.imageUrl)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .top, spacing: 8) {
-                        Text(item.title)
+                        Text(item.mission.title)
                             .font(KIRITypography.headingSmall)
                             .tracking(-0.72)
                             .foregroundStyle(KIRIColor.Text.strong)
@@ -449,7 +441,7 @@ struct RecordBucketListView: View {
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        if serverItem?.schedulable == true {
+                        if canSchedule {
                             Image(systemName: "calendar.badge.plus")
                                 .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(KIRIColor.Primary.default)
@@ -457,14 +449,14 @@ struct RecordBucketListView: View {
                         }
                     }
                     HStack(spacing: 8) {
-                        tag(title: item.savedBy, isAccent: false)
-                        if item.isCompleted { tag(title: "완료", isAccent: false) }
+                        tag(title: savedBy, isAccent: false)
+                        if group.items.allSatisfy({ $0.status == "COMPLETED" }) { tag(title: "완료", isAccent: false) }
                     }
-                    if let scheduledDate = serverItem?.scheduledDate, !scheduledDate.isEmpty {
+                    if let scheduledDate = group.items.compactMap(\.scheduledDate).first(where: { !$0.isEmpty }) {
                         Label(Self.displayScheduleDate(scheduledDate), systemImage: "calendar")
                             .font(KIRITypography.caption)
                             .foregroundStyle(KIRIColor.Text.secondary)
-                    } else if serverItem?.schedulable == true {
+                    } else if canSchedule {
                         Text("일정을 제안할 수 있어요")
                             .font(KIRITypography.caption)
                             .foregroundStyle(KIRIColor.Text.secondary)
@@ -480,9 +472,9 @@ struct RecordBucketListView: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
-            if let serverItem, serverItem.deletable {
+            if group.items.count == 1, item.deletable {
                 Button("버킷에서 삭제", role: .destructive) {
-                    pendingDelete = serverItem
+                    pendingDelete = item
                     showingDeleteConfirmation = true
                 }
             }
@@ -594,24 +586,37 @@ struct RecordBucketListView: View {
 /// 버킷 항목을 탭했을 때 표시하는 Figma 기록탭 바텀시트입니다.
 /// 시트에는 서버가 반환한 항목만 표시하고, 일정 제안은 기존 요청서 화면으로 위임합니다.
 private struct BucketItemActionSheet: View {
-    let item: BucketItemResult
+    let group: RecordBucketListView.BucketItemGroup
     let onClose: () -> Void
-    let onSuggestSchedule: () -> Void
-    let onDelete: () -> Void
+    let onSuggestSchedule: (BucketItemResult) -> Void
+    let onDelete: (BucketItemResult) -> Void
+    @State private var selectedItemID: Int?
+
+    private var selectedItem: BucketItemResult? {
+        if group.items.count == 1 { return group.items[0] }
+        guard let selectedItemID else { return nil }
+        return group.items.first { $0.bucketItemId == selectedItemID }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topTrailing) {
                 HStack(alignment: .top, spacing: 14) {
-                    itemImage
+                    itemImage(group.representative.mission.imageUrl)
                     VStack(alignment: .leading, spacing: 7) {
-                        Text(item.mission.title)
+                        Text(group.representative.mission.title)
                             .font(KIRITypography.headingMedium)
                             .foregroundStyle(KIRIColor.Text.strong)
                             .lineLimit(3)
-                        Text("\(item.saver.nickname)이 저장했어요!")
-                            .font(KIRITypography.caption)
-                            .foregroundStyle(KIRIColor.Text.secondary)
+                        if group.items.count == 1 {
+                            Text("\(group.items[0].saver.nickname)이 저장했어요!")
+                                .font(KIRITypography.caption)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                        } else {
+                            Text("\(group.items.count)명이 저장했어요!")
+                                .font(KIRITypography.caption)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -627,21 +632,47 @@ private struct BucketItemActionSheet: View {
 
             Divider().overlay(KIRIColor.Border.default).padding(.top, 20)
 
+            if group.items.count > 1 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("일정을 제안하거나 삭제할 저장 기록을 선택해 주세요")
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    ForEach(group.items) { item in
+                        Button {
+                            selectedItemID = item.bucketItemId
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: selectedItemID == item.bucketItemId ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedItemID == item.bucketItemId ? KIRIColor.Primary.default : KIRIColor.Text.tertiary)
+                                Text(item.saver.nickname)
+                                    .font(KIRITypography.bodyMedium)
+                                    .foregroundStyle(KIRIColor.Text.strong)
+                                Spacer()
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 12)
+            }
+
             VStack(spacing: 10) {
                 actionRow(
                     title: "일정 잡기",
                     icon: AnyView(Image("figma_toast_check").resizable().scaledToFit()),
-                    tint: item.schedulable ? KIRIColor.Icon.secondary : KIRIColor.Icon.disabled,
-                    action: onSuggestSchedule,
-                    isEnabled: item.schedulable
+                    tint: selectedItem?.schedulable == true ? KIRIColor.Icon.secondary : KIRIColor.Icon.disabled,
+                    action: { if let selectedItem { onSuggestSchedule(selectedItem) } },
+                    isEnabled: selectedItem?.schedulable == true
                 )
                 Divider().overlay(KIRIColor.Border.default)
                 actionRow(
                     title: "삭제하기",
                     icon: AnyView(Image(systemName: "trash").font(.system(size: 18, weight: .medium))),
-                    tint: item.deletable ? KIRIColor.Status.error : KIRIColor.Icon.disabled,
-                    action: onDelete,
-                    isEnabled: item.deletable,
+                    tint: selectedItem?.deletable == true ? KIRIColor.Status.error : KIRIColor.Icon.disabled,
+                    action: { if let selectedItem { onDelete(selectedItem) } },
+                    isEnabled: selectedItem?.deletable == true,
                     isDestructive: true
                 )
             }
@@ -683,8 +714,8 @@ private struct BucketItemActionSheet: View {
     }
 
     @ViewBuilder
-    private var itemImage: some View {
-        AsyncImage(url: item.mission.imageUrl) { phase in
+    private func itemImage(_ url: URL?) -> some View {
+        AsyncImage(url: url) { phase in
             if case .success(let image) = phase {
                 image.resizable().scaledToFill()
             } else {
