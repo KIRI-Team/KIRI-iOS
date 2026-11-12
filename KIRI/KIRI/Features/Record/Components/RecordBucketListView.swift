@@ -397,105 +397,53 @@ struct RecordBucketListView: View {
 
 
     @ViewBuilder
-    private func bucketCard(
-
-        _ item: BucketItem
-
-    ) -> some View {
+    private func bucketCard(_ item: BucketItem) -> some View {
         let serverItem = serverItems.first(where: { $0.bucketItemId == item.id })
-
         Button {
-            guard let serverItem, serverItem.schedulable, !item.isCompleted else { return }
+            guard let serverItem, serverItem.schedulable else { return }
             selectedScheduleItem = serverItem
-
         } label: {
-
-            VStack(
-
-                alignment: .leading,
-
-                spacing: 8
-
-            ) {
-
-                HStack(spacing: 10) {
-
-                    if item.isCompleted {
-
-                        tag(
-
-                            title: "종료된 일정",
-
-                            isAccent: false
-
-                        )
-
+            HStack(alignment: .top, spacing: 14) {
+                missionImage(serverItem?.mission.imageUrl)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text(item.title)
+                            .font(KIRITypography.headingSmall)
+                            .tracking(-0.72)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if serverItem?.schedulable == true {
+                            Image(systemName: "calendar.badge.plus")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundStyle(KIRIColor.Primary.default)
+                                .accessibilityLabel("일정 제안 가능")
+                        }
                     }
-
-
-
-                    tag(
-
-                        title: item.savedBy,
-
-                        isAccent: false
-
-                    )
-
+                    HStack(spacing: 8) {
+                        tag(title: item.savedBy, isAccent: false)
+                        if item.isCompleted { tag(title: "완료", isAccent: false) }
+                    }
+                    if let scheduledDate = serverItem?.scheduledDate, !scheduledDate.isEmpty {
+                        Label(Self.displayScheduleDate(scheduledDate), systemImage: "calendar")
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                    } else if serverItem?.schedulable == true {
+                        Text("일정을 제안할 수 있어요")
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                    }
                 }
-
-
-
-                Text(item.title)
-
-                    .font(KIRITypography.headingMedium)
-
-                    .tracking(-0.8)
-
-                    .foregroundStyle(KIRIColor.Text.strong)
-
-                    .lineLimit(1)
-
-                    .frame(
-
-                        maxWidth: .infinity,
-
-                        alignment: .leading
-
-                    )
-
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-
-            .padding(.horizontal, 18)
-
+            .padding(.horizontal, 16)
             .padding(.vertical, 16)
-
-            .frame(
-
-                maxWidth: .infinity,
-
-                alignment: .leading
-
-            )
-
-            .background(
-
-                KIRIColor.Background.tertiary
-
-            )
-
-            .clipShape(
-
-                RoundedRectangle(
-
-                    cornerRadius: 16
-
-                )
-
-            )
-
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
-
         .buttonStyle(.plain)
         .contextMenu {
             if let serverItem, serverItem.deletable {
@@ -505,10 +453,31 @@ struct RecordBucketListView: View {
                 }
             }
         }
-
     }
 
+    @ViewBuilder
+    private func missionImage(_ url: URL?) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let image): image.resizable().scaledToFill()
+            default:
+                ZStack {
+                    KIRIColor.Background.elevated
+                    Image(systemName: "photo").foregroundStyle(KIRIColor.Text.tertiary)
+                }
+            }
+        }
+        .frame(width: 92, height: 92)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityHidden(true)
+    }
 
+    private static func displayScheduleDate(_ value: String) -> String {
+        let input = ISO8601DateFormatter()
+        guard let date = input.date(from: value) else { return value }
+        return date.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute())
+    }
 
     // MARK: - Tag
 
