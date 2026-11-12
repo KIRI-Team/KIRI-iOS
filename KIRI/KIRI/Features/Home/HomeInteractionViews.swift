@@ -239,16 +239,15 @@ struct HomeMemberQuestionView: View {
                             .frame(width: 24, height: 24)
                         Text("콕 찌르기")
                             .font(KIRITypography.caption)
-                            // 미답변 가족은 이미 전송한 상태여도 다시 탭해 중복 안내를 받을 수 있어야 합니다.
-                            // 답변 완료 가족만 Figma의 비활성 스타일을 사용합니다.
-                            .foregroundStyle(member.hasAnswered ? KIRIColor.Text.tertiary : KIRIColor.Primary.default)
+                            // 답변 여부와 콕 전송 여부는 독립적입니다. 전송 이력이 있어도 재탭 안내를 제공합니다.
+                            .foregroundStyle(KIRIColor.Primary.default)
                             .lineLimit(1)
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .frame(width: 55)
                     .contentShape(Rectangle())
                 }
-                .disabled(member.hasAnswered || isPoking || member.memberId == nil)
+                .disabled(isPoking || member.memberId == nil)
                 .buttonStyle(.plain)
             }
         }
