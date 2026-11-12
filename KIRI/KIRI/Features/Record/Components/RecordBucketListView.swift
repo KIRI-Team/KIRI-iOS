@@ -7,7 +7,9 @@
 //
 import SwiftUI
 
-
+extension Notification.Name {
+    static let bucketItemDidChange = Notification.Name("kiri.bucketItemDidChange")
+}
 
 struct RecordBucketListView: View {
 
@@ -212,6 +214,13 @@ struct RecordBucketListView: View {
                     DispatchQueue.main.async {
                         selectedScheduleItem = item
                     }
+                },
+                onDelete: {
+                    selectedBucketItem = nil
+                    DispatchQueue.main.async {
+                        pendingDelete = item
+                        showingDeleteConfirmation = true
+                    }
                 }
             )
             .presentationDetents([.height(286)])
@@ -268,7 +277,12 @@ struct RecordBucketListView: View {
         defer { isDeleting = false }
         do {
             try await AuthService.shared.deleteBucketItem(bucketItemId: item.bucketItemId)
-            await loadBuckets()
+            NotificationCenter.default.post(
+                name: .bucketItemDidChange,
+                object: nil,
+                userInfo: ["missionId": item.mission.missionId]
+            )
+            await loadBuckets(reset: true)
         } catch {
             loadError = "버킷리스트를 삭제하지 못했어요."
         }
@@ -580,6 +594,7 @@ struct RecordBucketListView: View {
 private struct BucketItemActionSheet: View {
     let item: BucketItemResult
     let onSuggestSchedule: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -597,17 +612,31 @@ private struct BucketItemActionSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Button(action: onSuggestSchedule) {
-                Text("일정 잡기")
-                    .font(KIRITypography.button)
-                    .foregroundStyle(item.schedulable ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(item.schedulable ? KIRIColor.Primary.default : KIRIColor.Background.elevated)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            VStack(spacing: 10) {
+                Button(action: onSuggestSchedule) {
+                    Text("일정 잡기")
+                        .font(KIRITypography.button)
+                        .foregroundStyle(item.schedulable ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(item.schedulable ? KIRIColor.Primary.default : KIRIColor.Background.elevated)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .disabled(!item.schedulable)
+
+                Button(action: onDelete) {
+                    Text("삭제하기")
+                        .font(KIRITypography.button)
+                        .foregroundStyle(item.deletable ? KIRIColor.Text.primary : KIRIColor.Text.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(KIRIColor.Background.elevated)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+                .disabled(!item.deletable)
             }
-            .buttonStyle(.plain)
-            .disabled(!item.schedulable)
 
         }
         .padding(.horizontal, 20)

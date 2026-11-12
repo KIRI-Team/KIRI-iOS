@@ -175,6 +175,14 @@ struct MissionView: View {
             }
         }
         .task { await load(reset: true) }
+        .onReceive(NotificationCenter.default.publisher(for: .bucketItemDidChange)) { notification in
+            guard let missionId = notification.userInfo?["missionId"] as? Int else { return }
+            bucketItemsByMissionID[missionId] = nil
+            savedMissionIDs.remove(missionId)
+            if let index = rows.firstIndex(where: { $0.id == missionId }) {
+                rows[index].isBookmarked = false
+            }
+        }
         .fullScreenCover(isPresented: $isFilterPresented) {
             MissionFilterView(initial: appliedFilter, distanceAvailable: hasFamilyAddressConfigured) { newFilter in
                 appliedFilter = newFilter
