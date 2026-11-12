@@ -18,6 +18,7 @@ struct ScheduleCreationSheet: View {
     @State private var isSubmitting = false
     @State private var isSendMethodVisible = false
     @State private var errorMessage: String?
+    @State private var memberLoadError: String?
 
     private enum Step { case form, dateTime, members, preview }
     private var canPreview: Bool { membersLoaded && !selectedMemberIds.isEmpty }
@@ -74,9 +75,32 @@ struct ScheduleCreationSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("함께하고 싶은 가족을 선택해 주세요").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong).padding(.bottom, 8)
-                    if !membersLoaded { ProgressView("가족 구성원을 불러오는 중").frame(maxWidth: .infinity, minHeight: 120) }
-                    else if familyMembers.isEmpty { Text("함께 초대할 가족 구성원이 없어요.").foregroundStyle(KIRIColor.Text.secondary) }
-                    else { ForEach(familyMembers) { member in memberRow(member) } }
+                    if !membersLoaded {
+                        ProgressView("가족 구성원을 불러오는 중")
+                            .frame(maxWidth: .infinity, minHeight: 120)
+                    } else if let memberLoadError {
+                        VStack(spacing: 10) {
+                            Text(memberLoadError)
+                                .font(KIRITypography.bodyMedium)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("다시 시도") {
+                                Task { await loadFamilyMembers(force: true) }
+                            }
+                            .font(KIRITypography.button)
+                            .foregroundStyle(KIRIColor.Primary.default)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 120)
+                    } else if familyMembers.isEmpty {
+                        Text("함께 초대할 가족 구성원이 없어요.")
+                            .font(KIRITypography.bodyMedium)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                            .frame(maxWidth: .infinity, minHeight: 120)
+                    } else {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                            ForEach(familyMembers) { member in memberRow(member) }
+                        }
+                    }
                     if let errorMessage { errorText(errorMessage) }
                 }.padding(18)
             }
@@ -141,12 +165,51 @@ struct ScheduleCreationSheet: View {
         Button {
             if selectedMemberIds.contains(member.memberId) { selectedMemberIds.remove(member.memberId) } else { selectedMemberIds.insert(member.memberId) }
         } label: {
-            HStack(spacing: 12) {
-                AsyncImage(url: member.characterImageUrl) { phase in if case .success(let image) = phase { image.resizable().scaledToFit() } else { Color.gray.opacity(0.2) } }.frame(width: 44, height: 44).clipShape(Circle())
-                VStack(alignment: .leading, spacing: 3) { Text(member.nickname).foregroundStyle(KIRIColor.Text.strong); if let role = member.familyRole, !role.isEmpty { Text(role).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary) } }
-                Spacer(); Image(systemName: selectedMemberIds.contains(member.memberId) ? "checkmark.circle.fill" : "circle").foregroundStyle(selectedMemberIds.contains(member.memberId) ? KIRIColor.Primary.default : KIRIColor.Text.tertiary).font(.system(size: 24))
-            }.padding(14).background(KIRIColor.Background.tertiary).clipShape(RoundedRectangle(cornerRadius: 12))
+            VStack(spacing: 8) {
+                ZStack(alignment: .topTrailing) {
+                    memberImage(member)
+                        .frame(height: 72)
+                        .frame(maxWidth: .infinity)
+                    Image(systemName: selectedMemberIds.contains(member.memberId) ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(selectedMemberIds.contains(member.memberId) ? KIRIColor.Primary.default : KIRIColor.Text.tertiary)
+                        .font(.system(size: 22))
+                }
+                Text(member.nickname)
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 120)
+            .background(selectedMemberIds.contains(member.memberId) ? KIRIColor.Primary.default.opacity(0.18) : KIRIColor.Background.tertiary)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(selectedMemberIds.contains(member.memberId) ? KIRIColor.Primary.default : .clear, lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }.buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func memberImage(_ member: FamilyMemberInfoResult) -> some View {
+        if let url = member.characterImageUrl {
+            AsyncImage(url: url) { phase in
+                if case .success(let image) = phase { image.resizable().scaledToFit() }
+                else { roleImage(for: member.familyRole) }
+            }
+        } else {
+            roleImage(for: member.familyRole)
+        }
+    }
+
+    private func roleImage(for role: String?) -> some View {
+        let asset: String
+        switch role?.uppercased() {
+        case "FATHER": asset = "role_dad"
+        case "MOTHER": asset = "role_mom"
+        case "SON": asset = "role_son"
+        case "DAUGHTER": asset = "role_daughter"
+        default: asset = "family-member"
+        }
+        return Image(asset).resizable().scaledToFit()
     }
 
     private func detailLine(label: String, value: String) -> some View { VStack(alignment: .leading, spacing: 5) { Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary); Text(value).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong) } }
@@ -167,14 +230,20 @@ struct ScheduleCreationSheet: View {
         } catch { errorMessage = "일정 요청을 보내지 못했어요. 다시 시도해 주세요." }
     }
 
-    private func loadFamilyMembers() async {
-        guard !membersLoaded else { return }
+    private func loadFamilyMembers(force: Bool = false) async {
+        guard force || !membersLoaded else { return }
+        membersLoaded = false
+        memberLoadError = nil
         do {
             guard let familyId = AppSessionStore().familyId else { throw AuthServiceError.missingStoredSession }
-            let result = try await AuthService.shared.familyInfo(familyId: familyId)
+            let result = try await AuthService.shared.scheduleParticipantMembers(familyId: familyId)
             let current = try? AuthService.shared.currentMemberId()
-            familyMembers = result.members.filter { $0.memberId != current }; membersLoaded = true
-        } catch { errorMessage = "가족 구성원을 불러오지 못했어요. 다시 시도해 주세요."; membersLoaded = true }
+            familyMembers = result.filter { $0.memberId != current }
+            membersLoaded = true
+        } catch {
+            memberLoadError = "가족 구성원을 불러오지 못했어요. 다시 시도해 주세요."
+            membersLoaded = true
+        }
     }
 }
 
