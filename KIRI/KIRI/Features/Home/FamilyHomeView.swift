@@ -10,6 +10,14 @@
 
 import SwiftUI
 
+private struct FamilyMemberFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
 struct FamilyHomeView: View {
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -35,6 +43,7 @@ struct FamilyHomeView: View {
     @State private var familyAnswers: [FamilyAnswer] = []
     @State private var isLoadingFamilyAnswers = false
     @State private var familyAnswersError: String?
+    @State private var memberFrames: [Int: CGRect] = [:]
     @State private var pokeToastMessage: String?
     @State private var pokeToastIsError = false
     @State private var recommendedMissions: [MissionFeedItem] = []
@@ -134,9 +143,15 @@ struct FamilyHomeView: View {
             case .memberDetail:
                 ZStack {
                     homeContent.allowsHitTesting(false)
+                    Color.black.opacity(0.56)
+                        .ignoresSafeArea()
+                        .contentShape(Rectangle())
+                        .onTapGesture { route = .home }
                     if let selectedMember {
                         HomeMemberQuestionView(
                             member: selectedMember,
+                            question: serverQuestion?.question ?? "오늘의 질문",
+                            anchorFrame: selectedMember.memberId.flatMap { memberFrames[$0] },
                             onBack: { route = .home },
                             onPoke: { memberId in
                                 do {
@@ -170,6 +185,7 @@ struct FamilyHomeView: View {
                                 showPokeToast("이미 \(selectedMember.name)님을 콕 찔렀어요!", isError: false)
                             }
                         )
+                        .zIndex(1)
                     }
                     if let pokeToastMessage {
                         KIRIToast(message: pokeToastMessage, isError: pokeToastIsError)
@@ -213,6 +229,10 @@ struct FamilyHomeView: View {
         }
         .onDisappear {
             tabBarVisibility.wrappedValue = true
+        }
+        .coordinateSpace(name: "familyHome")
+        .onPreferenceChange(FamilyMemberFramePreferenceKey.self) { frames in
+            memberFrames = frames
         }
         .task {
             guard loadsServerQuestion else {
@@ -445,6 +465,14 @@ struct FamilyHomeView: View {
                                 FamilyMemberItem(name: member.name, role: member.role, isMe: member.isMe, hasAnswered: member.hasAnswered)
                             }
                             .buttonStyle(.plain)
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: FamilyMemberFramePreferenceKey.self,
+                                        value: member.memberId.map { [$0: proxy.frame(in: .named("familyHome"))] } ?? [:]
+                                    )
+                                }
+                            )
                         }
                     }
                 }
