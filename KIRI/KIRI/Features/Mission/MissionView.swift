@@ -367,11 +367,18 @@ struct MissionView: View {
             var cursor: Int?
             var ids = Set<Int>()
             var itemsByMissionID: [Int: BucketItemResult] = [:]
+            let currentMemberID = try? AuthService.shared.currentMemberId()
             while true {
                 let page = try await AuthService.shared.bucketItems(cursor: cursor)
                 for item in page.bucketItems {
                     ids.insert(item.mission.missionId)
-                    itemsByMissionID[item.mission.missionId] = item
+                    let missionID = item.mission.missionId
+                    let existing = itemsByMissionID[missionID]
+                    // 같은 미션을 여러 가족 구성원이 저장할 수 있으므로,
+                    // 해제 시에는 현재 사용자 항목을 우선하고 그 다음 삭제 가능 항목을 사용합니다.
+                    if item.saver.memberId == currentMemberID || existing == nil || (!existing!.deletable && item.deletable) {
+                        itemsByMissionID[missionID] = item
+                    }
                 }
                 guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
                 cursor = nextCursor
