@@ -10,6 +10,14 @@
 
 import SwiftUI
 
+private struct HomeMemberQuestionSizePreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 124
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct HomeQuestionAnswerView: View {
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     let question: String
@@ -128,11 +136,12 @@ struct HomeMemberQuestionView: View {
     let onAlreadyPoked: () -> Void
     @State private var didPoke = false
     @State private var isPoking = false
+    @State private var measuredCardHeight: CGFloat = 124
 
     var body: some View {
         GeometryReader { proxy in
             let cardWidth = min(303, max(280, proxy.size.width - 36))
-            let cardHeight: CGFloat = 124
+            let cardHeight = max(124, measuredCardHeight)
             let targetX = anchorFrame?.midX ?? proxy.size.width / 2
             let cardX = min(
                 max(targetX, cardWidth / 2 + 18),
@@ -145,7 +154,8 @@ struct HomeMemberQuestionView: View {
             let cardY = max(cardHeight / 2 + 16, targetTop + cardHeight / 2)
 
             card
-                .frame(width: cardWidth, height: cardHeight)
+                .frame(width: cardWidth)
+                .frame(minHeight: cardHeight)
                 .overlay(alignment: .top) {
                     SpeechTail()
                         .fill(KIRIColor.Background.primary)
@@ -159,6 +169,10 @@ struct HomeMemberQuestionView: View {
                         )
                 }
                 .position(x: cardX, y: cardY)
+                .onPreferenceChange(HomeMemberQuestionSizePreferenceKey.self) { height in
+                    guard height > 0, abs(measuredCardHeight - height) > 0.5 else { return }
+                    measuredCardHeight = max(124, height)
+                }
         }
         .ignoresSafeArea()
         .accessibilityAddTraits(.isModal)
@@ -170,13 +184,11 @@ struct HomeMemberQuestionView: View {
                 Text(question)
                     .font(KIRITypography.body)
                     .foregroundStyle(KIRIColor.Text.secondary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
                     .font(KIRITypography.headingSmall)
                     .foregroundStyle(KIRIColor.Text.strong)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -209,6 +221,7 @@ struct HomeMemberQuestionView: View {
                             .foregroundStyle(didPoke || member.hasAnswered ? KIRIColor.Text.tertiary : KIRIColor.Primary.default)
                             .lineLimit(1)
                     }
+                    .frame(minWidth: 44, minHeight: 44)
                     .frame(width: 55)
                     .contentShape(Rectangle())
                 }
@@ -217,9 +230,18 @@ struct HomeMemberQuestionView: View {
             }
         }
         .padding(.horizontal, 21)
+        .padding(.vertical, 20)
         .background(KIRIColor.Background.primary)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: HomeMemberQuestionSizePreferenceKey.self,
+                    value: proxy.size.height
+                )
+            }
+        )
     }
 }
 
