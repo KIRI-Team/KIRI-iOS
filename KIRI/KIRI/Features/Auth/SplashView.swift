@@ -37,6 +37,8 @@ struct SplashView: View {
 }
 
 private final class SplashVideoCoordinator: NSObject, ObservableObject {
+    private let transitionTime = CMTime(seconds: 2.0, preferredTimescale: 600)
+
     let player: AVPlayer?
 
     private var finish: (() -> Void)?
@@ -90,6 +92,13 @@ private final class SplashVideoCoordinator: NSObject, ObservableObject {
         guard let player else {
             finishOnce()
             return
+        }
+
+        timeObserver = player.addBoundaryTimeObserver(
+            forTimes: [NSValue(time: transitionTime)],
+            queue: .main
+        ) { [weak self] in
+            self?.finishOnce()
         }
 
         player.seek(to: .zero)
