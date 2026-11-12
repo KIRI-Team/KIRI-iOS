@@ -77,6 +77,7 @@ struct RecordBucketListView: View {
     @State private var isDeleting = false
     @State private var nextCursor: Int?
     @State private var hasNextPage = false
+    @State private var selectedBucketItem: BucketItemResult?
     @State private var selectedScheduleItem: BucketItemResult?
 
 
@@ -201,6 +202,21 @@ struct RecordBucketListView: View {
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.hidden)
+        }
+        .sheet(item: $selectedBucketItem) { item in
+            BucketItemActionSheet(
+                item: item,
+                onSuggestSchedule: {
+                    selectedBucketItem = nil
+                    // 시트가 닫힌 뒤 기존 일정 요청서 화면을 엽니다.
+                    DispatchQueue.main.async {
+                        selectedScheduleItem = item
+                    }
+                }
+            )
+            .presentationDetents([.height(368)])
+            .presentationDragIndicator(.hidden)
+            .presentationCornerRadius(28)
         }
 
     }
@@ -402,8 +418,8 @@ struct RecordBucketListView: View {
     private func bucketCard(_ item: BucketItem) -> some View {
         let serverItem = serverItems.first(where: { $0.bucketItemId == item.id })
         Button {
-            guard let serverItem, serverItem.schedulable else { return }
-            selectedScheduleItem = serverItem
+            guard let serverItem else { return }
+            selectedBucketItem = serverItem
         } label: {
             HStack(alignment: .top, spacing: 14) {
                 missionImage(serverItem?.mission.imageUrl)
@@ -557,4 +573,87 @@ struct RecordBucketListView: View {
         
     }
     
+}
+
+/// 버킷 항목을 탭했을 때 표시하는 Figma 기록탭 바텀시트입니다.
+/// 시트에는 서버가 반환한 항목만 표시하고, 일정 제안은 기존 요청서 화면으로 위임합니다.
+private struct BucketItemActionSheet: View {
+    let item: BucketItemResult
+    let onSuggestSchedule: () -> Void
+
+    private var statusText: String {
+        if let scheduledDate = item.scheduledDate, !scheduledDate.isEmpty {
+            return "일정이 연결되어 있어요"
+        }
+        if item.status.uppercased() == "COMPLETED" {
+            return "완료한 활동이에요"
+        }
+        return "아직 일정이 연결되지 않았어요"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Capsule()
+                .fill(KIRIColor.Text.tertiary)
+                .frame(width: 36, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
+
+            HStack(alignment: .top, spacing: 14) {
+                itemImage
+                VStack(alignment: .leading, spacing: 7) {
+                    Text(item.mission.title)
+                        .font(KIRITypography.headingMedium)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .lineLimit(3)
+                    Text("\(item.saver.nickname)이 저장했어요")
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Text(statusText)
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider()
+                .overlay(KIRIColor.Border.default)
+                .padding(.vertical, 20)
+
+            Button(action: onSuggestSchedule) {
+                Text(item.schedulable ? "일정 제안하기" : "일정 제안을 할 수 없어요")
+                    .font(KIRITypography.button)
+                    .foregroundStyle(item.schedulable ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(item.schedulable ? KIRIColor.Primary.default : KIRIColor.Background.elevated)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .disabled(!item.schedulable)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 18)
+        .background(KIRIColor.Background.primary)
+    }
+
+    @ViewBuilder
+    private var itemImage: some View {
+        AsyncImage(url: item.mission.imageUrl) { phase in
+            if case .success(let image) = phase {
+                image.resizable().scaledToFill()
+            } else {
+                ZStack {
+                    KIRIColor.Background.elevated
+                    Image(systemName: "photo").foregroundStyle(KIRIColor.Text.tertiary)
+                }
+            }
+        }
+        .frame(width: 84, height: 84)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
 }
