@@ -303,11 +303,12 @@ struct RecordCalendarView: View {
 
         let serverSchedules = (serverCalendar?.schedules ?? []).compactMap { event -> ScheduleDetailData? in
             guard let eventDate = parseDate(event.date), calendar.isDate(eventDate, inSameDayAs: date) else { return nil }
+            guard let state = calendarActivityState(for: event.status) else { return nil }
             return ScheduleDetailData(
                 scheduleId: event.scheduleId,
                 day: calendar.component(.day, from: eventDate),
                 month: calendar.component(.month, from: eventDate),
-                status: event.status == "CONFIRMED" ? .confirmedSchedule : .pendingSchedule,
+                status: state,
                 title: "가족 일정",
                 date: event.date,
                 startTime: event.time,
@@ -354,10 +355,12 @@ struct RecordCalendarView: View {
     private func activityState(
         for day: Int
     ) -> ActivityState? {
+        // 하루에 여러 일정이 있으면 완료 > 확정 > 응답 대기 순으로 한 마커만 표시합니다.
+        // 정리표에 다중 마커 규칙이 없으므로 날짜 셀 안에서 겹치지 않게 우선순위를 고정합니다.
         let daySchedules = schedules(for: day)
         let serverEvents = serverCalendar?.schedules.filter { event in
             guard let eventDate = parseDate(event.date), let date = dateForDay(day) else { return false }
-            return calendar.isDate(eventDate, inSameDayAs: date)
+            return calendar.isDate(eventDate, inSameDayAs: date) && calendarActivityState(for: event.status) != nil
         } ?? []
 
         if !reviews(for: day).isEmpty ||
@@ -424,11 +427,12 @@ struct RecordCalendarView: View {
 
     private func scheduleDetail(_ item: UpcomingSchedule) -> ScheduleDetailData? {
         guard let date = parseDate(item.date) else { return nil }
+        guard let state = calendarActivityState(for: item.status) else { return nil }
         return ScheduleDetailData(
             scheduleId: item.scheduleId,
             day: calendar.component(.day, from: date),
             month: calendar.component(.month, from: date),
-            status: item.status == "CONFIRMED" ? .confirmedSchedule : .pendingSchedule,
+            status: state,
             title: item.title,
             date: item.date,
             startTime: item.time,
@@ -436,6 +440,23 @@ struct RecordCalendarView: View {
             expectedSteps: "",
             duration: ""
         )
+    }
+
+    /// 서버 일정 전체 상태를 캘린더 마커 상태로 변환합니다.
+    /// 취소·미지원 상태는 날짜 마커를 만들지 않아 실제 일정이 있는 것처럼 보이지 않게 합니다.
+    private func calendarActivityState(for rawStatus: String) -> ActivityState? {
+        switch rawStatus.uppercased() {
+        case "CONFIRMED":
+            return .confirmedSchedule
+        case "PENDING_RESPONSE", "PENDING", "RECONFIRM_REQUIRED", "NOT_CONFIRMED":
+            return .pendingSchedule
+        case "COMPLETED":
+            return .completed
+        case "CANCELLED", "CANCELED":
+            return nil
+        default:
+            return nil
+        }
     }
 
     // MARK: - Month Header
@@ -570,9 +591,10 @@ struct RecordCalendarView: View {
         switch state {
         case .pendingSchedule:
             VStack(spacing: 2) {
-                Image(systemName: "clock")
-                    .font(.system(size: 17))
-                    .foregroundStyle(KIRIColor.Text.tertiary)
+                Image("figma_calendar_disabled")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 17, height: 17)
 
                 Text(String(day))
                     .font(KIRITypography.caption)
@@ -581,9 +603,10 @@ struct RecordCalendarView: View {
 
         case .confirmedSchedule:
             VStack(spacing: 2) {
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 17))
-                    .foregroundStyle(KIRIColor.Text.primary)
+                Image("figma_calendar_active")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 17, height: 17)
 
                 Text(String(day))
                     .font(KIRITypography.caption)
@@ -607,9 +630,10 @@ struct RecordCalendarView: View {
                     .clipped()
             } else {
                 VStack(spacing: 2) {
-                    Image(systemName: "photo.fill")
-                        .font(.system(size: 17))
-                        .foregroundStyle(KIRIColor.Primary.default)
+                    Image("figma_toast_check")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 17, height: 17)
                     Text(String(day))
                         .font(KIRITypography.caption)
                         .foregroundStyle(KIRIColor.Text.primary)
