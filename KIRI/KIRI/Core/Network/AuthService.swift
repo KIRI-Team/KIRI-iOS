@@ -391,6 +391,30 @@ final class AuthService {
         return result
     }
 
+    /// 일정 참여자 선택에 필요한 실제 가족 구성원 목록입니다.
+    /// 오늘 질문 응답 API는 미답변 구성원도 포함하므로 질문이 배정된 날에는
+    /// 가족 상세 응답보다 이 경로를 우선 사용합니다.
+    func scheduleParticipantMembers(familyId: Int) async throws -> [FamilyMemberInfoResult] {
+        do {
+            let question = try await todayQuestion()
+            if let questionId = question.questionId {
+                let answers = try await familyAnswers(questionId: questionId)
+                return answers.answers.map {
+                    FamilyMemberInfoResult(
+                        memberId: $0.memberId,
+                        nickname: $0.nickname,
+                        familyRole: $0.familyRole,
+                        characterImageUrl: nil
+                    )
+                }
+            }
+        } catch let APIError.serverError(code, _) where code == "QUESTION404_1" {
+            // 오늘 질문이 없는 날에는 아래 가족 상세 경로를 시도합니다.
+        }
+
+        return try await familyInfo(familyId: familyId).members
+    }
+
     func pokeMember(memberId: Int) async throws {
         let endpoint = APIEndpoint(path: "/api/v1/questions/today/members/\(memberId)/pokes", method: .POST, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
