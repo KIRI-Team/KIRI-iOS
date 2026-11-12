@@ -208,6 +208,7 @@ struct RecordBucketListView: View {
         .sheet(item: $selectedBucketItem) { item in
             BucketItemActionSheet(
                 item: item,
+                onClose: { selectedBucketItem = nil },
                 onSuggestSchedule: {
                     selectedBucketItem = nil
                     // 시트가 닫힌 뒤 기존 일정 요청서 화면을 엽니다.
@@ -223,9 +224,10 @@ struct RecordBucketListView: View {
                     }
                 }
             )
-            .presentationDetents([.height(286)])
+            .presentationDetents([.height(344)])
             .presentationDragIndicator(.hidden)
             .presentationCornerRadius(28)
+            .presentationBackground(KIRIColor.Background.secondary)
         }
 
     }
@@ -593,55 +595,91 @@ struct RecordBucketListView: View {
 /// 시트에는 서버가 반환한 항목만 표시하고, 일정 제안은 기존 요청서 화면으로 위임합니다.
 private struct BucketItemActionSheet: View {
     let item: BucketItemResult
+    let onClose: () -> Void
     let onSuggestSchedule: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 14) {
-                itemImage
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(item.mission.title)
-                        .font(KIRITypography.headingMedium)
-                        .foregroundStyle(KIRIColor.Text.strong)
-                        .lineLimit(3)
-                    Text("\(item.saver.nickname)이 저장했어요")
-                        .font(KIRITypography.caption)
-                        .foregroundStyle(KIRIColor.Text.secondary)
+            ZStack(alignment: .topTrailing) {
+                HStack(alignment: .top, spacing: 14) {
+                    itemImage
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(item.mission.title)
+                            .font(KIRITypography.headingMedium)
+                            .foregroundStyle(KIRIColor.Text.strong)
+                            .lineLimit(3)
+                        Text("\(item.saver.nickname)이 저장했어요!")
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(KIRIColor.Icon.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
+
+            Divider().overlay(KIRIColor.Border.default).padding(.top, 20)
 
             VStack(spacing: 10) {
-                Button(action: onSuggestSchedule) {
-                    Text("일정 잡기")
-                        .font(KIRITypography.button)
-                        .foregroundStyle(item.schedulable ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(item.schedulable ? KIRIColor.Primary.default : KIRIColor.Background.elevated)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-                .disabled(!item.schedulable)
-
-                Button(action: onDelete) {
-                    Text("삭제하기")
-                        .font(KIRITypography.button)
-                        .foregroundStyle(item.deletable ? KIRIColor.Text.primary : KIRIColor.Text.tertiary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(KIRIColor.Background.elevated)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-                .disabled(!item.deletable)
+                actionRow(
+                    title: "일정 잡기",
+                    icon: AnyView(Image("figma_toast_check").resizable().scaledToFit()),
+                    tint: item.schedulable ? KIRIColor.Icon.secondary : KIRIColor.Icon.disabled,
+                    action: onSuggestSchedule,
+                    isEnabled: item.schedulable
+                )
+                Divider().overlay(KIRIColor.Border.default)
+                actionRow(
+                    title: "삭제하기",
+                    icon: AnyView(Image(systemName: "trash").font(.system(size: 18, weight: .medium))),
+                    tint: item.deletable ? KIRIColor.Status.error : KIRIColor.Icon.disabled,
+                    action: onDelete,
+                    isEnabled: item.deletable,
+                    isDestructive: true
+                )
             }
+            .padding(.top, 12)
 
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
         .background(KIRIColor.Background.primary)
+    }
+
+    private func actionRow(
+        title: String,
+        icon: AnyView,
+        tint: Color,
+        action: @escaping () -> Void,
+        isEnabled: Bool,
+        isDestructive: Bool = false
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                icon
+                    .frame(width: 24, height: 24)
+                    .foregroundStyle(tint)
+                Text(title)
+                    .font(KIRITypography.bodyMedium)
+                    .foregroundStyle(isDestructive ? tint : (isEnabled ? KIRIColor.Text.strong : KIRIColor.Text.tertiary))
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
     }
 
     @ViewBuilder
