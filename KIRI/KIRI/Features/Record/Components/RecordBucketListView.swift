@@ -214,7 +214,7 @@ struct RecordBucketListView: View {
                     }
                 }
             )
-            .presentationDetents([.height(368)])
+            .presentationDetents([.height(286)])
             .presentationDragIndicator(.hidden)
             .presentationCornerRadius(28)
         }
@@ -581,25 +581,8 @@ private struct BucketItemActionSheet: View {
     let item: BucketItemResult
     let onSuggestSchedule: () -> Void
 
-    private var statusText: String {
-        if let scheduledDate = item.scheduledDate, !scheduledDate.isEmpty {
-            return "일정이 연결되어 있어요"
-        }
-        if item.status.uppercased() == "COMPLETED" {
-            return "완료한 활동이에요"
-        }
-        return "아직 일정이 연결되지 않았어요"
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Capsule()
-                .fill(KIRIColor.Text.tertiary)
-                .frame(width: 36, height: 4)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 12)
-                .padding(.bottom, 20)
-
             HStack(alignment: .top, spacing: 14) {
                 itemImage
                 VStack(alignment: .leading, spacing: 7) {
@@ -610,19 +593,12 @@ private struct BucketItemActionSheet: View {
                     Text("\(item.saver.nickname)이 저장했어요")
                         .font(KIRITypography.caption)
                         .foregroundStyle(KIRIColor.Text.secondary)
-                    Text(statusText)
-                        .font(KIRITypography.caption)
-                        .foregroundStyle(KIRIColor.Text.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Divider()
-                .overlay(KIRIColor.Border.default)
-                .padding(.vertical, 20)
-
             Button(action: onSuggestSchedule) {
-                Text(item.schedulable ? "일정 제안하기" : "일정 제안을 할 수 없어요")
+                Text("일정 잡기")
                     .font(KIRITypography.button)
                     .foregroundStyle(item.schedulable ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
                     .frame(maxWidth: .infinity)
@@ -633,10 +609,9 @@ private struct BucketItemActionSheet: View {
             .buttonStyle(.plain)
             .disabled(!item.schedulable)
 
-            Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 18)
+        .padding(.vertical, 24)
         .background(KIRIColor.Background.primary)
     }
 
@@ -652,7 +627,7 @@ private struct BucketItemActionSheet: View {
                 }
             }
         }
-        .frame(width: 84, height: 84)
+        .frame(width: 64, height: 64)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
