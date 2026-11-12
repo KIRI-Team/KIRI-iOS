@@ -199,6 +199,8 @@ struct RecordBucketListView: View {
                 selectedScheduleItem = nil
                 Task { await loadBuckets(reset: true) }
             }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
         }
 
     }
