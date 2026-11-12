@@ -131,12 +131,32 @@ struct HomeMemberQuestionView: View {
     let member: HomeMember
     let question: String
     let anchorFrame: CGRect?
+    let initiallyPoked: Bool
     let onBack: () -> Void
     let onPoke: (Int) async -> Bool
     let onAlreadyPoked: () -> Void
-    @State private var didPoke = false
+    @State private var didPoke: Bool
     @State private var isPoking = false
     @State private var measuredCardHeight: CGFloat = 124
+
+    init(
+        member: HomeMember,
+        question: String,
+        anchorFrame: CGRect?,
+        initiallyPoked: Bool,
+        onBack: @escaping () -> Void,
+        onPoke: @escaping (Int) async -> Bool,
+        onAlreadyPoked: @escaping () -> Void
+    ) {
+        self.member = member
+        self.question = question
+        self.anchorFrame = anchorFrame
+        self.initiallyPoked = initiallyPoked
+        self.onBack = onBack
+        self.onPoke = onPoke
+        self.onAlreadyPoked = onAlreadyPoked
+        _didPoke = State(initialValue: initiallyPoked)
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -217,9 +237,11 @@ struct HomeMemberQuestionView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: 24, height: 24)
-                        Text(didPoke ? "콕 보냄" : "콕 찌르기")
+                        Text("콕 찌르기")
                             .font(KIRITypography.caption)
-                            .foregroundStyle(didPoke || member.hasAnswered ? KIRIColor.Text.tertiary : KIRIColor.Primary.default)
+                            // 미답변 가족은 이미 전송한 상태여도 다시 탭해 중복 안내를 받을 수 있어야 합니다.
+                            // 답변 완료 가족만 Figma의 비활성 스타일을 사용합니다.
+                            .foregroundStyle(member.hasAnswered ? KIRIColor.Text.tertiary : KIRIColor.Primary.default)
                             .lineLimit(1)
                     }
                     .frame(minWidth: 44, minHeight: 44)
