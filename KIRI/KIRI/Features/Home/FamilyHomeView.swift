@@ -41,6 +41,8 @@ struct FamilyHomeView: View {
     @State private var todayQuestionError: String?
     @State private var serverQuestion: TodayQuestionResult?
     @State private var familyAnswers: [FamilyAnswer] = []
+    // 답변 목록 응답의 질문을 함께 보존해 선택한 구성원의 상태와 같은 질문을 표시합니다.
+    @State private var familyAnswersQuestion: String?
     @State private var isLoadingFamilyAnswers = false
     @State private var familyAnswersError: String?
     @State private var memberFrames: [Int: CGRect] = [:]
@@ -153,7 +155,7 @@ struct FamilyHomeView: View {
                     if let selectedMember {
                         HomeMemberQuestionView(
                             member: selectedMember,
-                            question: serverQuestion?.question ?? "오늘의 질문",
+                            question: familyAnswersQuestion ?? serverQuestion?.question ?? "오늘의 질문",
                             anchorFrame: selectedMember.memberId.flatMap { memberFrames[$0] },
                             initiallyPoked: selectedMember.memberId.map { pokedMemberIDs.contains($0) } ?? false,
                             onBack: { route = .home },
@@ -723,6 +725,7 @@ struct FamilyHomeView: View {
             await MainActor.run {
                 serverQuestion = result
                 familyAnswers = []
+                familyAnswersQuestion = nil
                 didLoadTodayQuestion = true
                 todayQuestionError = nil
             }
@@ -739,6 +742,7 @@ struct FamilyHomeView: View {
             await MainActor.run {
                 serverQuestion = nil
                 familyAnswers = []
+                familyAnswersQuestion = nil
                 familyAnswersError = nil
                 todayQuestionError = nil
                 didLoadTodayQuestion = true
@@ -749,6 +753,7 @@ struct FamilyHomeView: View {
         } catch {
             await MainActor.run {
                 familyAnswers = []
+                familyAnswersQuestion = nil
                 todayQuestionError = error.localizedDescription
                 didLoadTodayQuestion = true
             }
@@ -767,11 +772,13 @@ struct FamilyHomeView: View {
             let result = try await AuthService.shared.familyAnswers(questionId: questionId)
             await MainActor.run {
                 familyAnswers = result.answers
+                familyAnswersQuestion = result.question
                 isLoadingFamilyAnswers = false
             }
         } catch {
             await MainActor.run {
                 familyAnswers = []
+                familyAnswersQuestion = nil
                 familyAnswersError = error.localizedDescription
                 isLoadingFamilyAnswers = false
             }
