@@ -177,7 +177,7 @@ struct FamilyHomeView: View {
                                         return true
                                     }
                                     await MainActor.run {
-                                        showPokeToast("콕 찌르기에 실패했어요. 다시 시도해 주세요.", isError: true)
+                                        showPokeToast(pokeFailureMessage(for: error), isError: true)
                                     }
                                     return false
                                 } catch {
@@ -270,6 +270,18 @@ struct FamilyHomeView: View {
         return normalizedCode.contains("409")
             || normalizedCode.contains("ALREADY")
             || normalizedCode.contains("DUPLICATE")
+    }
+
+    private func pokeFailureMessage(for error: APIError) -> String {
+        guard case let .serverError(code, message) = error else {
+            return "콕 찌르기에 실패했어요. 다시 시도해 주세요."
+        }
+
+        let normalized = "\(code) \(message)".uppercased()
+        if normalized.contains("ANSWERED") || normalized.contains("ALREADY_ANSWER") {
+            return "이 가족에게는 지금 콕을 보낼 수 없어요."
+        }
+        return "콕 찌르기에 실패했어요. 다시 시도해 주세요."
     }
 
     // MARK: - Home
