@@ -469,7 +469,7 @@ struct FamilyHomeView: View {
                                 GeometryReader { proxy in
                                     Color.clear.preference(
                                         key: FamilyMemberFramePreferenceKey.self,
-                                        value: member.memberId.map { [$0: proxy.frame(in: .named("familyHome"))] } ?? [:]
+                                        value: member.memberId.map { [$0: proxy.frame(in: .global)] } ?? [:]
                                     )
                                 }
                             )

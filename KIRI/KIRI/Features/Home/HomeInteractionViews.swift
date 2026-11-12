@@ -142,13 +142,14 @@ struct HomeMemberQuestionView: View {
         GeometryReader { proxy in
             let cardWidth = min(303, max(280, proxy.size.width - 36))
             let cardHeight = max(124, measuredCardHeight)
-            let targetX = anchorFrame?.midX ?? proxy.size.width / 2
+            let containerFrame = proxy.frame(in: .global)
+            let targetX = anchorFrame.map { $0.midX - containerFrame.minX } ?? proxy.size.width / 2
             let cardX = min(
                 max(targetX, cardWidth / 2 + 18),
                 proxy.size.width - cardWidth / 2 - 18
             )
             let targetTop = min(
-                (anchorFrame?.maxY ?? proxy.size.height * 0.35) + 10,
+                (anchorFrame.map { $0.maxY - containerFrame.minY } ?? proxy.size.height * 0.35) + 10,
                 proxy.size.height - cardHeight - 24
             )
             let cardY = max(cardHeight / 2 + 16, targetTop + cardHeight / 2)
