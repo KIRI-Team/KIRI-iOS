@@ -37,8 +37,10 @@ struct OnboardingFlowView: View {
     @State private var joinedFamilyName: String = ""
     @State private var familyOperationError: String?
     @State private var isSaving = false
+    @State private var didStartInvitationLookup = false
 
     let invitation: FamilyInvitation?
+    let resolveInvitationImmediately: Bool
 
     let onEnterFamily: (String, String, Int?) -> Void
     let onBrowse: () -> Void
@@ -150,6 +152,10 @@ struct OnboardingFlowView: View {
                     + "invitation=\(invitation != nil), step=\(Self.stepName(step))"
             )
             #endif
+            if resolveInvitationImmediately, invitation?.token != nil, !didStartInvitationLookup {
+                didStartInvitationLookup = true
+                findInvitedFamilyIfNeeded()
+            }
         }
         .onChange(of: step) { oldStep, newStep in
             #if DEBUG
@@ -177,8 +183,14 @@ struct OnboardingFlowView: View {
             return
         }
 
-        enteredFamilyCode = invitation.code
-        findInvitedFamily(invitation)
+        if invitation.token != nil {
+            findInvitedFamilyIfNeeded()
+        } else if let code = invitation.code {
+            enteredFamilyCode = code
+            findInvitedFamily(invitation)
+        } else {
+            step = .familyEntry
+        }
     }
 
     private func saveNickname() {
@@ -245,14 +257,50 @@ struct OnboardingFlowView: View {
 
     private func findInvitedFamily(_ invitation: FamilyInvitation) {
         guard !isSaving else { return }
-        enteredFamilyCode = invitation.code
+        guard let code = invitation.code else { return }
+        enteredFamilyCode = code
         familyOperationError = nil
         joinedFamilyName = invitation.familyName ?? "입력한 초대 코드의 가족공간"
         step = .familyJoinConfirm
     }
 
+    private func findInvitedFamilyIfNeeded() {
+        guard let invitation, let token = invitation.token, !isSaving else { return }
+        isSaving = true
+        familyOperationError = nil
+        step = .familyJoinLoading
+        Task { @MainActor in
+            do {
+                let result = try await AuthService.shared.inviteTokenInfo(token)
+                joinedFamilyName = result.familyName
+                step = .familyJoinConfirm
+            } catch {
+                familyOperationError = Self.familyJoinMessage(for: error)
+                step = .familyEntry
+            }
+            isSaving = false
+        }
+    }
+
     private func joinFamily() {
         guard !isSaving else { return }
+        if let token = invitation?.token {
+            isSaving = true
+            familyOperationError = nil
+            step = .familyJoinLoading
+            Task { @MainActor in
+                do {
+                    let result = try await AuthService.shared.joinFamily(inviteToken: token)
+                    AppSessionStore().saveFamily(name: result.familyName, inviteCode: "", familyId: result.familyId)
+                    onEnterFamily(result.familyName, "", result.familyId)
+                } catch {
+                    familyOperationError = Self.familyJoinMessage(for: error)
+                    step = .familyJoinConfirm
+                }
+                isSaving = false
+            }
+            return
+        }
         let code = enteredFamilyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard code.count == 6, code.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) else {
             familyOperationError = "초대 코드는 영문 대문자와 숫자 6자리여야 해요."
@@ -282,8 +330,9 @@ struct OnboardingFlowView: View {
         }
         switch code {
         case "FAMILY404_2": return "유효하지 않은 초대 코드예요. 코드를 다시 확인해 주세요."
-        case "FAMILY410_1": return "초대 코드가 만료됐어요. 새로운 코드를 받아 주세요."
+        case "FAMILY410_1", "FAMILY410_2": return "초대 링크가 만료됐어요. 새로운 초대를 받아 주세요."
         case "FAMILY409_2": return "이미 다른 가족공간에 가입되어 있어요."
+        case "FAMILY404_3": return "유효하지 않은 초대 링크예요. 링크를 다시 확인해 주세요."
         default: return "가족공간에 참여하지 못했어요. 다시 시도해 주세요."
         }
     }
@@ -319,6 +368,7 @@ struct OnboardingFlowView: View {
 #Preview {
     OnboardingFlowView(
         invitation: nil,
+        resolveInvitationImmediately: false,
         onEnterFamily: { _, _, _ in },
         onBrowse: {},
         onCancelInvitation: {},

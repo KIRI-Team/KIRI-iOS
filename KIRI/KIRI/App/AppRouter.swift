@@ -68,6 +68,10 @@ final class AppRouter {
         pendingInvitation != nil
     }
 
+    var hasCompletedOnboarding: Bool {
+        sessionStore.isOnboardingCompleted
+    }
+
     init(
         sessionStore: AppSessionStore = AppSessionStore(),
         tokenStore: AuthTokenStoring = KeychainAuthTokenStore.shared
@@ -221,6 +225,17 @@ final class AppRouter {
         }
     }
 
+    func receiveInvitationToken(_ token: String) {
+        let normalized = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return }
+        pendingInvitation = FamilyInvitation(token: normalized)
+        if sessionStore.isAuthenticated {
+            appState = .onboarding
+        } else {
+            appState = .authentication
+        }
+    }
+
     func completeAuthentication(isNewUser: Bool = false) async {
         sessionStore.saveAuthenticationCompleted()
         tutorialIdentity = Self.tokenSubject(using: tokenStore)
@@ -234,6 +249,11 @@ final class AppRouter {
         // 저장된 모드가 없더라도 메인으로 복귀시킨다. 회원 프로필·가족
         // 상태 조회 API가 제공되면 이 분기를 서버 상태 조회로 확장한다.
         if isNewUser {
+            appState = .onboarding
+            return
+        }
+
+        if pendingInvitation != nil {
             appState = .onboarding
             return
         }
@@ -289,9 +309,10 @@ final class AppRouter {
     }
 
     func enterFamilyMode(familyName: String, inviteCode: String, familyId: Int? = nil) {
-        sessionStore.saveFamily(name: familyName, inviteCode: inviteCode, familyId: familyId)
+        let storedInviteCode = inviteCode.isEmpty ? (sessionStore.familyInviteCode ?? "") : inviteCode
+        sessionStore.saveFamily(name: familyName, inviteCode: storedInviteCode, familyId: familyId)
         self.familyName = familyName
-        self.familyInviteCode = inviteCode
+        self.familyInviteCode = storedInviteCode.isEmpty ? nil : storedInviteCode
         self.nickname = sessionStore.nickname
         self.familyId = sessionStore.familyId
         self.familyRole = sessionStore.familyRole

@@ -6,5 +6,10 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:kiri.app</string>
+		<string>applinks:www.kiri.app</string>
+	</array>
 </dict>
 </plist>

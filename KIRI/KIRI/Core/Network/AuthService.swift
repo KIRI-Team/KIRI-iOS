@@ -263,6 +263,32 @@ final class AuthService {
         return result
     }
 
+    func inviteTokenInfo(_ token: String) async throws -> InviteTokenInfoResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families/invite/\(token)",
+            method: .GET,
+            requiresAuthentication: false
+        )
+        let envelope: APIEnvelope<InviteTokenInfoResult> = try await client.requestEnvelope(endpoint: endpoint)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func joinFamily(inviteToken: String) async throws -> JoinFamilyResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/families/join/\(inviteToken)",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<JoinFamilyResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func createFamily(name: String) async throws -> CreateFamilyResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/families",
