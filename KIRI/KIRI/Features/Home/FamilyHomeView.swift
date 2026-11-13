@@ -59,7 +59,6 @@ struct FamilyHomeView: View {
     private enum HomeRoute {
         case home
         case notification
-        case invitationRequest
         case placeDetail
         case taste
         case questionAnswer
@@ -84,23 +83,10 @@ struct FamilyHomeView: View {
                         route = .home
                     },
                     onSelectInvitation: {
-                        route = .invitationRequest
+                        // 알림 목록 API가 제공되기 전에는 샘플 요청서를 열지 않습니다.
                     }
                 )
 
-            case .invitationRequest:
-                InvitationRequestView(
-                    request: invitationRequest,
-                    onBack: {
-                        route = .notification
-                    },
-                    onCancel: {
-                        route = .notification
-                    },
-                    onConfirmSchedule: {
-                        handleScheduleConfirmed()
-                    }
-                )
 
             case .placeDetail:
                 if let selectedMission {
@@ -108,9 +94,9 @@ struct FamilyHomeView: View {
                         missionId: selectedMission.missionId,
                         title: selectedMission.title,
                         placeName: selectedMission.placeName,
-                        district: selectedMission.category,
+                        district: MissionDisplayLabel.category(selectedMission.category) ?? "",
                         rating: nil,
-                        tags: [selectedMission.missionType],
+                        tags: selectedMission.displayTags,
                         isRecommended: true,
                         mockAssetName: nil,
                         imageURL: selectedMission.imageUrl,
@@ -579,7 +565,7 @@ struct FamilyHomeView: View {
             alignment: .leading,
             spacing: 16
         ) {
-            Text("엄마와 함께라면 여기!")
+            Text("추천 미션")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -621,18 +607,8 @@ struct FamilyHomeView: View {
         )]
     }
 
-    private var tutorialMission: HomeMockMission? {
-        guard let mission = recommendedMissions.first else { return nil }
-        var tags = [mission.category]
-        if let distance = mission.distance {
-            tags.append(String(format: "%.1fkm", distance))
-        }
-        return HomeMockMission(
-            title: mission.title,
-            location: mission.placeName,
-            tags: tags,
-            isComplete: false
-        )
+    private var tutorialMission: MissionFeedItem? {
+        recommendedMissions.first
     }
 
     // MARK: - Mood Recommendation
@@ -660,10 +636,18 @@ struct FamilyHomeView: View {
         if isLoadingRecommendations {
             ProgressView().frame(maxWidth: .infinity, minHeight: 144)
         } else if let recommendationError {
-            Text(recommendationError)
-                .font(KIRITypography.bodySmall)
-                .foregroundStyle(KIRIColor.Text.tertiary)
-                .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+            VStack(spacing: 8) {
+                Text("추천 미션을 불러오지 못했어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                Button("다시 시도") {
+                    Task { await loadRecommendations() }
+                }
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.accent)
+                .accessibilityHint(recommendationError)
+            }
+            .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
         } else if recommendedMissions.isEmpty {
             Text("추천할 미션이 아직 없어요")
                 .font(KIRITypography.bodySmall)
@@ -681,7 +665,7 @@ struct FamilyHomeView: View {
                                 title: mission.title,
                                 location: mission.placeName,
                                 rating: nil,
-                                description: mission.category,
+                                description: MissionDisplayLabel.category(mission.category),
                                 imageURL: mission.imageUrl
                             )
                         }
@@ -693,30 +677,8 @@ struct FamilyHomeView: View {
         }
     }
 
-    // MARK: - Request Mock Data
-
-    private var invitationRequest:
-        InvitationRequestView.RequestData {
-        InvitationRequestView.RequestData(
-            senderRole: "딸",
-            title: "한강 뚜벅뚜벅 축제",
-            date: "26.06.23",
-            participants: "엄마, 아빠, 나",
-            description: """
-            2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
-            """,
-            familyMessage:
-                "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??"
-        )
-    }
-
     // MARK: - Actions
 
-    private func handleScheduleConfirmed() {
-        // TODO:
-        // 수락 API 연결 후 실제 RecordCalendarView 일정 갱신
-        route = .home
-    }
 
     private func loadTodayQuestion() async {
         #if DEBUG
