@@ -34,6 +34,9 @@ struct ScheduleDetailView: View {
     @State private var nearbyLoadError: String?
     @State private var isLoadingNearby = false
     @State private var serverReviews: [ReviewItemResult] = []
+    @State private var representativePhotoId: Int?
+    @State private var showingRepresentativePicker = false
+    @State private var isChangingRepresentativePhoto = false
     @State private var reviewsLoadError: String?
     @State private var isLoadingReviews = false
     @State private var reviewMutationError: String?
@@ -199,6 +202,32 @@ struct ScheduleDetailView: View {
                 )
             }
         }
+        .sheet(isPresented: $showingRepresentativePicker) {
+            RepresentativePhotoPicker(
+                reviews: serverReviews,
+                selectedPhotoId: representativePhotoId,
+                isSaving: isChangingRepresentativePhoto,
+                onSelect: { photo in
+                    guard let scheduleId = schedule.scheduleId, !isChangingRepresentativePhoto else { return }
+                    isChangingRepresentativePhoto = true
+                    Task { @MainActor in
+                        defer { isChangingRepresentativePhoto = false }
+                        do {
+                            let result = try await AuthService.shared.changeRepresentativePhoto(
+                                scheduleId: scheduleId,
+                                reviewPhotoId: photo.reviewPhotoId
+                            )
+                            representativePhotoId = result.representativePhotoId
+                            showingRepresentativePicker = false
+                            await loadReviews()
+                            showToast("대표사진을 변경했어요.")
+                        } catch {
+                            showToast("대표사진을 변경하지 못했어요.")
+                        }
+                    }
+                }
+            )
+        }
         .background(KIRIColor.Background.base)
         .alert("리뷰 삭제", isPresented: Binding(
             get: { reviewToDelete != nil },
@@ -268,7 +297,9 @@ struct ScheduleDetailView: View {
         reviewsLoadError = nil
         defer { isLoadingReviews = false }
         do {
-            serverReviews = try await AuthService.shared.scheduleReviews(scheduleId: scheduleId).reviews
+            let result = try await AuthService.shared.scheduleReviews(scheduleId: scheduleId)
+            representativePhotoId = result.representativePhotoId
+            serverReviews = result.reviews
         } catch {
             reviewsLoadError = "가족 추억을 불러오지 못했어요."
         }
@@ -594,7 +625,29 @@ struct ScheduleDetailView: View {
             }
             Text(review.content).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.primary)
             if !review.photos.isEmpty {
-                Text("사진 \(review.photos.count)장").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                HStack(spacing: 8) {
+                    ForEach(review.photos) { photo in
+                        AsyncImage(url: photo.imageUrl) { phase in
+                            phase.image?
+                                .resizable()
+                                .scaledToFill()
+                        }
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay {
+                            if representativePhotoId == photo.reviewPhotoId {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(KIRIColor.Primary.default, lineWidth: 2)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    if schedule.scheduleId != nil {
+                        Button("대표사진 선택") { showingRepresentativePicker = true }
+                            .font(KIRITypography.captionMedium)
+                            .foregroundStyle(KIRIColor.Text.accent)
+                    }
+                }
             }
         }
         .padding(16)
@@ -661,5 +714,46 @@ private struct ScheduleActionButtonStyle: ButtonStyle {
             .background(isPrimary ? KIRIColor.Primary.default : KIRIColor.Background.elevated)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .opacity(configuration.isPressed ? 0.75 : 1)
+    }
+}
+
+private struct RepresentativePhotoPicker: View {
+    let reviews: [ReviewItemResult]
+    let selectedPhotoId: Int?
+    let isSaving: Bool
+    let onSelect: (ReviewPhotoResult) -> Void
+
+    private var photos: [ReviewPhotoResult] {
+        reviews.flatMap(\.photos)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    ForEach(photos) { photo in
+                        Button { onSelect(photo) } label: {
+                            VStack(spacing: 6) {
+                                AsyncImage(url: photo.imageUrl) { phase in
+                                    phase.image?.resizable().scaledToFill()
+                                }
+                                .frame(height: 150)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                Text(selectedPhotoId == photo.reviewPhotoId ? "대표사진" : "대표사진으로 설정")
+                                    .font(KIRITypography.captionMedium)
+                                    .foregroundStyle(selectedPhotoId == photo.reviewPhotoId ? KIRIColor.Text.accent : KIRIColor.Text.primary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSaving || selectedPhotoId == photo.reviewPhotoId)
+                    }
+                }
+                .padding(18)
+            }
+            .background(KIRIColor.Background.base)
+            .navigationTitle("대표사진 선택")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }

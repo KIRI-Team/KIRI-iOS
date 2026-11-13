@@ -40,6 +40,7 @@ struct TodayActivityView: View {
     @State private var showingReviewEditor = false
     @State private var selectedConditions:
         Set<ConditionAdjustmentSheet.Condition> = []
+    @State private var conditionsLoadError: String?
     var savedReview: ActivityReviewWriteView.Draft? = nil
     var onReviewSaved: ((ActivityReviewWriteView.Draft) -> Void)? = nil
     @State private var localReview: ActivityReviewWriteView.Draft?
@@ -117,6 +118,14 @@ struct TodayActivityView: View {
                 onApply: { conditions in
                     selectedConditions = conditions
                 },
+                onApplyToServer: schedule.scheduleId.map { scheduleId in
+                    { conditions in
+                        try await AuthService.shared.updateScheduleConditions(
+                            scheduleId: scheduleId,
+                            conditions: conditions.map(\.serverValue)
+                        )
+                    }
+                },
                 activityTitle: schedule.title,
                 expectedSteps: schedule.expectedSteps,
                 activityDuration: schedule.duration
@@ -137,6 +146,16 @@ struct TodayActivityView: View {
                 },
                 initialDraft: submittedReview
             )
+        }
+        .task {
+            guard let scheduleId = schedule.scheduleId else { return }
+            do {
+                let result = try await AuthService.shared.scheduleConditions(scheduleId: scheduleId)
+                selectedConditions = Set(result.conditions.compactMap(ConditionAdjustmentSheet.Condition.from(serverValue:)))
+                conditionsLoadError = nil
+            } catch {
+                conditionsLoadError = "컨디션을 불러오지 못했어요."
+            }
         }
     }
     // MARK: - Navigation

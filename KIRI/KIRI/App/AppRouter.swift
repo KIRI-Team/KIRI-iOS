@@ -47,6 +47,7 @@ final class AppRouter {
     var familyName: String?
     var familyInviteCode: String?
     var nickname: String?
+    var memberId: Int?
     var familyId: Int?
     var familyRole: String?
     var familyState: FamilyState = .unknown
@@ -88,6 +89,7 @@ final class AppRouter {
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
         nickname = sessionStore.nickname
+        memberId = sessionStore.memberId
         familyId = sessionStore.familyId
         familyRole = sessionStore.familyRole
         tutorialIdentity = Self.tokenSubject(using: tokenStore)
@@ -222,6 +224,7 @@ final class AppRouter {
     func completeAuthentication(isNewUser: Bool = false) async {
         sessionStore.saveAuthenticationCompleted()
         tutorialIdentity = Self.tokenSubject(using: tokenStore)
+        _ = try? await syncServerIdentity()
         pendingTerms = nil
         pendingTermAgreements = []
 
@@ -412,28 +415,35 @@ final class AppRouter {
     func refreshFamilyState() async {
         familyState = .loading
         do {
-            let hasFamily = try await AuthService.shared.familyMembership()
-            familyState = hasFamily ? .hasFamily : .noFamily
-            if hasFamily {
-                // hasFamily confirms membership only. A cached family id/name is
-                // presentation data and is applied only for this token identity.
-                restoreAccountSnapshot()
-                userMode = .family
-                saveAccountSnapshot(hasFamily: true)
-            } else {
-                // A server-confirmed no-family result invalidates active family
-                // presentation, but never deletes another account's snapshot.
+            try await syncServerIdentity()
+            guard let familyId else {
+                familyState = .noFamily
+                userMode = .browse
+                saveAccountSnapshot(hasFamily: false)
+                return
+            }
+            familyState = .hasFamily
+            userMode = .family
+            // Family info is presentation data; refresh it when the server has
+            // confirmed the current family id rather than trusting a nickname
+            // or stale local snapshot.
+            if let info = try? await AuthService.shared.familyInfo(familyId: familyId) {
+                familyName = info.familyName
+                sessionStore.saveFamily(name: info.familyName, inviteCode: sessionStore.familyInviteCode ?? "", familyId: familyId)
+            }
+            saveAccountSnapshot(hasFamily: true)
+        } catch let error as APIError {
+            if case .serverError(let code, _) = error, code == "FAMILY404_1" {
                 sessionStore.clearActiveFamilyState()
                 familyName = nil
                 familyInviteCode = nil
                 familyId = nil
-                familyRole = nil
                 userMode = .browse
-                // A nickname is still useful in browse mode, but family
-                // identifiers and names are deliberately not restored when
-                // the server confirms that this account has no family.
-                restoreProfileSnapshotOnly()
+                familyState = .noFamily
                 saveAccountSnapshot(hasFamily: false)
+            } else {
+                familyState = .unknown
+                lastSessionError = error.localizedDescription
             }
         } catch {
             familyState = .unknown
@@ -453,6 +463,7 @@ final class AppRouter {
         familyName = sessionStore.familyName
         familyInviteCode = sessionStore.familyInviteCode
         nickname = sessionStore.nickname
+        memberId = sessionStore.memberId
         familyId = sessionStore.familyId
         familyRole = sessionStore.familyRole
         if snapshot.userMode == .family {
@@ -481,6 +492,7 @@ final class AppRouter {
         let snapshot = AppSessionStore.AccountSnapshot(
             identity: identity,
             nickname: sessionStore.nickname,
+            memberId: sessionStore.memberId,
             familyRole: sessionStore.familyRole,
             familyId: sessionStore.familyId,
             familyName: sessionStore.familyName,
@@ -489,6 +501,39 @@ final class AppRouter {
             hasFamily: hasFamily
         )
         sessionStore.saveAccountSnapshot(snapshot)
+    }
+
+    /// Refreshes server-owned identity values after login and on session restore.
+    /// A missing family is represented by FAMILY404_1; transport and other
+    /// server failures remain unknown rather than being treated as no-family.
+    @discardableResult
+    private func syncServerIdentity() async throws -> MemberMyInfoResult {
+        let info = try await AuthService.shared.myInfo()
+        sessionStore.saveMemberId(info.memberId)
+        memberId = info.memberId
+        sessionStore.saveNickname(info.nickname)
+        nickname = info.nickname
+        if let role = info.familyRole {
+            sessionStore.saveFamilyRole(role)
+            familyRole = role
+        }
+        do {
+            let family = try await AuthService.shared.familyIdForCurrentMember()
+            familyId = family.familyId
+            sessionStore.saveFamily(name: info.familyName ?? sessionStore.familyName ?? "", inviteCode: sessionStore.familyInviteCode ?? "", familyId: family.familyId)
+            familyName = info.familyName ?? sessionStore.familyName
+        } catch let error as APIError {
+            if case .serverError(let code, _) = error, code == "FAMILY404_1" {
+                sessionStore.clearActiveFamilyState()
+                familyId = nil
+                familyName = nil
+                familyInviteCode = nil
+            } else {
+                throw error
+            }
+        }
+        saveAccountSnapshot(hasFamily: familyId != nil)
+        return info
     }
 
     func logout() async {

@@ -21,6 +21,7 @@ struct FamilySettingsView: View {
     let initialFamilyName: String?
     let initialNickname: String?
     let familyRole: String?
+    let currentMemberId: Int?
     let onUpdateFamilyName: (String) async -> String?
 
     @State private var familyName: String
@@ -35,12 +36,14 @@ struct FamilySettingsView: View {
         familyName: String? = nil,
         nickname: String? = nil,
         familyRole: String? = nil,
+        currentMemberId: Int? = AppSessionStore().memberId,
         onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
     ) {
         self.familyId = familyId
         self.initialFamilyName = familyName
         self.initialNickname = nickname
         self.familyRole = familyRole
+        self.currentMemberId = currentMemberId
         self.onUpdateFamilyName = onUpdateFamilyName
         _familyName = State(initialValue: familyName ?? "")
         _nickname = State(initialValue: nickname ?? "")
@@ -243,8 +246,8 @@ struct FamilySettingsView: View {
     }
 
     private func isCurrentMember(_ member: FamilyMemberInfoResult) -> Bool {
-        guard let currentRole = familyRole else { return member.nickname == nickname }
-        return member.nickname == nickname && localizedRole(currentRole) == localizedRole(member.familyRole ?? "")
+        guard let currentMemberId else { return false }
+        return member.memberId == currentMemberId
     }
 
     private func loadFamilyMembers() async {

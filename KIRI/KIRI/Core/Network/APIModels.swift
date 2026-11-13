@@ -58,6 +58,18 @@ struct TokenReissueResult: Decodable, Sendable {
     let termsAgreed: Bool
 }
 
+struct MemberMyInfoResult: Decodable, Sendable {
+    let memberId: Int
+    let nickname: String
+    let familyRole: String?
+    let characterImageUrl: URL?
+    let familyName: String?
+}
+
+struct FamilyIdResult: Decodable, Sendable {
+    let familyId: Int
+}
+
 struct NicknameUpdateRequest: Encodable, Sendable {
     let nickname: String
 }
@@ -251,6 +263,7 @@ struct ReviewCreateResult: Decodable, Sendable {
 
 struct ScheduleReviewsResult: Decodable, Sendable {
     let scheduleId: Int
+    let representativePhotoId: Int?
     let reviews: [ReviewItemResult]
 }
 
@@ -273,10 +286,33 @@ struct ReviewWriterResult: Decodable, Sendable {
     let familyRole: String?
 }
 
-struct ReviewPhotoResult: Decodable, Sendable {
+struct ReviewPhotoResult: Decodable, Identifiable, Sendable {
     let reviewPhotoId: Int
     let imageKey: String
     let imageUrl: URL
+
+    var id: Int { reviewPhotoId }
+}
+
+struct RepresentativePhotoRequest: Encodable, Sendable {
+    let reviewPhotoId: Int
+}
+
+struct RepresentativePhotoResult: Decodable, Sendable {
+    let scheduleId: Int
+    let representativePhotoId: Int
+}
+
+struct ScheduleConditionsResult: Decodable, Sendable {
+    let missionTitle: String
+    let walkingLevel: String
+    let durationMinMinutes: Int?
+    let durationMaxMinutes: Int?
+    let conditions: [String]
+}
+
+struct UpdateScheduleConditionsRequest: Encodable, Sendable {
+    let conditions: [String]
 }
 
 struct CreateScheduleRequest: Encodable, Sendable {

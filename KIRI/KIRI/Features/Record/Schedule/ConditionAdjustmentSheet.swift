@@ -44,18 +44,40 @@ struct ConditionAdjustmentSheet: View {
                 return "person.2"
             }
         }
+
+        var serverValue: String {
+            switch self {
+            case .lessWalking: return "REDUCE_STEPS"
+            case .moreRest: return "MORE_REST"
+            case .lowerBudget: return "LOWER_BUDGET"
+            case .avoidCrowds: return "AVOID_CROWD"
+            }
+        }
+
+        static func from(serverValue: String) -> Condition? {
+            switch serverValue.uppercased() {
+            case "REDUCE_STEPS": return .lessWalking
+            case "MORE_REST": return .moreRest
+            case "LOWER_BUDGET": return .lowerBudget
+            case "AVOID_CROWD": return .avoidCrowds
+            default: return nil
+            }
+        }
     }
 
     @Environment(\.dismiss) private var dismiss
 
     let selectedConditions: Set<Condition>
     let onApply: (Set<Condition>) -> Void
+    var onApplyToServer: ((Set<Condition>) async throws -> Void)? = nil
 
     var activityTitle: String = "한강 뚜벅뚜벅 축제 방문"
     var expectedSteps: String = "8000보"
     var activityDuration: String = "8시간"
 
     @State private var selection: Set<Condition> = []
+    @State private var isSaving = false
+    @State private var saveError: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -238,10 +260,34 @@ struct ConditionAdjustmentSheet: View {
 
     private var applyButton: some View {
         Button {
-            onApply(selection)
-            dismiss()
+            guard !isSaving else { return }
+            if let onApplyToServer {
+                isSaving = true
+                saveError = nil
+                Task { @MainActor in
+                    do {
+                        try await onApplyToServer(selection)
+                        onApply(selection)
+                        isSaving = false
+                        dismiss()
+                    } catch {
+                        isSaving = false
+                        saveError = "컨디션을 저장하지 못했어요. 다시 시도해 주세요."
+                    }
+                }
+            } else {
+                onApply(selection)
+                dismiss()
+            }
         } label: {
-            Text("커스텀 적용하기")
+            VStack(spacing: 4) {
+                Text(isSaving ? "저장 중..." : "커스텀 적용하기")
+                if let saveError {
+                    Text(saveError)
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
+            }
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -255,6 +301,7 @@ struct ConditionAdjustmentSheet: View {
                 )
         }
         .buttonStyle(.plain)
+        .disabled(isSaving)
     }
 }
 
