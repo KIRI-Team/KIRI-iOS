@@ -1,29 +1,39 @@
 # 미션 상세 주변 놀거리 추천 API 조사 및 계약 제안
 
-- 조사 시각: 2026-11-10 KST
-- 기준 브랜치: `develop` (`554f93a7cf579398085cae0dcf99f50a470afa9a`)
+- 조사 시각: 2026-11-13 KST
+- 기준 브랜치: `develop` (`058e2c44428b389c9f786d2748ad55bbd00ff26b`)
 - Figma: `9901:24342`
+
+이번 재조사에서는 접근 가능한 `KIRI-SERVER` 저장소 `develop`
+(`805bb307fc82b8644853183c9d3784de114ed3da`)의 Controller·Service·DTO까지
+대조했다.
 
 ## 조사 결과
 
-현재 외부 접근 권한이 없어 주변 놀거리·맞춤템 API의 존재 여부를 최종 확정할 수 없다.
-아래 결과는 접근 가능한 저장 명세와 Android 코드에서 확인한 범위이며, 최신 Swagger 전체 계약의 대체 근거로 사용하지 않는다.
+Swagger 원본은 Basic 인증으로 차단되어 있지만, 접근 가능한 최신 백엔드 저장소의
+Controller·Service·DTO를 직접 확인했다. 해당 저장소 기준으로는 일정 없이 미션 장소를
+기준으로 조회하는 nearby endpoint가 없다.
 
 | 자료 | 확인 결과 |
 |---|---|
-| 최신 Swagger UI | 접근 시 HTTP 401 |
-| 최신 `/v3/api-docs` | 접근 시 HTTP 401 |
+| 최신 Swagger UI | 접근 시 HTTP 401 (`Basic realm="KIRI dev"`) |
+| 최신 `/v3/api-docs` | 접근 시 HTTP 401 (`Basic realm="KIRI dev"`) |
 | 저장된 OpenAPI 조사 보고서 | 2026-11-01 인증 스냅샷 기준 29 paths/33 operations. 해당 스냅샷에는 `nearby`, `recommendation`, `places` 전용 operation 없음 |
-| iOS `AuthService` | `GET /api/v1/missions`, `GET /api/v1/missions/{missionId}`만 미션·장소 조회에 사용 |
+| 백엔드 `MissionController` | `GET /api/v1/missions`, `GET /api/v1/missions/{missionId}`, `GET /api/v1/missions/recommendations`만 제공. 미션/장소 기준 nearby operation 없음 |
+| 백엔드 `ScheduleController` | `GET /api/v1/schedules/{scheduleId}/nearby`만 제공. `scheduleId`가 필수 |
+| 백엔드 `ScheduleResDTO.NearbyItem` | `placeName`, `region`, `description`, `imageUrl`, `price`만 반환하며 `missionId`·`placeId`가 없음 |
+| iOS `AuthService` | 미션 상세는 `GET /api/v1/missions/{missionId}`, 주변 추천은 일정 상세의 `GET /api/v1/schedules/{scheduleId}/nearby`만 호출 |
 | iOS `MissionDetailResult` | `place`와 좌표(`latitude`, `longitude`)는 있으나 주변 추천 배열·추천 이유 필드 없음 |
 | iOS `MissionActivityDetailView` | 추천 영역은 서버 카드가 아닌 빈 상태 안내만 표시하며 주변 장소 호출 없음 |
 | Android 저장소 | 접근 가능한 로컬 checkout의 `MissionApi` 상세 응답에도 nearby/custom 필드가 없고 nearby Retrofit endpoint가 검색되지 않음. 이것만으로 서버 API 부재를 확정하지 않음 |
 
-사용자가 전달한 후보 경로 `GET /api/v1/schedules/{scheduleId}/nearby`도 확인 대상으로 기록했지만,
-현재 접근 가능한 OpenAPI·iOS 코드·저장 명세에는 요청 파라미터와 응답 DTO가 없어 구현하지 않았다.
-이 경로는 `scheduleId`가 필수이므로 미션 상세에서 일정 없이 진입한 경우에는 호출할 수 없다.
+`GET /api/v1/schedules/{scheduleId}/nearby`는 백엔드 구현과 iOS 일정 상세 화면에 연결되어
+있으며, `scheduleId`가 필수이므로 일정 없이 미션 상세에서 호출할 수 없다. 응답에도
+`missionId`·`placeId`가 없어 현재 카드에서 미션 상세로 이동할 식별자도 제공하지 않는다.
 
-현재 확인 가능한 미션 상세 API는 `GET /api/v1/missions/{missionId}`이며, 저장된 자료만으로 주변 추천 API로 사용할 수 있다는 계약은 확인되지 않았다. 최신 Swagger 인증을 확보하기 전에는 기존 미션 목록 API를 주변 추천으로 재사용하지 않는다.
+`GET /api/v1/missions/{missionId}`의 백엔드 상세 DTO에는 미션·장소 정보만 있고 주변 추천 배열이
+없다. `GET /api/v1/missions/recommendations`는 가족 취향 기반 단일 추천이며 기준 장소 주변
+목록 API가 아니므로 미션 상세의 nearby로 재사용하지 않는다.
 
 `/api/v1/schedules/{scheduleId}/nearby`가 실제 서버 계약이라면 일정 상세 화면에서만
 실제 `scheduleId`를 전달해 호출해야 하며, `missionId`나 `placeId`로 대체해서는 안 된다.
@@ -83,7 +93,9 @@
 6. 카드 선택 시 응답의 missionId/placeId로 상세 화면 이동
 7. 실제 인증 응답과 iPhone 17 Pro 렌더링을 별도로 검증
 
-현재는 계약이 없으므로 DTO, Service, View를 추가하지 않았다. `MissionActivityDetailView`의 기존 추천 안내 문구는 허위 추천 데이터를 노출하지 않는 빈 상태로 유지한다.
+현재는 계약이 없으므로 미션 상세용 nearby DTO·Service·View 호출을 추가하지 않았다.
+`MissionActivityDetailView`는 허위 추천 카드 대신 기존 계약으로 제공되는 맞춤 추천/미지원 상태만
+표시한다. 일정 상세의 nearby 호출은 기존 `scheduleId` 경로를 그대로 유지한다.
 
 ## 백엔드 또는 Swagger 접근에 필요한 자료
 
@@ -105,3 +117,10 @@
 - 반경·제외·정렬·페이지네이션 정책
 - 이미지 URL의 사용 권한과 만료 정책
 - 인증·빈 결과·오류 코드 정의
+
+현재 백엔드에 필요한 추가 계약은 다음과 같다.
+
+- 일정 생성 전 미션 상세에서 사용할 `GET` endpoint와 기준 식별자(`missionId` 또는 `placeId`)
+- 반경·정렬·현재 미션/장소 제외 정책
+- 카드 표시용 `missionId` 또는 `placeId`, 이미지, 장소명, 지역/주소, 거리, 서버 추천 이유
+- 빈 결과·권한·인증 오류 및 페이지네이션 계약
