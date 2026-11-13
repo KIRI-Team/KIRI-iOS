@@ -40,6 +40,7 @@ struct RootView: View {
                 case .onboarding:
                     OnboardingFlowView(
                         invitation: router.pendingInvitation,
+                        resolveInvitationImmediately: router.hasCompletedOnboarding,
                         onEnterFamily: { name, code, familyId in
                             enterMain(familyName: name, inviteCode: code, familyId: familyId)
                         },
@@ -109,6 +110,20 @@ struct RootView: View {
                     + "\(Self.stateName(oldState)) -> \(Self.stateName(newState))"
             )
             #endif
+        }
+        .onOpenURL { url in
+            let components = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
+            if (url.host == "kiri.app" || url.host == "www.kiri.app"),
+               components.count == 2,
+               components[0].lowercased() == "invite" {
+                router.receiveInvitationToken(components[1])
+                return
+            }
+            // Custom-scheme fallback: kiri://invite/{token}.
+            if url.scheme == "kiri", url.host?.lowercased() == "invite",
+               let token = components.first {
+                router.receiveInvitationToken(token)
+            }
         }
     }
 

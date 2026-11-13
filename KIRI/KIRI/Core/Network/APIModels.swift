@@ -99,6 +99,11 @@ struct JoinFamilyResult: Decodable, Sendable {
     let familyName: String
 }
 
+struct InviteTokenInfoResult: Decodable, Sendable {
+    let familyId: Int
+    let familyName: String
+}
+
 struct UpdateFamilyNameRequest: Encodable, Sendable {
     let name: String
 }

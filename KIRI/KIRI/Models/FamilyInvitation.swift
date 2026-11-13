@@ -12,6 +12,13 @@
 import Foundation
 
 struct FamilyInvitation: Equatable {
-    let code: String
+    let code: String?
+    let token: String?
     let familyName: String?
+
+    init(code: String? = nil, token: String? = nil, familyName: String? = nil) {
+        self.code = code
+        self.token = token
+        self.familyName = familyName
+    }
 }
