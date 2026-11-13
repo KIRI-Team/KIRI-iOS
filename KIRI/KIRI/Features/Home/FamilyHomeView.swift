@@ -143,7 +143,7 @@ struct FamilyHomeView: View {
                 }
 
             case .missionDetail:
-                HomeMissionDetailView(onBack: { route = .home }) {
+                HomeMissionDetailView(mission: tutorialMission, onBack: { route = .home }) {
                     route = .home
                 }
 

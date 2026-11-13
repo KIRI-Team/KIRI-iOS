@@ -640,6 +640,22 @@ final class AuthService {
         return result
     }
 
+    func createSchedule(missionId: Int, request: CreateScheduleRequest) async throws -> ScheduleResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions/\(missionId)/schedules",
+            method: .POST,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: request,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func calendar(year: Int, month: Int) async throws -> CalendarResult {
         let endpoint = APIEndpoint(path: "/api/v1/schedules/calendar", queryItems: [
             URLQueryItem(name: "year", value: String(year)), URLQueryItem(name: "month", value: String(month))
@@ -770,6 +786,17 @@ final class AuthService {
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
         return result
+    }
+
+    func recordAppEvent(_ event: AppEventRequest) async throws {
+        let endpoint = APIEndpoint(path: "/api/v1/events", method: .POST, requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<[String: Int]> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: AppEventBatchRequest(events: [event]),
+            accessToken: tokens.accessToken
+        )
+        guard envelope.isSuccess else { throw APIError.serverError(code: envelope.code, message: envelope.message) }
     }
 
     func uploadImage(data: Data, to presignedURL: URL, contentType: String) async throws {

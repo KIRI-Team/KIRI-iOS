@@ -327,6 +327,19 @@ struct CreateScheduleRequest: Encodable, Sendable {
     let requestMessage: String?
 }
 
+struct AppEventBatchRequest: Encodable, Sendable {
+    let events: [AppEventRequest]
+}
+
+struct AppEventRequest: Encodable, Sendable {
+    let eventId: String
+    let eventName: String
+    let properties: [String: String]?
+    let platform: String
+    let appVersion: String?
+    let occurredAt: String
+}
+
 struct ScheduleResult: Decodable, Sendable {
     let scheduleId: Int
     let bucketItemId: Int?
