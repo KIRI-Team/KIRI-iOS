@@ -5,7 +5,9 @@ import SwiftUI
 /// 단계 상태로 표현하며, 마지막 발송 버튼에서만 일정 생성 API를 호출합니다.
 /// API: POST /api/v1/bucket-items/{bucketItemId}/schedules
 struct ScheduleCreationSheet: View {
-    let bucket: BucketItemResult
+    let bucket: BucketItemResult?
+    let missionId: Int?
+    let missionTitle: String
     let onCreated: () -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var step: Step = .form
@@ -29,6 +31,20 @@ struct ScheduleCreationSheet: View {
         let formatter = DateFormatter(); formatter.dateFormat = format; formatter.locale = Locale(identifier: locale); return formatter.string(from: date)
     }
     private var selectedMembers: [FamilyMemberInfoResult] { familyMembers.filter { selectedMemberIds.contains($0.memberId) } }
+
+    init(bucket: BucketItemResult, onCreated: @escaping () -> Void) {
+        self.bucket = bucket
+        self.missionId = nil
+        self.missionTitle = bucket.mission.title
+        self.onCreated = onCreated
+    }
+
+    init(missionId: Int, missionTitle: String, onCreated: @escaping () -> Void) {
+        self.bucket = nil
+        self.missionId = missionId
+        self.missionTitle = missionTitle
+        self.onCreated = onCreated
+    }
 
     var body: some View {
         ZStack {
@@ -134,15 +150,19 @@ struct ScheduleCreationSheet: View {
         HStack(spacing: 12) {
             missionImage
             VStack(alignment: .leading, spacing: 5) {
-                if !bucket.saver.nickname.isEmpty { Text("\(bucket.saver.nickname)이 저장했어요!").font(KIRITypography.captionMedium).foregroundStyle(KIRIColor.Primary.default) }
-                Text(bucket.mission.title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
+                if let bucket, !bucket.saver.nickname.isEmpty {
+                    Text("\(bucket.saver.nickname)이 저장했어요!")
+                        .font(KIRITypography.captionMedium)
+                        .foregroundStyle(KIRIColor.Primary.default)
+                }
+                Text(missionTitle).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
             }
             Spacer(minLength: 0)
         }.padding(16).background(KIRIColor.Background.tertiary).clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder private var missionImage: some View {
-        if let url = bucket.mission.imageUrl {
+        if let url = bucket?.mission.imageUrl {
             AsyncImage(url: url) { phase in
                 if case .success(let image) = phase { image.resizable().scaledToFill() } else { Color.gray.opacity(0.25) }
             }.frame(width: 64, height: 64).clipShape(RoundedRectangle(cornerRadius: 8))
@@ -225,7 +245,14 @@ struct ScheduleCreationSheet: View {
         guard message.count <= 100 else { errorMessage = "메시지는 100자 이하로 입력해 주세요."; return }
         isSubmitting = true; errorMessage = nil; defer { isSubmitting = false }
         do {
-            _ = try await AuthService.shared.createSchedule(bucketItemId: bucket.bucketItemId, request: CreateScheduleRequest(scheduleDate: dateString, scheduleTime: timeString, participantMemberIds: ids, requestMessage: message.isEmpty ? nil : message))
+            let request = CreateScheduleRequest(scheduleDate: dateString, scheduleTime: timeString, participantMemberIds: ids, requestMessage: message.isEmpty ? nil : message)
+            if let bucket {
+                _ = try await AuthService.shared.createSchedule(bucketItemId: bucket.bucketItemId, request: request)
+            } else if let missionId {
+                _ = try await AuthService.shared.createSchedule(missionId: missionId, request: request)
+            } else {
+                throw APIError.decodingFailed
+            }
             onCreated(); dismiss()
         } catch { errorMessage = "일정 요청을 보내지 못했어요. 다시 시도해 주세요." }
     }

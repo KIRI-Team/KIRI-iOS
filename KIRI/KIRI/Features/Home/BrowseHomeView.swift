@@ -200,6 +200,7 @@ struct BrowseHomeView: View {
                 HStack(spacing: 24) {
                     ForEach(missions) { mission in
                         Button {
+                            AppEventTracker.record("mission_card_click", properties: ["mission_id": String(mission.missionId)])
                             selectedMission = mission
                             selectedMissionBookmark = false
                         } label: {

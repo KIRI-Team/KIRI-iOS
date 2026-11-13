@@ -245,7 +245,10 @@ struct MissionView: View {
                             }
                         }
                     })
-                        .contentShape(Rectangle()).onTapGesture { selectedMission = row }
+                        .contentShape(Rectangle()).onTapGesture {
+                            AppEventTracker.record("mission_card_click", properties: ["mission_id": String(row.mission.missionId)])
+                            selectedMission = row
+                        }
                         .onAppear { if row.id == rows.last?.id, hasNext, !isLoadingMore { Task { await load(reset: false) } } }
                 }
                 if isLoadingMore { ProgressView().padding() }
