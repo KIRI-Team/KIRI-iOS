@@ -106,6 +106,28 @@ final class AuthService {
         return result
     }
 
+    func myInfo() async throws -> MemberMyInfoResult {
+        let endpoint = APIEndpoint(path: "/api/v1/members/me", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<MemberMyInfoResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func familyIdForCurrentMember() async throws -> FamilyIdResult {
+        let endpoint = APIEndpoint(path: "/api/v1/families/me/id", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<FamilyIdResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
     func terms() async throws -> [Term] {
         #if DEBUG
         print("[KIRI][Terms] request started")
@@ -610,6 +632,37 @@ final class AuthService {
         return result
     }
 
+    func scheduleConditions(scheduleId: Int) async throws -> ScheduleConditionsResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/schedules/\(scheduleId)/conditions",
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<ScheduleConditionsResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func updateScheduleConditions(scheduleId: Int, conditions: [String]) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/schedules/\(scheduleId)/conditions",
+            method: .PUT,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: UpdateScheduleConditionsRequest(conditions: conditions),
+            accessToken: tokens.accessToken
+        )
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+    }
+
     func nearbyMissions(scheduleId: Int) async throws -> [NearbyMissionResult] {
         let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/nearby", requiresAuthentication: true)
         let tokens = try authenticatedTokens()
@@ -718,6 +771,22 @@ final class AuthService {
         let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/reviews", requiresAuthentication: true)
         let tokens = try authenticatedTokens()
         let envelope: APIEnvelope<ScheduleReviewsResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
+        guard let result = envelope.result else { throw APIError.decodingFailed }
+        return result
+    }
+
+    func changeRepresentativePhoto(scheduleId: Int, reviewPhotoId: Int) async throws -> RepresentativePhotoResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/schedules/\(scheduleId)/representative-photo",
+            method: .PATCH,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<RepresentativePhotoResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            body: RepresentativePhotoRequest(reviewPhotoId: reviewPhotoId),
+            accessToken: tokens.accessToken
+        )
         guard let result = envelope.result else { throw APIError.decodingFailed }
         return result
     }

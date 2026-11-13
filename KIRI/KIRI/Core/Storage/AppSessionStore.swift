@@ -27,6 +27,7 @@ final class AppSessionStore {
         static let familyId = "kiri.familyId"
         static let nickname = "kiri.nickname"
         static let familyRole = "kiri.familyRole"
+        static let memberId = "kiri.memberId"
         static let familyAddressConfiguredPrefix = "kiri.familyAddressConfigured."
         static let accountSnapshotPrefix = "kiri.account.snapshot."
     }
@@ -36,6 +37,7 @@ final class AppSessionStore {
     struct AccountSnapshot: Codable, Equatable, Sendable {
         let identity: String
         var nickname: String?
+        var memberId: Int?
         var familyRole: String?
         var familyId: Int?
         var familyName: String?
@@ -67,6 +69,7 @@ final class AppSessionStore {
     var familyId: Int? { defaults.object(forKey: Key.familyId) as? Int }
     var nickname: String? { defaults.string(forKey: Key.nickname) }
     var familyRole: String? { defaults.string(forKey: Key.familyRole) }
+    var memberId: Int? { defaults.object(forKey: Key.memberId) as? Int }
 
     func hasFamilyAddressConfigured(for familyId: Int) -> Bool {
         defaults.bool(forKey: Key.familyAddressConfiguredPrefix + String(familyId))
@@ -78,6 +81,10 @@ final class AppSessionStore {
 
     func saveNickname(_ nickname: String) {
         defaults.set(nickname, forKey: Key.nickname)
+    }
+
+    func saveMemberId(_ memberId: Int) {
+        defaults.set(memberId, forKey: Key.memberId)
     }
 
     func saveFamilyRole(_ role: String) {
@@ -112,6 +119,7 @@ final class AppSessionStore {
     /// Applies only a snapshot selected with the current authenticated identity.
     func applyAccountSnapshot(_ snapshot: AccountSnapshot) {
         if let nickname = snapshot.nickname { defaults.set(nickname, forKey: Key.nickname) }
+        if let memberId = snapshot.memberId { defaults.set(memberId, forKey: Key.memberId) }
         if let familyRole = snapshot.familyRole { defaults.set(familyRole, forKey: Key.familyRole) }
         if let familyId = snapshot.familyId { defaults.set(familyId, forKey: Key.familyId) }
         if let familyName = snapshot.familyName { defaults.set(familyName, forKey: Key.familyName) }
@@ -166,7 +174,7 @@ final class AppSessionStore {
             Key.userMode,
             Key.familyName,
             Key.familyInviteCode
-            , Key.familyId, Key.nickname, Key.familyRole
+            , Key.familyId, Key.nickname, Key.familyRole, Key.memberId
         ].forEach { defaults.removeObject(forKey: $0) }
     }
 }
