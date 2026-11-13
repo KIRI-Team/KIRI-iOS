@@ -50,10 +50,7 @@ struct BrowseHomeView: View {
                         familyStateCard
                             .padding(.top, 18)
 
-                        recommendationSection(title: "엄마와 함께라면 여기!")
-                            .padding(.top, 36)
-
-                        recommendationSection(title: "오늘 가을분위기를 느끼고 싶다면")
+                        recommendationSection(title: "추천 미션")
                             .padding(.top, 36)
 
                         Spacer()

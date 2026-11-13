@@ -78,7 +78,7 @@ struct QuestionMissionFlipCard: View {
     let questionNumber: Int
     let question: String
     let answer: String?
-    let mission: HomeMockMission?
+    let mission: MissionFeedItem?
     @Binding var showsMission: Bool
     let onQuestionAnswer: () -> Void
     let onMissionDetail: () -> Void
@@ -168,21 +168,15 @@ struct QuestionMissionFlipCard: View {
         }
     }
 
-    private func missionContent(_ mission: HomeMockMission) -> some View {
+    private func missionContent(_ mission: MissionFeedItem) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if mission.isComplete {
-                        Text("이미 미션을 완료하셨군요!")
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(KIRIColor.Text.accent)
-                            .lineLimit(1)
-                    }
                     Text(mission.title)
                         .font(KIRITypography.headingSmall)
                         .foregroundStyle(KIRIColor.Text.strong)
                         .lineLimit(1)
-                    Text(mission.location)
+                    Text(mission.placeName)
                         .font(KIRITypography.bodySmall)
                         .foregroundStyle(KIRIColor.Text.secondary)
                         .lineLimit(1)
@@ -200,34 +194,18 @@ struct QuestionMissionFlipCard: View {
                 .homeTutorialMeasured(.missionRefresh)
             }
 
-            if mission.isComplete {
-                Button {
-                    onMissionDetail()
-                } label: {
-                    Text("오늘의 추억 기록하러가기")
-                        .font(KIRITypography.bodyMedium)
-                        .foregroundStyle(KIRIColor.Text.primary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 40)
+            HStack(spacing: 8) {
+                ForEach(mission.displayTags, id: \.self) { tag in
+                    Text(tag)
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                        .padding(.horizontal, 8)
+                        .frame(height: 29)
                         .background(KIRIColor.Background.elevated)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
-                .buttonStyle(.plain)
-                .padding(.top, 6)
-            } else {
-                HStack(spacing: 8) {
-                    ForEach(mission.tags, id: \.self) { tag in
-                        Text(tag)
-                            .font(KIRITypography.caption)
-                            .foregroundStyle(KIRIColor.Text.tertiary)
-                            .padding(.horizontal, 8)
-                            .frame(height: 29)
-                            .background(KIRIColor.Background.elevated)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
-                    }
-                }
-                .padding(.top, 4)
             }
+            .padding(.top, 4)
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 18)
