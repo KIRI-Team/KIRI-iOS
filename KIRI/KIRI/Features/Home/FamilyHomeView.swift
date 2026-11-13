@@ -34,6 +34,7 @@ struct FamilyHomeView: View {
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
     @State private var selectedMission: MissionFeedItem?
+    @State private var selectedRecommendation: FamilyRecommendationResult?
     @State private var selectedMember: HomeMember?
     @State private var isPlaceBookmarked = false
     @State private var showsMissionFace = false
@@ -52,6 +53,7 @@ struct FamilyHomeView: View {
     @State private var pokeToastMessage: String?
     @State private var pokeToastIsError = false
     @State private var recommendedMissions: [MissionFeedItem] = []
+    @State private var familyRecommendation: FamilyRecommendationResult?
     @State private var isLoadingRecommendations = false
     @State private var recommendationError: String?
 
@@ -100,6 +102,20 @@ struct FamilyHomeView: View {
                         isRecommended: true,
                         mockAssetName: nil,
                         imageURL: selectedMission.imageUrl,
+                        isBookmarked: $isPlaceBookmarked,
+                        onBack: { route = .home }
+                    )
+                } else if let selectedRecommendation {
+                    MissionActivityDetailView(
+                        missionId: selectedRecommendation.missionId,
+                        title: selectedRecommendation.title,
+                        placeName: "",
+                        district: MissionDisplayLabel.category(selectedRecommendation.category) ?? "",
+                        rating: selectedRecommendation.score,
+                        tags: [MissionDisplayLabel.category(selectedRecommendation.category)].compactMap { $0 },
+                        isRecommended: true,
+                        mockAssetName: nil,
+                        imageURL: selectedRecommendation.imageUrl,
                         isBookmarked: $isPlaceBookmarked,
                         onBack: { route = .home }
                     )
@@ -648,32 +664,27 @@ struct FamilyHomeView: View {
                 .accessibilityHint(recommendationError)
             }
             .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
-        } else if recommendedMissions.isEmpty {
+        } else if let recommendation = familyRecommendation {
+            Button {
+                selectedRecommendation = recommendation
+                selectedMission = nil
+                isPlaceBookmarked = false
+                route = .placeDetail
+            } label: {
+                PlaceCard(
+                    title: recommendation.title,
+                    location: "",
+                    rating: recommendation.score,
+                    description: recommendation.recommendationReason,
+                    imageURL: recommendation.imageUrl
+                )
+            }
+            .buttonStyle(.plain)
+        } else {
             Text("추천할 미션이 아직 없어요")
                 .font(KIRITypography.bodySmall)
                 .foregroundStyle(KIRIColor.Text.tertiary)
                 .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
-        } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 24) {
-                    ForEach(recommendedMissions) { mission in
-                        Button {
-                            selectedMission = mission
-                            route = .placeDetail
-                        } label: {
-                            PlaceCard(
-                                title: mission.title,
-                                location: mission.placeName,
-                                rating: nil,
-                                description: MissionDisplayLabel.category(mission.category),
-                                imageURL: mission.imageUrl
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 18)
-            }
         }
     }
 
@@ -756,26 +767,35 @@ struct FamilyHomeView: View {
         await MainActor.run {
             isLoadingRecommendations = true
             recommendationError = nil
+            familyRecommendation = nil
         }
+
+        // 플립 카드의 실제 미션과 가족 맞춤 추천은 각각 계약된 API에서 읽습니다.
         do {
-            let result = try await AuthService.shared.missionFeed()
+            let feed = try await AuthService.shared.missionFeed()
+            await MainActor.run { recommendedMissions = feed.missions }
+        } catch {
+            // 추천 섹션과 독립된 플립 카드 데이터 실패는 추천 카드 오류로 덮어쓰지 않습니다.
+            await MainActor.run { recommendedMissions = [] }
+        }
+
+        do {
+            let recommendation = try await AuthService.shared.familyRecommendation()
             await MainActor.run {
-                recommendedMissions = result.missions
+                familyRecommendation = recommendation
                 isLoadingRecommendations = false
             }
-            #if DEBUG
-            print("[KIRI][Recommendation] response count=\(result.missions.count) hasNext=\(result.hasNext)")
-            #endif
         } catch {
             await MainActor.run {
                 recommendationError = error.localizedDescription
                 isLoadingRecommendations = false
             }
             #if DEBUG
-            print("[KIRI][Recommendation] load failed: \(error.localizedDescription)")
+            print("[KIRI][Recommendation] family recommendation load failed")
             #endif
         }
     }
+
 }
 
 #Preview {
