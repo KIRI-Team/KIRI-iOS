@@ -52,6 +52,8 @@ struct RecordView: View {
 
         RecordCalendarView.ScheduleDetailData?
 
+    @State private var selectedNearbyMission: NearbyMissionResult?
+
     @State private var selectedReview:
 
         RecordCalendarView.ReviewDetailData?
@@ -70,7 +72,7 @@ struct RecordView: View {
     @State private var scheduleRefreshID = UUID()
 
     private var isDetailPresented: Bool {
-        selectedInvitation != nil || selectedReview != nil || selectedSchedule != nil || editingReview
+        selectedInvitation != nil || selectedReview != nil || selectedSchedule != nil || selectedNearbyMission != nil || editingReview
     }
 
     private func reviewKey(_ schedule: RecordCalendarView.ScheduleDetailData) -> String {
@@ -127,6 +129,20 @@ struct RecordView: View {
                     onEdit: { editingReview = true },
                     onDelete: { showingDeleteConfirmation = true }
                 )
+            } else if let nearby = selectedNearbyMission {
+                MissionActivityDetailView(
+                    missionId: nearby.missionId,
+                    title: nearby.placeName,
+                    placeName: nearby.placeName,
+                    district: nearby.region,
+                    rating: nil,
+                    tags: [],
+                    isRecommended: false,
+                    imageURL: nearby.imageUrl,
+                    isBookmarked: .constant(false),
+                    allowsRecommendationNavigation: false,
+                    onBack: { selectedNearbyMission = nil }
+                )
             } else if let schedule = selectedSchedule {
 
                 ScheduleDetailView(
@@ -138,6 +154,7 @@ struct RecordView: View {
                         selectedSchedule = nil
 
                     },
+                    onMissionSelected: { selectedNearbyMission = $0 },
                     // 서버 일정 상세가 제공하는 데이터만 표시합니다.
                     todayContent: nil,
 

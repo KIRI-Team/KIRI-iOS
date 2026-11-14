@@ -461,13 +461,35 @@ struct FamilyMemberInfoResult: Decodable, Identifiable, Sendable {
 }
 
 struct NearbyMissionResult: Decodable, Identifiable, Sendable {
+    /// 추천 카드가 가리키는 미션입니다. 구버전 일정 응답에는 없을 수 있어
+    /// optional로 디코드하고, 값이 있는 경우에만 상세 이동을 제공합니다.
+    let missionId: Int?
     let placeName: String
     let region: String
     let description: String
     let imageUrl: URL?
     let price: Int?
+    /// 서버 초기 문서의 오탈자(distnace)와 정식 키(distance)를 모두 수용합니다.
+    /// 값은 API 계약의 km 단위를 보존합니다.
+    let distance: Double?
 
-    var id: String { "\(placeName)-\(region)-\(description)" }
+    var id: String { "\(missionId.map(String.init) ?? placeName)-\(region)-\(description)" }
+
+    private enum CodingKeys: String, CodingKey {
+        case missionId, placeName, region, description, imageUrl, price, distance, distnace
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missionId = try container.decodeIfPresent(Int.self, forKey: .missionId)
+        placeName = try container.decode(String.self, forKey: .placeName)
+        region = try container.decode(String.self, forKey: .region)
+        description = try container.decode(String.self, forKey: .description)
+        imageUrl = try container.decodeIfPresent(URL.self, forKey: .imageUrl)
+        price = try container.decodeIfPresent(Int.self, forKey: .price)
+        distance = try container.decodeIfPresent(Double.self, forKey: .distance)
+            ?? container.decodeIfPresent(Double.self, forKey: .distnace)
+    }
 }
 
 struct ScheduleResponseRequest: Encodable, Sendable {

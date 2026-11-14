@@ -12,6 +12,8 @@ import SwiftUI
 struct ScheduleDetailView: View {
     let schedule: RecordCalendarView.ScheduleDetailData
     let onBack: () -> Void
+    /// 주변 추천 카드에서 선택한 미션을 기록 탭 라우터가 엽니다.
+    var onMissionSelected: ((NearbyMissionResult) -> Void)? = nil
     // 서버에서 검증된 약속 당일 데이터.
     // nil이면 당일 활동 화면을 열지 않는다.
     var todayContent: TodayActivityView.Content? = nil
@@ -656,8 +658,9 @@ struct ScheduleDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    @ViewBuilder
     private func nearbyCard(_ item: NearbyMissionResult) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let card = VStack(alignment: .leading, spacing: 0) {
             KIRIContentImage(imageURL: item.imageUrl, mockAssetName: nil) {
                 KIRIColor.Background.tertiary
             }
@@ -666,6 +669,9 @@ struct ScheduleDetailView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.placeName).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
                 Text(item.region).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary).lineLimit(1)
+                if let distance = item.distance {
+                    Text(Self.distanceLabel(distance)).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                }
                 Text(item.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary).lineLimit(3)
             }
             .padding(.horizontal, 19)
@@ -674,6 +680,17 @@ struct ScheduleDetailView: View {
         .frame(width: 251, height: 284, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+
+        if item.missionId != nil, let onMissionSelected {
+            Button { onMissionSelected(item) } label: { card }
+                .buttonStyle(.plain)
+        } else {
+            card
+        }
+    }
+
+    private static func distanceLabel(_ value: Double) -> String {
+        value >= 100 ? String(format: "%.1fkm", value / 1000) : String(format: "%.1fkm", value)
     }
     private func statusView(
         title: String,
