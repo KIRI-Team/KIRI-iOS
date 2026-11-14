@@ -1198,9 +1198,11 @@ struct InviteLinkView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, 36)
                     if let invite {
-                        inviteCard(label: "링크코드", value: invite.inviteCode)
+                        // 6자리 영문 대문자·숫자는 링크가 아니라 가족 참여에
+                        // 사용하는 초대 코드입니다.
+                        inviteCard(label: "초대 코드", value: invite.inviteCode)
                             .padding(.top, 38)
-                        inviteCard(label: "초대링크", value: invite.inviteUrl)
+                        inviteCard(label: "가족 초대 링크", value: invite.inviteUrl)
                             .padding(.top, 16)
                         Text(expirationText(invite.inviteExpiresAt))
                             .font(KIRITypography.bodySmall)
@@ -1301,7 +1303,7 @@ struct InviteLinkView: View {
     private func inviteCard(label: String, value: String) -> some View {
         Button {
             UIPasteboard.general.string = value
-            showToast(label == "링크코드" ? "링크코드를 복사했어요." : "초대 링크를 복사했어요.")
+            showToast(label == "초대 코드" ? "초대 코드를 복사했어요." : "가족 초대 링크를 복사했어요.")
         } label: {
             VStack(spacing: 2) {
                 Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
