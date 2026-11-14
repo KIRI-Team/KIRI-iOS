@@ -713,6 +713,20 @@ final class AuthService {
         return result
     }
 
+    /// 일정 없이 미션의 장소를 기준으로 주변 놀거리를 조회합니다.
+    func nearbyMissions(missionId: Int) async throws -> [NearbyMissionResult] {
+        let endpoint = APIEndpoint(path: "/api/v1/missions/\(missionId)/nearby", requiresAuthentication: true)
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<[NearbyMissionResult]> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+        return result
+    }
+
     func familyRecommendation() async throws -> FamilyRecommendationResult? {
         let endpoint = APIEndpoint(path: "/api/v1/missions/recommendations", requiresAuthentication: true)
         let tokens = try authenticatedTokens()

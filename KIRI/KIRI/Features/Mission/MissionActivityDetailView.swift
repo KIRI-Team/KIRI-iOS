@@ -41,6 +41,11 @@ struct MissionActivityDetailView: View {
     @State private var isLoadingRecommendation = false
     @State private var selectedRecommendation: FamilyRecommendationResult?
     @State private var recommendationIsBookmarked = false
+    @State private var nearbyMissions: [NearbyMissionResult] = []
+    @State private var isLoadingNearby = false
+    @State private var nearbyError: String?
+    @State private var selectedNearby: NearbyMissionResult?
+    @State private var nearbyIsBookmarked = false
 
     fileprivate enum DetailSegment: String, CaseIterable, Hashable {
         case recommended = "추천 활동"
@@ -106,6 +111,7 @@ struct MissionActivityDetailView: View {
         .task {
             await loadDetail()
             await loadFamilyRecommendation()
+            await loadNearbyMissions()
         }
         .overlay(alignment: .top) {
             if isShowingBucketToast {
@@ -128,6 +134,21 @@ struct MissionActivityDetailView: View {
                 isBookmarked: $recommendationIsBookmarked,
                 allowsRecommendationNavigation: false,
                 onBack: { selectedRecommendation = nil }
+            )
+        }
+        .fullScreenCover(item: $selectedNearby) { recommendation in
+            MissionActivityDetailView(
+                missionId: recommendation.missionId,
+                title: recommendation.placeName,
+                placeName: recommendation.placeName,
+                district: recommendation.region,
+                rating: nil,
+                tags: [],
+                isRecommended: false,
+                imageURL: recommendation.imageUrl,
+                isBookmarked: $nearbyIsBookmarked,
+                allowsRecommendationNavigation: false,
+                onBack: { selectedNearby = nil }
             )
         }
     }
@@ -257,6 +278,29 @@ struct MissionActivityDetailView: View {
                 } else {
                     unavailableRecommendationCard("오늘의 맞춤 활동이 없어요.")
                 }
+
+                detailSectionTitle("근처 놀거리 추천", accent: false)
+                if isLoadingNearby {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 110)
+                } else if let nearbyError {
+                    VStack(spacing: 8) {
+                        Text(nearbyError)
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await loadNearbyMissions() } }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 110)
+                } else if nearbyMissions.isEmpty {
+                    unavailableRecommendationCard("근처에 추천할 놀거리가 없어요.")
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(nearbyMissions) { item in
+                                nearbyCard(item)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -271,6 +315,71 @@ struct MissionActivityDetailView: View {
         } catch {
             recommendationError = "맞춤 활동을 불러오지 못했어요."
         }
+    }
+
+    private func loadNearbyMissions() async {
+        guard let missionId, !isLoadingNearby else { return }
+        isLoadingNearby = true
+        nearbyError = nil
+        defer { isLoadingNearby = false }
+        do {
+            nearbyMissions = try await AuthService.shared.nearbyMissions(missionId: missionId)
+        } catch {
+            nearbyMissions = []
+            nearbyError = "근처 놀거리를 불러오지 못했어요."
+        }
+    }
+
+    @ViewBuilder
+    private func nearbyCard(_ item: NearbyMissionResult) -> some View {
+        let card = VStack(alignment: .leading, spacing: 0) {
+            KIRIContentImage(imageURL: item.imageUrl, mockAssetName: nil) {
+                KIRIColor.Background.tertiary
+            }
+            .frame(width: 251, height: 144)
+            .clipped()
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.placeName)
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .lineLimit(2)
+                Text(item.region)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .lineLimit(1)
+                if let distance = item.distance {
+                    Text(Self.distanceLabel(distance))
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                }
+                if !item.description.isEmpty {
+                    Text(item.description)
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.horizontal, 19)
+            .padding(.top, 18)
+        }
+        .frame(width: 251, height: 284, alignment: .topLeading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+        if item.missionId != nil {
+            Button {
+                nearbyIsBookmarked = false
+                selectedNearby = item
+            } label: { card }
+            .buttonStyle(.plain)
+        } else {
+            card
+        }
+    }
+
+    private static func distanceLabel(_ value: Double) -> String {
+        // 계약의 기본 단위는 km입니다. 큰 값은 m 응답도 안전하게 표시합니다.
+        value >= 100 ? String(format: "%.1fkm", value / 1000) : String(format: "%.1fkm", value)
     }
 
     private func recommendationCard(_ recommendation: FamilyRecommendationResult) -> some View {
