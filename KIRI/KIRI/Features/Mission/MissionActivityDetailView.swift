@@ -36,11 +36,6 @@ struct MissionActivityDetailView: View {
     @State private var bucketToastMessage = "버킷에 저장했어요"
     @State private var isShowingBucketConfirmation = false
     @State private var selectedSegment: DetailSegment = .recommended
-    @State private var familyRecommendation: FamilyRecommendationResult?
-    @State private var recommendationError: String?
-    @State private var isLoadingRecommendation = false
-    @State private var selectedRecommendation: FamilyRecommendationResult?
-    @State private var recommendationIsBookmarked = false
     @State private var nearbyMissions: [NearbyMissionResult] = []
     @State private var isLoadingNearby = false
     @State private var nearbyError: String?
@@ -110,7 +105,6 @@ struct MissionActivityDetailView: View {
         }
         .task {
             await loadDetail()
-            await loadFamilyRecommendation()
             await loadNearbyMissions()
         }
         .overlay(alignment: .top) {
@@ -120,21 +114,6 @@ struct MissionActivityDetailView: View {
                     .safeAreaPadding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
-        }
-        .fullScreenCover(item: $selectedRecommendation) { recommendation in
-            MissionActivityDetailView(
-                missionId: recommendation.missionId,
-                title: recommendation.title,
-                placeName: "",
-                district: MissionDisplayLabel.category(recommendation.category) ?? "",
-                rating: nil,
-                tags: [MissionDisplayLabel.category(recommendation.category)].compactMap { $0 },
-                isRecommended: false,
-                imageURL: recommendation.imageUrl,
-                isBookmarked: $recommendationIsBookmarked,
-                allowsRecommendationNavigation: false,
-                onBack: { selectedRecommendation = nil }
-            )
         }
         .fullScreenCover(item: $selectedNearby) { recommendation in
             MissionActivityDetailView(
@@ -268,22 +247,18 @@ struct MissionActivityDetailView: View {
                     detailList(title: "오늘의 끼리 추천 활동", items: detail.steps)
                 }
 
-                if isLoadingRecommendation {
+                // prepareItems는 서버 ItemType.PREPARE입니다. Figma의 맞춤템
+                // 카드에는 서버가 준 제목·설명만 표시하고, 값이 없으면 섹션을
+                // 만들지 않습니다.
+                if let detail, !detail.prepareItems.isEmpty {
                     detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 100)
-                } else if let recommendationError {
-                    VStack(alignment: .leading, spacing: 8) {
-                        detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
-                        Text(recommendationError)
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                        Button("다시 시도") { Task { await loadFamilyRecommendation() } }
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
-                } else if let recommendation = familyRecommendation {
-                    VStack(alignment: .leading, spacing: 12) {
-                        detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
-                        recommendationCard(recommendation)
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                        spacing: 12
+                    ) {
+                        ForEach(detail.prepareItems) { item in
+                            customItemCard(item)
+                        }
                     }
                 }
 
@@ -310,18 +285,6 @@ struct MissionActivityDetailView: View {
                     }
                 }
             }
-        }
-    }
-
-    private func loadFamilyRecommendation() async {
-        guard !isLoadingRecommendation else { return }
-        isLoadingRecommendation = true
-        recommendationError = nil
-        defer { isLoadingRecommendation = false }
-        do {
-            familyRecommendation = try await AuthService.shared.familyRecommendation()
-        } catch {
-            recommendationError = "맞춤 활동을 불러오지 못했어요."
         }
     }
 
@@ -390,54 +353,32 @@ struct MissionActivityDetailView: View {
         value >= 100 ? String(format: "%.1fkm", value / 1000) : String(format: "%.1fkm", value)
     }
 
-    private func recommendationCard(_ recommendation: FamilyRecommendationResult) -> some View {
-        Group {
-            if allowsRecommendationNavigation {
-                Button {
-                    recommendationIsBookmarked = false
-                    selectedRecommendation = recommendation
-                } label: {
-                    recommendationCardLabel(recommendation)
-                }
-                .buttonStyle(.plain)
-            } else {
-                recommendationCardLabel(recommendation)
-            }
-        }
-    }
-
-    private func recommendationCardLabel(_ recommendation: FamilyRecommendationResult) -> some View {
+    private func customItemCard(_ item: MissionDetailItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
-                // Figma 8438:5340의 24pt 활성 우산 아이콘입니다.
-                // 서버 imageUrl은 이 Figma 카드 구조에 대응하는 필드가 아니므로
-                // 카드 안에서 임의의 썸네일로 대체하지 않습니다.
+                // Figma 맞춤템의 원본 우산 Asset입니다.
                 Image("figma_umbrella")
                     .resizable()
                     .renderingMode(.original)
                     .scaledToFit()
                     .frame(width: 24, height: 24)
-                Text(recommendation.title)
+                Text(item.title)
                     .font(KIRITypography.bodySmallMedium)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text(recommendation.description)
-                .font(KIRITypography.caption)
-                .foregroundStyle(KIRIColor.Text.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-            if !recommendation.recommendationReason.isEmpty {
-                Text(recommendation.recommendationReason)
+            if !item.description.isEmpty {
+                Text(item.description)
                     .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.Text.tertiary)
-                    .lineLimit(1)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .frame(width: 171, height: 110, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -461,15 +402,6 @@ struct MissionActivityDetailView: View {
 
     @ViewBuilder
     private var detailSections: some View {
-        if let detail, !detail.prepareItems.isEmpty {
-            VStack(alignment: .leading, spacing: 24) {
-                // Figma 상세 화면에는 준비물 정보만 존재합니다.
-                // API 응답의 steps는 보존하되, Figma에 없는 활동 단계 UI는 노출하지 않습니다.
-                detailList(title: "준비물", items: detail.prepareItems)
-            }
-            .padding(.top, 28)
-        }
-
         // Figma 9901:24342에는 별도의 "활동 소개"/"미션 소개" 섹션이 없습니다.
         // 상세 API의 description은 모델에 보존하지만, 존재하지 않는 UI를 만들지
         // 않도록 이 화면에서는 렌더링하지 않습니다.
