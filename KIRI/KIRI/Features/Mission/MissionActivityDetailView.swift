@@ -262,21 +262,29 @@ struct MissionActivityDetailView: View {
             ProgressView().frame(maxWidth: .infinity, minHeight: 140)
         } else {
             VStack(alignment: .leading, spacing: 16) {
-                detailSectionTitle("오늘의 끼리 추천 활동", accent: true)
-                unavailableRecommendationCard("추천 활동 데이터가 아직 없어요.")
+                // 미션 상세의 steps는 서버 ItemType.STEP이며, 일정 생성 전에도
+                // 확인할 수 있는 이 미션의 추천 활동 목록입니다.
+                if let detail, !detail.steps.isEmpty {
+                    detailList(title: "오늘의 끼리 추천 활동", items: detail.steps)
+                }
 
-                detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
                 if isLoadingRecommendation {
+                    detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
                     ProgressView().frame(maxWidth: .infinity, minHeight: 100)
                 } else if let recommendationError {
-                    VStack(spacing: 8) {
-                        Text(recommendationError).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
+                        Text(recommendationError)
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
                         Button("다시 시도") { Task { await loadFamilyRecommendation() } }
-                    }.frame(maxWidth: .infinity, minHeight: 100)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .leading)
                 } else if let recommendation = familyRecommendation {
-                    recommendationCard(recommendation)
-                } else {
-                    unavailableRecommendationCard("오늘의 맞춤 활동이 없어요.")
+                    VStack(alignment: .leading, spacing: 12) {
+                        detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
+                        recommendationCard(recommendation)
+                    }
                 }
 
                 detailSectionTitle("근처 놀거리 추천", accent: false)
