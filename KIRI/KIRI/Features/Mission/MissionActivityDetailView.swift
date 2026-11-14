@@ -241,17 +241,21 @@ struct MissionActivityDetailView: View {
             ProgressView().frame(maxWidth: .infinity, minHeight: 140)
         } else {
             VStack(alignment: .leading, spacing: 16) {
-                // 미션 상세의 steps는 서버 ItemType.STEP이며, 일정 생성 전에도
-                // 확인할 수 있는 이 미션의 추천 활동 목록입니다.
+                // steps / prepareItems는 미션 상세 응답에 포함된 데이터라
+                // 일정이 없거나 약속일 전이어도 바로 표시할 수 있습니다.
+                detailSectionTitle("오늘의 끼리 추천 활동", accent: false)
                 if let detail, !detail.steps.isEmpty {
-                    detailList(title: "오늘의 끼리 추천 활동", items: detail.steps)
+                    VStack(spacing: 12) {
+                        ForEach(detail.steps) { item in
+                            activityCard(item)
+                        }
+                    }
+                } else {
+                    emptyRecommendationMessage("추천 활동이 아직 없어요.")
                 }
 
-                // prepareItems는 서버 ItemType.PREPARE입니다. Figma의 맞춤템
-                // 카드에는 서버가 준 제목·설명만 표시하고, 값이 없으면 섹션을
-                // 만들지 않습니다.
+                detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
                 if let detail, !detail.prepareItems.isEmpty {
-                    detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
                     LazyVGrid(
                         columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
                         spacing: 12
@@ -260,6 +264,8 @@ struct MissionActivityDetailView: View {
                             customItemCard(item)
                         }
                     }
+                } else {
+                    emptyRecommendationMessage("추천 준비물이 아직 없어요.")
                 }
 
                 detailSectionTitle("근처 놀거리 추천", accent: false)
@@ -383,6 +389,48 @@ struct MissionActivityDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    /// Figma의 추천 활동은 항목마다 독립된 카드로 표시합니다. 서버의
+    /// steps 배열 순서를 그대로 유지해 제목과 설명이 서로 섞이지 않도록
+    /// 하고, 긴 텍스트는 카드 높이를 자연스럽게 확장합니다.
+    private func activityCard(_ item: MissionDetailItem) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image("figma_umbrella")
+                .resizable()
+                .renderingMode(.original)
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(item.title)
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !item.description.isEmpty {
+                    Text(item.description)
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func emptyRecommendationMessage(_ message: String) -> some View {
+        Text(message)
+            .font(KIRITypography.bodySmall)
+            .foregroundStyle(KIRIColor.Text.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 18)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
     private func detailSectionTitle(_ title: String, accent: Bool) -> some View {
         Text(title)
             .font(KIRITypography.headingSmall)
@@ -407,26 +455,6 @@ struct MissionActivityDetailView: View {
         // 않도록 이 화면에서는 렌더링하지 않습니다.
     }
 
-    private func detailList(title: String, items: [MissionDetailItem]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(item.title).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.strong)
-                        Text(item.description)
-                            .font(KIRITypography.captionMedium)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-    }
 
     private var bottomBar: some View {
         Button {
