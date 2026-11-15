@@ -20,6 +20,8 @@ struct ScheduleCreationSheet: View {
     @State private var isSubmitting = false
     @State private var isSendMethodVisible = false
     @State private var isMemberPickerPresented = false
+    @State private var isDateTimePickerPresented = false
+    @State private var displayedMonth = Date()
     @State private var errorMessage: String?
     @State private var memberLoadError: String?
     @State private var isLoadingMembers = false
@@ -62,6 +64,12 @@ struct ScheduleCreationSheet: View {
                 .presentationDragIndicator(.hidden)
                 .task { await loadFamilyMembers() }
         }
+        .sheet(isPresented: $isDateTimePickerPresented) {
+            dateTimePickerSheet
+                .presentationDetents([.height(560)])
+                .presentationDragIndicator(.hidden)
+                .presentationCornerRadius(28)
+        }
     }
 
     private var formView: some View {
@@ -70,7 +78,10 @@ struct ScheduleCreationSheet: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     missionSummary
-                    formRow(title: "일정 선택", value: displayDateTime, icon: "calendar") { step = .dateTime }
+                    formRow(title: "일정 선택", value: displayDateTime, icon: "calendar") {
+                        displayedMonth = monthStart(for: date)
+                        isDateTimePickerPresented = true
+                    }
                     formRow(title: "가족 구성원 선택", value: selectedMembers.isEmpty ? "가족 구성원을 선택해 주세요" : "인원 \(selectedMembers.count)명", icon: "person.2") {
                         isMemberPickerPresented = true
                         // 일정 등록 화면에 들어올 때 구성원 조회가 실패했거나
@@ -98,6 +109,140 @@ struct ScheduleCreationSheet: View {
             }
             bottomButton(title: "선택 완료", enabled: true) { step = .form }
         }
+    }
+
+    private var dateTimePickerSheet: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("날짜선택")
+                .font(KIRITypography.headingMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 18)
+
+            HStack {
+                Button {
+                    displayedMonth = monthStart(for: calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth)
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .disabled(monthStart(for: displayedMonth) <= monthStart(for: Date()))
+                Spacer()
+                Text(monthLabel(displayedMonth))
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Spacer()
+                Button {
+                    displayedMonth = monthStart(for: calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth)
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+            }
+            .font(.system(size: 16, weight: .semibold))
+            .foregroundStyle(KIRIColor.Text.strong)
+            .padding(.bottom, 14)
+
+            HStack(spacing: 0) {
+                ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) { weekday in
+                    Text(weekday)
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.bottom, 8)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 8) {
+                ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        Button {
+                            date = day
+                        } label: {
+                            Text(String(calendar.component(.day, from: day)))
+                                .font(KIRITypography.bodySmall)
+                                .foregroundStyle(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Text.onGreen : KIRIColor.Text.strong)
+                                .frame(width: 34, height: 34)
+                                .background(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Primary.default : .clear)
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Color.clear.frame(height: 34)
+                    }
+                }
+            }
+
+            Text("시간선택")
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .padding(.top, 18)
+                .padding(.bottom, 10)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(timeOptions, id: \.self) { option in
+                        Button(option) {
+                            setTime(option)
+                        }
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(isTimeSelected(option) ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
+                        .padding(.horizontal, 15)
+                        .frame(height: 38)
+                        .background(isTimeSelected(option) ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
+                        .clipShape(Capsule())
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            Spacer(minLength: 16)
+            bottomButton(title: "다음", enabled: true) { isDateTimePickerPresented = false }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 24)
+        .padding(.bottom, 12)
+        .background(KIRIColor.Background.base.ignoresSafeArea())
+    }
+
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = Locale(identifier: "ko_KR")
+        calendar.firstWeekday = 2 // 월요일 시작
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    private var monthDays: [Date?] {
+        let start = monthStart(for: displayedMonth)
+        guard let range = calendar.range(of: .day, in: .month, for: start) else { return [] }
+        let weekday = calendar.component(.weekday, from: start)
+        let leading = (weekday - calendar.firstWeekday + 7) % 7
+        var days = Array(repeating: Optional<Date>.none, count: leading)
+        days += range.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: start) }
+        return days
+    }
+
+    private var timeOptions: [String] {
+        stride(from: 9 * 60, through: 21 * 60, by: 30).map { minutes in
+            String(format: "%02d:%02d", minutes / 60, minutes % 60)
+        }
+    }
+
+    private func monthStart(for date: Date) -> Date {
+        calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
+    }
+
+    private func monthLabel(_ date: Date) -> String {
+        Self.format(date, format: "yyyy년 M월", locale: "ko_KR")
+    }
+
+    private func isTimeSelected(_ value: String) -> Bool {
+        Self.format(time, format: "HH:mm", locale: "en_US_POSIX") == value
+    }
+
+    private func setTime(_ value: String) {
+        let components = value.split(separator: ":").compactMap { Int($0) }
+        guard components.count == 2 else { return }
+        time = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: time) ?? time
     }
 
     private var membersView: some View {
