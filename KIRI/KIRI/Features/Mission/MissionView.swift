@@ -45,7 +45,12 @@ struct MissionView: View {
     }
     @State private var rows: [MissionRow] = []
     // 필터 결과가 비어도 서버가 반환한 오늘의 끼리픽은 유지합니다.
-    @State private var kiriPick: MissionRow?
+    @State private var kiriPickRows: [MissionRow] = []
+    @State private var kiriPickAnchorDate = Date()
+    @State private var kiriPickAnchorOffset: CGFloat = 0
+    @State private var kiriPickIsDragging = false
+    @State private var kiriPickDragStart: CGFloat = 0
+    @State private var kiriPickDragPosition: CGFloat = 0
     @State private var selectedMission: MissionRow?
     @State private var searchText = ""
     @State private var selectedCategory: Category = .all
@@ -208,15 +213,58 @@ struct MissionView: View {
     /// 미션만 사용하며, 응답이 없을 때는 영역 자체를 렌더링하지 않습니다.
     @ViewBuilder
     private var featuredSection: some View {
-        if let kiriPick {
-            ScrollView(.horizontal, showsIndicators: false) {
+        if !kiriPickRows.isEmpty {
+            let cycleWidth = kiriPickCycleWidth
+            TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
+                let offset = kiriPickIsDragging
+                    ? kiriPickDragPosition
+                    : normalizedKiriPickOffset(kiriPickAutoOffset(at: context.date), cycleWidth: cycleWidth)
                 HStack(spacing: 12) {
-                    Button { selectedMission = kiriPick } label: { featuredCard(kiriPick) }
-                        .buttonStyle(.plain)
+                    ForEach(0..<(kiriPickRows.count * 3), id: \.self) { index in
+                        let row = kiriPickRows[index % kiriPickRows.count]
+                        Button { selectedMission = row } label: { featuredCard(row) }
+                            .buttonStyle(.plain)
+                    }
                 }
-                .padding(.horizontal, 18)
+                .offset(x: offset)
+                .contentShape(Rectangle())
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { value in
+                            if !kiriPickIsDragging {
+                                kiriPickIsDragging = true
+                                kiriPickDragStart = normalizedKiriPickOffset(kiriPickAutoOffset(at: Date()), cycleWidth: cycleWidth)
+                            }
+                            kiriPickDragPosition = normalizedKiriPickOffset(kiriPickDragStart + value.translation.width, cycleWidth: cycleWidth)
+                        }
+                        .onEnded { _ in
+                            kiriPickAnchorOffset = kiriPickDragPosition
+                            kiriPickAnchorDate = Date()
+                            kiriPickIsDragging = false
+                        }
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .clipped()
+                .frame(height: 120)
             }
+            .frame(height: 120)
         }
+    }
+
+    private var kiriPickCycleWidth: CGFloat {
+        CGFloat(kiriPickRows.count) * (354 + 12)
+    }
+
+    private func kiriPickAutoOffset(at date: Date) -> CGFloat {
+        kiriPickAnchorOffset - CGFloat(max(0, date.timeIntervalSince(kiriPickAnchorDate))) * 18
+    }
+
+    private func normalizedKiriPickOffset(_ rawOffset: CGFloat, cycleWidth: CGFloat) -> CGFloat {
+        guard cycleWidth > 0 else { return rawOffset }
+        var offset = rawOffset
+        while offset <= -cycleWidth * 2 { offset += cycleWidth }
+        while offset > -cycleWidth { offset -= cycleWidth }
+        return offset
     }
 
     private var missionListHeader: some View {
@@ -371,8 +419,10 @@ struct MissionView: View {
             let newRows = result.missions.map { MissionRow(id: $0.missionId, mission: $0, isBookmarked: savedMissionIDs.contains($0.missionId)) }
             if reset {
                 rows = newRows
-                if category == nil, filter == .empty, let first = newRows.first {
-                    kiriPick = first
+                if category == nil, filter == .empty, !newRows.isEmpty {
+                    kiriPickRows = newRows
+                    kiriPickAnchorOffset = -CGFloat(newRows.count) * (354 + 12)
+                    kiriPickAnchorDate = Date()
                 }
             } else { rows.append(contentsOf: newRows) }
             nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil

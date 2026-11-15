@@ -654,13 +654,13 @@ struct FamilyHomeView: View {
                         .accessibilityHint(missionFeedError)
                 }
                 .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
-            } else if autumnMissions.isEmpty {
+            } else if outdoorMissions.isEmpty {
                 Text("가을 미션이 아직 없어요")
                     .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.tertiary)
                     .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
             } else {
-                missionCards(autumnMissions)
+                missionCards(outdoorMissions)
             }
         }
     }
@@ -685,11 +685,15 @@ struct FamilyHomeView: View {
                 .foregroundStyle(KIRIColor.Text.tertiary)
                 .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
         } else {
-            missionCards(recommendedMissions)
+            missionCards(allPublicMissions)
         }
     }
 
-    private var autumnMissions: [MissionFeedItem] {
+    private var allPublicMissions: [MissionFeedItem] {
+        recommendedMissions
+    }
+
+    private var outdoorMissions: [MissionFeedItem] {
         // 계절 키워드가 아니라 서버의 미션 카테고리만 신뢰합니다.
         recommendedMissions.filter { $0.category.caseInsensitiveCompare("OUTDOOR") == .orderedSame }
     }

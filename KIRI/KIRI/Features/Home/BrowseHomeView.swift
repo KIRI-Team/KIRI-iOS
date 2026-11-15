@@ -50,10 +50,10 @@ struct BrowseHomeView: View {
                         familyStateCard
                             .padding(.top, 18)
 
-                        recommendationSection(title: "가족과 함께라면 여기!", missions: familyMissions)
+                        recommendationSection(title: "가족과 함께라면 여기!", missions: allPublicMissions)
                             .padding(.top, 36)
 
-                        recommendationSection(title: "오늘 가을분위기를 느끼고 싶다면", missions: autumnMissions)
+                        recommendationSection(title: "오늘 가을분위기를 느끼고 싶다면", missions: outdoorMissions)
                             .padding(.top, 36)
 
                         Spacer()
@@ -168,14 +168,12 @@ struct BrowseHomeView: View {
         .accessibilityLabel("가족공간 만들러 가기")
     }
 
-    private var autumnMissions: [MissionFeedItem] {
-        missions.filter { $0.category.caseInsensitiveCompare("OUTDOOR") == .orderedSame }
+    private var allPublicMissions: [MissionFeedItem] {
+        missions
     }
 
-    private var familyMissions: [MissionFeedItem] {
-        // 전체 공개 미션을 그대로 보여 줍니다. 산책·야외 미션도 두 섹션에
-        // 함께 노출될 수 있으며, 제목·태그로 임의 분류하지 않습니다.
-        missions
+    private var outdoorMissions: [MissionFeedItem] {
+        missions.filter { $0.category.caseInsensitiveCompare("OUTDOOR") == .orderedSame }
     }
 
     private func recommendationSection(title: String, missions: [MissionFeedItem]) -> some View {
