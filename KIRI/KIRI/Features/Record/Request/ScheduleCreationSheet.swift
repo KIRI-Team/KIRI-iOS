@@ -23,6 +23,7 @@ struct ScheduleCreationSheet: View {
     @State private var errorMessage: String?
     @State private var memberLoadError: String?
     @State private var isLoadingMembers = false
+    @State private var missionDescription: String?
 
     private enum Step { case form, dateTime, members, preview }
     private var canPreview: Bool { membersLoaded && !selectedMemberIds.isEmpty }
@@ -54,6 +55,7 @@ struct ScheduleCreationSheet: View {
             switch step { case .form: formView; case .dateTime: dateTimeView; case .members: membersView; case .preview: previewView }
         }
         .task { await loadFamilyMembers() }
+        .task { await loadMissionDescription() }
         .sheet(isPresented: $isMemberPickerPresented) {
             membersView
                 .presentationDetents([.large])
@@ -169,6 +171,13 @@ struct ScheduleCreationSheet: View {
                         .foregroundStyle(KIRIColor.Primary.default)
                 }
                 Text(missionTitle).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
+                if let missionDescription, !missionDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(missionDescription)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 0)
         }.padding(16).background(KIRIColor.Background.tertiary).clipShape(RoundedRectangle(cornerRadius: 12))
@@ -299,6 +308,27 @@ struct ScheduleCreationSheet: View {
         } catch {
             memberLoadError = "가족 구성원을 불러오지 못했어요. 다시 시도해 주세요."
             membersLoaded = true
+        }
+    }
+
+    private func loadMissionDescription() async {
+        let bucketDescription = bucket?.mission.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let bucketDescription, !bucketDescription.isEmpty {
+            missionDescription = bucketDescription
+            return
+        }
+
+        let detailMissionId = bucket?.mission.missionId ?? missionId
+        guard let detailMissionId else { return }
+        do {
+            let detail = try await AuthService.shared.missionDetail(missionId: detailMissionId)
+            let description = detail.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+            missionDescription = description?.isEmpty == false ? description : nil
+        } catch is CancellationError {
+            // 화면이 닫힌 경우에는 설명을 갱신하지 않습니다.
+        } catch {
+            // 설명 조회 실패는 일정 선택·구성원 선택을 막지 않습니다.
+            missionDescription = nil
         }
     }
 }
