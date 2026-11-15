@@ -293,6 +293,20 @@ struct RecordView: View {
 
                             selectedInvitation = invitation
 
+                        },
+
+                        onInvitationSent: {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                showsInvitationSentBanner = true
+                            }
+                            Task {
+                                try? await Task.sleep(for: .seconds(2.5))
+                                await MainActor.run {
+                                    withAnimation(.easeOut(duration: 0.2)) {
+                                        showsInvitationSentBanner = false
+                                    }
+                                }
+                            }
                         }
 
                     )
