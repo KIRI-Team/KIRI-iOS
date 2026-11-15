@@ -186,6 +186,9 @@ struct ActivityReviewWriteView: View {
                     onSubmit(draft)
                 }
             } catch {
+#if DEBUG
+                print("[KIRI][Review] save failed stage=server-request error=\(String(describing: error))")
+#endif
                 await MainActor.run {
                     isSubmitting = false
                     submitError = "리뷰를 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요."

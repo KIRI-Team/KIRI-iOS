@@ -159,6 +159,9 @@ struct ScheduleDetailView: View {
                             guard let data = image.jpegData(compressionQuality: 0.85) else {
                                 throw APIError.decodingFailed
                             }
+#if DEBUG
+                            print("[KIRI][Review] image presign start bytes=\(data.count)")
+#endif
                             let contentType = "image/jpeg"
                             let presigned = try await AuthService.shared.issuePresignedURL(
                                 contentType: contentType,
@@ -166,6 +169,9 @@ struct ScheduleDetailView: View {
                             )
                             try await AuthService.shared.uploadImage(data: data, to: presigned.presignedUrl, contentType: contentType)
                             imageKeys.append(presigned.imageKey)
+#if DEBUG
+                            print("[KIRI][Review] image upload completed")
+#endif
                         }
                         let request = ReviewCreateRequest(
                             starRating: draft.rating,
@@ -185,6 +191,9 @@ struct ScheduleDetailView: View {
                                 request: request
                             )
                         }
+#if DEBUG
+                        print("[KIRI][Review] review request completed scheduleId=\(scheduleId)")
+#endif
                     }
                 },
                 initialDraft: currentReview,

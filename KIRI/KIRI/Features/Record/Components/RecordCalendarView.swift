@@ -638,20 +638,16 @@ struct RecordCalendarView: View {
     ) -> some View {
         switch state {
         case .pendingSchedule:
-            VStack(spacing: 0) {
-                Image(isPast(day) ? "figma_calendar_disabled" : "figma_calendar_active")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 28, height: 28)
-            }
+            Image(calendarClockAsset(for: day))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
 
         case .confirmedSchedule:
-            VStack(spacing: 0) {
-                Image(isPast(day) ? "figma_calendar_disabled" : "figma_calendar_active")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 28, height: 28)
-            }
+            Image(calendarClockAsset(for: day))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 28, height: 28)
 
         case .completed:
             if let schedule = schedules(for: day).first(where: { $0.scheduleId.map { reviewedScheduleIDs.contains($0) } == true }),
@@ -707,6 +703,12 @@ struct RecordCalendarView: View {
                     .foregroundStyle(KIRIColor.Text.strong)
             }
         }
+    }
+
+    private func calendarClockAsset(for day: Int) -> String {
+        if isPast(day) { return "figma_calendar_clock_past" }
+        if isToday(day) { return "figma_calendar_clock_today" }
+        return "figma_calendar_clock_upcoming"
     }
 
     private func isSelected(_ day: Int) -> Bool {
