@@ -23,10 +23,14 @@ struct HomeQuestionAnswerView: View {
     let question: String
     let existingAnswer: String?
     let onBack: () -> Void
-    let onSave: (String) -> Void
+    let onSave: (String) async -> Bool
+    private enum Step { case prompt, writing, saved }
     @State private var answer: String
+    @State private var step: Step = .prompt
+    @State private var isSaving = false
+    @State private var saveError: String?
 
-    init(question: String, existingAnswer: String?, onBack: @escaping () -> Void, onSave: @escaping (String) -> Void) {
+    init(question: String, existingAnswer: String?, onBack: @escaping () -> Void, onSave: @escaping (String) async -> Bool) {
         self.question = question
         self.existingAnswer = existingAnswer
         self.onBack = onBack
@@ -35,53 +39,147 @@ struct HomeQuestionAnswerView: View {
     }
 
     var body: some View {
-        ZStack { KIRIColor.Background.base.ignoresSafeArea()
+        ZStack {
+            KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
                 HomeInteractionBar(title: "오늘의 질문", onBack: onBack)
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 18) {
-                        Text("오늘의 질문").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary)
-                        Text(question).font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                        TextEditor(text: $answer)
-                            .font(KIRITypography.body).foregroundStyle(KIRIColor.Text.primary)
-                            .scrollContentBackground(.hidden).padding(12).frame(height: 170)
-                            .background(KIRIColor.Background.secondary).clipShape(RoundedRectangle(cornerRadius: 8))
-                        HStack {
-                            Text("공백 제외 \(answer.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
-                            Spacer()
-                        }.font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                        Text("오늘의 질문은 텍스트로만 답변할 수 있으며, 저장 버튼을 눌러야 답변 상태가 변경됩니다.")
-                            .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
+                ScrollView(showsIndicators: false) { content }
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        bottomAction
+                            .padding(.horizontal, 18)
+                            .padding(.top, 12)
+                            .padding(.bottom, 10)
+                            .background(KIRIColor.Background.base)
                     }
-                    .padding(18)
-                }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    answerSaveButton
-                        .padding(.horizontal, 18)
-                        .padding(.top, 12)
-                        .padding(.bottom, 10)
-                        .background(KIRIColor.Background.base)
-                }
             }
         }
         .onAppear { tabBarVisibility.wrappedValue = false }
         .onDisappear { tabBarVisibility.wrappedValue = true }
     }
 
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("오늘의 질문")
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.secondary)
+            Text(question)
+                .font(KIRITypography.title)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .fixedSize(horizontal: false, vertical: true)
+
+            switch step {
+            case .prompt:
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "아직 답변하지 않았어요" : "내 답변")
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    if !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(answer)
+                            .font(KIRITypography.body)
+                            .foregroundStyle(KIRIColor.Text.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
+                .padding(18)
+                .background(KIRIColor.Background.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            case .writing:
+                TextEditor(text: $answer)
+                    .font(KIRITypography.body)
+                    .foregroundStyle(KIRIColor.Text.primary)
+                    .scrollContentBackground(.hidden)
+                    .padding(12)
+                    .frame(height: 170)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                HStack {
+                    Text("공백 제외 \(answer.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
+                    Spacer()
+                }
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                Text("오늘의 질문은 텍스트로만 답변할 수 있으며, 저장 버튼을 눌러야 답변 상태가 변경됩니다.")
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+            case .saved:
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("답변을 저장했어요")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                    Text(answer)
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
+                .padding(18)
+                .background(KIRIColor.Background.secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            if let saveError {
+                Text(saveError)
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Status.error)
+            }
+        }
+        .padding(18)
+    }
+
+    @ViewBuilder
+    private var bottomAction: some View {
+        switch step {
+        case .prompt:
+            Button(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "답변하기" : "답변 수정하기") {
+                withAnimation(.easeInOut(duration: 0.2)) { step = .writing }
+            }
+            .buttonStyle(QuestionActionButtonStyle(isEnabled: true))
+        case .writing:
+            answerSaveButton
+        case .saved:
+            Button("홈으로 돌아가기", action: onBack)
+                .buttonStyle(QuestionActionButtonStyle(isEnabled: true))
+        }
+    }
+
     private var answerSaveButton: some View {
         let isEnabled = !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && answer.count <= 500
-        return Button("답변 저장") {
+        return Button {
             let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !normalized.isEmpty, normalized.count <= 500 else { return }
-            onSave(normalized)
+            guard isEnabled, !isSaving else { return }
+            isSaving = true
+            saveError = nil
+            Task { @MainActor in
+                let succeeded = await onSave(normalized)
+                isSaving = false
+                if succeeded {
+                    answer = normalized
+                    withAnimation(.easeInOut(duration: 0.2)) { step = .saved }
+                } else {
+                    saveError = "답변을 저장하지 못했어요. 다시 시도해 주세요."
+                }
+            }
+        } label: {
+            Text(isSaving ? "저장 중..." : "답변 저장")
         }
-        .disabled(!isEnabled)
-        .font(KIRITypography.button)
-        .foregroundStyle(isEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
-        .frame(maxWidth: .infinity).frame(height: 54)
-        .background(isEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .buttonStyle(.plain)
+        .disabled(!isEnabled || isSaving)
+        .buttonStyle(QuestionActionButtonStyle(isEnabled: isEnabled && !isSaving))
+    }
+}
+
+private struct QuestionActionButtonStyle: ButtonStyle {
+    let isEnabled: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(KIRITypography.button)
+            .foregroundStyle(isEnabled ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(isEnabled ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .opacity(configuration.isPressed ? 0.82 : 1)
     }
 }
 
