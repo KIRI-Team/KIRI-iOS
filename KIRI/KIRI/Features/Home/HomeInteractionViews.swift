@@ -413,7 +413,10 @@ struct HomeMemberQuestionView: View {
                 .fill(KIRIColor.Border.default)
                 .frame(width: 1, height: 50)
 
-            if !member.isMe {
+            // 이 화면은 가족 구성원(본인 제외)을 선택한 경우에만 열립니다.
+            // 서버의 isMe 플래그가 오래된 질문 기준으로 잘못 내려와도
+            // 미답변 가족의 콕 버튼을 숨기거나 비활성화하지 않습니다.
+            if member.memberId != nil {
                 Button {
                     guard !isPoking else { return }
                     if didPoke {
