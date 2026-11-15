@@ -214,40 +214,49 @@ struct MissionView: View {
     @ViewBuilder
     private var featuredSection: some View {
         if !kiriPickRows.isEmpty {
-            let cycleWidth = kiriPickCycleWidth
-            TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
-                let offset = kiriPickIsDragging
-                    ? kiriPickDragPosition
-                    : normalizedKiriPickOffset(kiriPickAutoOffset(at: context.date), cycleWidth: cycleWidth)
-                HStack(spacing: 12) {
-                    ForEach(0..<(kiriPickRows.count * 3), id: \.self) { index in
-                        let row = kiriPickRows[index % kiriPickRows.count]
-                        Button { selectedMission = row } label: { featuredCard(row) }
-                            .buttonStyle(.plain)
-                    }
-                }
-                .offset(x: offset)
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 8)
-                        .onChanged { value in
-                            if !kiriPickIsDragging {
-                                kiriPickIsDragging = true
-                                kiriPickDragStart = normalizedKiriPickOffset(kiriPickAutoOffset(at: Date()), cycleWidth: cycleWidth)
+            if kiriPickRows.count == 1, let row = kiriPickRows.first {
+                Button { selectedMission = row } label: { featuredCard(row) }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                GeometryReader { geometry in
+                    let cycleWidth = kiriPickCycleWidth
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
+                        let offset = kiriPickIsDragging
+                            ? kiriPickDragPosition
+                            : normalizedKiriPickOffset(kiriPickAutoOffset(at: context.date), cycleWidth: cycleWidth)
+                        HStack(spacing: 12) {
+                            ForEach(0..<(kiriPickRows.count * 3), id: \.self) { index in
+                                let row = kiriPickRows[index % kiriPickRows.count]
+                                Button { selectedMission = row } label: { featuredCard(row) }
+                                    .buttonStyle(.plain)
                             }
-                            kiriPickDragPosition = normalizedKiriPickOffset(kiriPickDragStart + value.translation.width, cycleWidth: cycleWidth)
                         }
-                        .onEnded { _ in
-                            kiriPickAnchorOffset = kiriPickDragPosition
-                            kiriPickAnchorDate = Date()
-                            kiriPickIsDragging = false
-                        }
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .clipped()
+                        .offset(x: offset)
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 8)
+                                .onChanged { value in
+                                    if !kiriPickIsDragging {
+                                        kiriPickIsDragging = true
+                                        kiriPickDragStart = normalizedKiriPickOffset(kiriPickAutoOffset(at: Date()), cycleWidth: cycleWidth)
+                                    }
+                                    kiriPickDragPosition = normalizedKiriPickOffset(kiriPickDragStart + value.translation.width, cycleWidth: cycleWidth)
+                                }
+                                .onEnded { _ in
+                                    kiriPickAnchorOffset = kiriPickDragPosition
+                                    kiriPickAnchorDate = Date()
+                                    kiriPickIsDragging = false
+                                }
+                        )
+                        .frame(width: geometry.size.width, alignment: .leading)
+                        .clipped()
+                    }
+                    .frame(width: geometry.size.width, height: 120)
+                }
                 .frame(height: 120)
             }
-            .frame(height: 120)
         }
     }
 
