@@ -121,6 +121,11 @@ struct RecordCalendarView: View {
     /// 오늘 질문 응답 여부는 질문 API의 실제 상태만 사용합니다.
     /// 답변 이력 전체를 제공하는 캘린더 계약이 없으므로 과거 날짜를 임의로 표시하지 않습니다.
     @State private var todayQuestionAnswered = false
+    @State private var todayQuestionAllFamilyAnswered = false
+
+    private var sessionNickname: String {
+        AppSessionStore().nickname ?? ""
+    }
 
     // MARK: - Initializer
 
@@ -238,7 +243,8 @@ struct RecordCalendarView: View {
             guard let draft = savedReviewDrafts[reviewKey(schedule)] else { return nil }
             let review = ReviewDetailData(
                 title: schedule.title, date: schedule.date,
-                familyName: "끼리네가족", authorName: "나",
+                familyName: AppSessionStore().familyName ?? "가족",
+                authorName: sessionNickname.isEmpty ? "나" : sessionNickname,
                 isCurrentUser: true, review: draft.comment,
                 writtenDate: Date.now.formatted(.dateTime.month().day()),
                 representativePhotoURL: nil, draft: draft
@@ -376,7 +382,7 @@ struct RecordCalendarView: View {
             return .completed
         }
 
-        if todayQuestionAnswered,
+        if todayQuestionAllFamilyAnswered,
            let date = dateForDay(day),
            calendar.isDate(date, inSameDayAs: Date()) {
             return .answeredQuestion
@@ -431,7 +437,17 @@ struct RecordCalendarView: View {
             async let questionResult: TodayQuestionResult? = try? await AuthService.shared.todayQuestion()
             serverCalendar = try await calendarResult
             serverUpcoming = try await upcomingResult
-            todayQuestionAnswered = (await questionResult)?.isAnswered == true
+            let resolvedQuestion = await questionResult
+            todayQuestionAnswered = resolvedQuestion?.isAnswered == true
+            todayQuestionAllFamilyAnswered = false
+            if let questionId = resolvedQuestion?.questionId,
+               let answers = try? await AuthService.shared.familyAnswers(questionId: questionId),
+               let familyIdResult = try? await AuthService.shared.familyIdForCurrentMember(),
+               let family = try? await AuthService.shared.familyInfo(familyId: familyIdResult.familyId) {
+                let activeMemberIDs = Set(family.members.map(\.memberId))
+                let answeredMemberIDs = Set(answers.answers.filter(\.isAnswered).map(\.memberId))
+                todayQuestionAllFamilyAnswered = !activeMemberIDs.isEmpty && activeMemberIDs.isSubset(of: answeredMemberIDs)
+            }
             let scheduleIDs = Set((serverCalendar?.schedules ?? []).map(\.scheduleId))
             var reviewed = Set<Int>()
             var photoURLs: [Int: URL] = [:]
@@ -622,27 +638,19 @@ struct RecordCalendarView: View {
     ) -> some View {
         switch state {
         case .pendingSchedule:
-            VStack(spacing: 2) {
+            VStack(spacing: 0) {
                 Image(isPast(day) ? "figma_calendar_disabled" : "figma_calendar_active")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 17, height: 17)
-
-                Text(String(day))
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.Text.primary)
+                    .frame(width: 28, height: 28)
             }
 
         case .confirmedSchedule:
-            VStack(spacing: 2) {
+            VStack(spacing: 0) {
                 Image(isPast(day) ? "figma_calendar_disabled" : "figma_calendar_active")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 17, height: 17)
-
-                Text(String(day))
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.Text.primary)
+                    .frame(width: 28, height: 28)
             }
 
         case .completed:

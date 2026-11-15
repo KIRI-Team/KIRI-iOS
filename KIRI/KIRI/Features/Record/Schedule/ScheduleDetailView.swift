@@ -44,6 +44,9 @@ struct ScheduleDetailView: View {
     @State private var reviewMutationError: String?
     @State private var reviewToDelete: ReviewItemResult?
     @State private var isDeletingReview = false
+    @State private var currentUserNickname = ""
+    @State private var currentUserRole = ""
+    @State private var familyMembers: [FamilyMemberInfoResult] = []
     private var currentReview: ActivityReviewWriteView.Draft? {
         localEditedReview ?? savedReview
     }
@@ -99,7 +102,9 @@ struct ScheduleDetailView: View {
                             schedule: schedule,
                             review: review,
                             onBack: onBack,
-                            onEdit: { showingReviewEditor = true }
+                            onEdit: { showingReviewEditor = true },
+                            userName: currentUserNickname,
+                            familyRole: currentUserRole
                         )
                     }
                     .padding(.horizontal, 18)
@@ -182,7 +187,9 @@ struct ScheduleDetailView: View {
                         }
                     }
                 },
-                initialDraft: currentReview
+                initialDraft: currentReview,
+                userName: currentUserNickname,
+                familyRole: currentUserRole
             )
         }
         .sheet(isPresented: $showingEditSheet) {
@@ -250,6 +257,7 @@ struct ScheduleDetailView: View {
             Text(reviewMutationError ?? "")
         }
         .task {
+            await loadReviewIdentity()
             await loadServerDetail()
             await loadNearbyMissions()
             await loadReviews()
@@ -261,6 +269,19 @@ struct ScheduleDetailView: View {
                     .safeAreaPadding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
+        }
+    }
+
+    private func loadReviewIdentity() async {
+        do {
+            let info = try await AuthService.shared.myInfo()
+            currentUserNickname = info.nickname
+            currentUserRole = info.familyRole ?? ""
+            if let familyIdResult = try? await AuthService.shared.familyIdForCurrentMember() {
+                familyMembers = (try? await AuthService.shared.familyInfo(familyId: familyIdResult.familyId).members) ?? []
+            }
+        } catch {
+            // 리뷰 화면에서는 임의의 작성자 정보를 표시하지 않습니다.
         }
     }
 
@@ -423,12 +444,18 @@ struct ScheduleDetailView: View {
             title: schedule.title,
             date: effectiveDate,
             familyName: "가족",
-            authorName: review.writer.nickname,
+            authorName: reviewWriterName(review),
             isCurrentUser: review.isMine,
             review: review.content,
             writtenDate: review.createdAt,
             representativePhotoURL: review.photos.first?.imageUrl
         )
+    }
+
+    private func reviewWriterName(_ review: ReviewItemResult) -> String {
+        let nickname = review.writer.nickname?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !nickname.isEmpty { return nickname }
+        return familyMembers.first(where: { $0.memberId == review.writer.memberId })?.nickname ?? "가족 구성원"
     }
     private var navigationBar: some View {
         ZStack {
@@ -673,7 +700,7 @@ struct ScheduleDetailView: View {
     private func serverReviewCard(_ review: ReviewItemResult) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(review.writer.nickname).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong)
+                Text(reviewWriterName(review)).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong)
                 Spacer()
                 Text("★ \(review.starRating)").font(KIRITypography.captionMedium).foregroundStyle(KIRIColor.Text.accent)
                 if review.isMine {

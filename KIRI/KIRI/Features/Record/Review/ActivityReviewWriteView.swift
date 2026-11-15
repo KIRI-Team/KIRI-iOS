@@ -27,8 +27,9 @@ struct ActivityReviewWriteView: View {
     var onSubmitToServer: ((Draft) async throws -> Void)? = nil
 
     var initialDraft: Draft? = nil
-    var userName: String = "김주연"
-    var familyRole: String = "나"
+    /// 서버 세션에서 주입되는 작성자 정보입니다. 값이 없을 때 임의의 이름을 표시하지 않습니다.
+    var userName: String = ""
+    var familyRole: String = ""
 
     @State private var rating = 0
     @State private var comment = ""
@@ -203,7 +204,7 @@ struct ActivityReviewWriteView: View {
                     KIRIColor.Text.secondary
                 )
 
-            Text("\(userName) | \(familyRole)")
+            Text([userName, familyRole].filter { !$0.isEmpty }.joined(separator: " | "))
                 .font(KIRITypography.body)
                 .foregroundStyle(
                     KIRIColor.Text.primary
