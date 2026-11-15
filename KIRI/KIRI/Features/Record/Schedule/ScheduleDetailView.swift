@@ -88,13 +88,36 @@ struct ScheduleDetailView: View {
     private var effectiveStatus: String {
         serverDetail?.status ?? (schedule.status == .confirmedSchedule ? "CONFIRMED" : "PENDING")
     }
+    private var displayTitle: String {
+        let value = serverDetail?.missionTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? schedule.title : value
+    }
+    private var displayDescription: String? {
+        guard let value = serverDetail?.missionDescription?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+        return value
+    }
+    private var isReconfirmationRequired: Bool { serverDetail?.myStatus == "RECONFIRM_REQUIRED" }
+    private func hasChanged(_ field: String) -> Bool { serverDetail?.changedFields.contains(field) == true }
+    private func changedBadge(_ field: String) -> some View {
+        Group {
+            if isReconfirmationRequired && hasChanged(field) {
+                Text("변경되었어요!")
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Primary.default)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(KIRIColor.Primary.default.opacity(0.14))
+                    .clipShape(Capsule())
+            }
+        }
+    }
     var body: some View {
         Group {
             if let review = currentReview {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         navigationBar
-                        Text(schedule.title)
+                        Text(displayTitle)
                             .font(KIRITypography.title)
                             .foregroundStyle(KIRIColor.Text.strong)
                         activityDetail
@@ -119,6 +142,9 @@ struct ScheduleDetailView: View {
                             schedule: schedule,
                             content: todayContent,
                             onBack: onBack,
+                            missionTitle: displayTitle,
+                            missionDescription: displayDescription,
+                            requestMessage: serverDetail?.requestMessage,
                             savedReview: currentReview,
                             onReviewSaved: { draft in
                                 localEditedReview = draft
@@ -364,10 +390,12 @@ struct ScheduleDetailView: View {
                 .background(KIRIColor.Background.elevated)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
                 .padding(.top, 21)
-                Text(schedule.title)
+                Text(displayTitle)
                     .font(KIRITypography.title)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .padding(.top, 12)
+                scheduleContext
+                    .padding(.top, 10)
                 activityDetail
                     .padding(.top, 30)
                 if let participants = serverDetail?.participants, !participants.isEmpty {
@@ -468,9 +496,12 @@ struct ScheduleDetailView: View {
     }
     private var navigationBar: some View {
         ZStack {
-            Text(effectiveDate.replacingOccurrences(of: "-", with: "."))
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.tertiary)
+            HStack(spacing: 6) {
+                Text(effectiveDate.replacingOccurrences(of: "-", with: "."))
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                changedBadge("DATE")
+            }
             HStack {
                 KIRIBackButton(action: onBack)
                 Spacer()
@@ -480,7 +511,7 @@ struct ScheduleDetailView: View {
     }
     private var activityDetail: some View {
         VStack(alignment: .leading, spacing: 9) {
-            detailRow("시작 시간", effectiveStartTime)
+            detailRow("시작 시간", effectiveStartTime, changedField: "TIME")
             detailRow("장소", schedule.location)
             detailRow("예상 걸음 수", schedule.expectedSteps)
             detailRow("활동 시간", schedule.duration)
@@ -492,17 +523,55 @@ struct ScheduleDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
+    private var scheduleContext: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            if let description = displayDescription {
+                Text(description)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let message = serverDetail?.requestMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !message.isEmpty {
+                Text("\"\(message)\"")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+            if let proposer = serverDetail?.proposer?.nickname?.trimmingCharacters(in: .whitespacesAndNewlines), !proposer.isEmpty {
+                Text("\(proposer)님이 제안했어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+            }
+        }
+    }
+
     private func participantSummary(_ participants: [ScheduleParticipantResult]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("참여 가족")
                 .font(KIRITypography.bodySmallMedium)
                 .foregroundStyle(KIRIColor.Text.strong)
+            changedBadge("PARTICIPANTS")
             ForEach(Array(participants.enumerated()), id: \.offset) { _, participant in
                 HStack {
+                    if let url = participant.characterImageUrl {
+                        AsyncImage(url: url) { phase in
+                            if case .success(let image) = phase {
+                                image.resizable().scaledToFill()
+                            } else {
+                                Image("figma_family_member_default").resizable().scaledToFit()
+                            }
+                        }
+                        .frame(width: 32, height: 32)
+                        .clipShape(Circle())
+                    } else {
+                        Image("figma_family_member_default")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                    }
                     Text(participant.nickname)
                     Spacer()
-                    Text(participant.accepted ? "참여" : "응답 대기")
-                        .foregroundStyle(participant.accepted ? KIRIColor.Primary.default : KIRIColor.Text.secondary)
+                    Text(participant.status == "ACCEPTED" ? "참여" : participant.status == "DECLINED" ? "거절" : "응답 대기")
+                        .foregroundStyle(participant.status == "ACCEPTED" ? KIRIColor.Primary.default : KIRIColor.Text.secondary)
                 }
                 .font(KIRITypography.bodySmall)
                 .foregroundStyle(KIRIColor.Text.primary)
@@ -515,7 +584,8 @@ struct ScheduleDetailView: View {
     }
     private func detailRow(
         _ label: String,
-        _ value: String
+        _ value: String,
+        changedField: String? = nil
     ) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Text(label)
@@ -524,6 +594,7 @@ struct ScheduleDetailView: View {
                 .foregroundStyle(KIRIColor.Text.tertiary)
             Text(value)
                 .foregroundStyle(KIRIColor.Text.primary)
+            if let changedField { changedBadge(changedField) }
         }
         .font(KIRITypography.body)
     }
@@ -569,11 +640,20 @@ struct ScheduleDetailView: View {
             }
 
             if effectiveStatus != "CANCELLED" {
+                if isReconfirmationRequired && serverDetail?.canRespond == true {
+                    Text("일정이 변경되었어요. 다시 확인해 주세요.")
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                }
+
+                if serverDetail?.canEdit == true {
                 Button("일정 수정") { showingEditSheet = true }
                     .buttonStyle(scheduleActionStyle(isPrimary: false))
                     .disabled(isMutatingSchedule || schedule.scheduleId == nil)
+                }
 
-                HStack(spacing: 8) {
+                if serverDetail?.canRespond == true {
+                    HStack(spacing: 8) {
                     Button("거절") {
                         Task { await respond(action: "DECLINED") }
                     }
@@ -585,15 +665,18 @@ struct ScheduleDetailView: View {
                     }
                     .buttonStyle(scheduleActionStyle(isPrimary: true))
                     .disabled(isMutatingSchedule)
+                    }
                 }
 
-                Button("약속 취소", role: .destructive) {
-                    showingCancelConfirmation = true
+                if serverDetail?.canCancel == true {
+                    Button("약속 취소", role: .destructive) {
+                        showingCancelConfirmation = true
+                    }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .disabled(isMutatingSchedule)
                 }
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .disabled(isMutatingSchedule)
             }
         }
         .confirmationDialog(
@@ -615,6 +698,7 @@ struct ScheduleDetailView: View {
 
     private func respond(action: String) async {
         guard let scheduleId = schedule.scheduleId, !isMutatingSchedule else { return }
+        guard serverDetail?.canRespond == true else { return }
         isMutatingSchedule = true
         scheduleMutationError = nil
         defer { isMutatingSchedule = false }
