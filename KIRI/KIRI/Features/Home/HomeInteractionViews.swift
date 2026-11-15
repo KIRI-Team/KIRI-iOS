@@ -24,19 +24,23 @@ struct HomeQuestionAnswerView: View {
     let existingAnswer: String?
     let familyNicknames: [String]
     let onBack: () -> Void
-    let onSave: (String) async -> Bool
+    let onSave: (String, String) async -> Bool
+    private enum Step { case selectingNickname, writing }
     @State private var selectedNickname: String?
+    @State private var answerText: String
+    @State private var step: Step = .selectingNickname
     @State private var isSaving = false
     @State private var saveError: String?
     @State private var isShowingCompletion = false
 
-    init(question: String, existingAnswer: String?, familyNicknames: [String], onBack: @escaping () -> Void, onSave: @escaping (String) async -> Bool) {
+    init(question: String, existingAnswer: String?, familyNicknames: [String], onBack: @escaping () -> Void, onSave: @escaping (String, String) async -> Bool) {
         self.question = question
         self.existingAnswer = existingAnswer
         self.familyNicknames = familyNicknames
         self.onBack = onBack
         self.onSave = onSave
         _selectedNickname = State(initialValue: familyNicknames.first { $0 == existingAnswer })
+        _answerText = State(initialValue: existingAnswer ?? "")
     }
 
     var body: some View {
@@ -46,7 +50,7 @@ struct HomeQuestionAnswerView: View {
                 HomeInteractionBar(title: "오늘의 질문", onBack: onBack)
                 ScrollView(showsIndicators: false) { content }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        submitButton
+                        bottomAction
                             .padding(.horizontal, 18)
                             .padding(.top, 12)
                             .padding(.bottom, 10)
@@ -74,32 +78,33 @@ struct HomeQuestionAnswerView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("가족 닉네임을 선택하세요")
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.secondary)
-            Menu {
-                if familyNicknames.isEmpty {
-                    Text("가족 구성원이 없어요")
-                } else {
-                    ForEach(familyNicknames, id: \.self) { nickname in
-                        Button(nickname) { selectedNickname = nickname }
-                    }
-                }
-            } label: {
+            switch step {
+            case .selectingNickname:
+                Text("가족 닉네임을 선택하세요")
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                nicknameMenu
+            case .writing:
+                Text("선택한 가족: \(selectedNickname ?? "")")
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                TextEditor(text: $answerText)
+                    .font(KIRITypography.body)
+                    .foregroundStyle(KIRIColor.Text.primary)
+                    .scrollContentBackground(.hidden)
+                    .padding(12)
+                    .frame(height: 150)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 HStack {
-                    Text(selectedNickname ?? "가족 닉네임을 선택하세요")
-                        .font(KIRITypography.body)
-                        .foregroundStyle(selectedNickname == nil ? KIRIColor.Text.tertiary : KIRIColor.Text.primary)
+                    Text("공백 제외 \(answerText.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
                     Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(KIRIColor.Text.secondary)
                 }
-                .padding(.horizontal, 16)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(KIRIColor.Background.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+                Text("질문에 대한 답변을 작성해 주세요.")
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
             }
 
             if let saveError {
@@ -111,14 +116,57 @@ struct HomeQuestionAnswerView: View {
         .padding(18)
     }
 
+    private var nicknameMenu: some View {
+        Menu {
+            if familyNicknames.isEmpty {
+                Text("가족 구성원이 없어요")
+            } else {
+                ForEach(familyNicknames, id: \.self) { nickname in
+                    Button(nickname) { selectedNickname = nickname }
+                }
+            }
+        } label: {
+            HStack {
+                Text(selectedNickname ?? "가족 닉네임을 선택하세요")
+                    .font(KIRITypography.body)
+                    .foregroundStyle(selectedNickname == nil ? KIRIColor.Text.tertiary : KIRIColor.Text.primary)
+                Spacer()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    @ViewBuilder
+    private var bottomAction: some View {
+        switch step {
+        case .selectingNickname:
+            Button("다음") {
+                guard selectedNickname != nil else { return }
+                withAnimation(.easeInOut(duration: 0.2)) { step = .writing }
+            }
+            .disabled(selectedNickname == nil)
+            .buttonStyle(QuestionActionButtonStyle(isEnabled: selectedNickname != nil))
+        case .writing:
+            submitButton
+        }
+    }
+
     private var submitButton: some View {
-        let isEnabled = selectedNickname != nil && !isSaving
+        let trimmed = answerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isEnabled = selectedNickname != nil && !trimmed.isEmpty && answerText.count <= 500 && !isSaving
         return Button {
             guard let selectedNickname, isEnabled else { return }
             isSaving = true
             saveError = nil
             Task { @MainActor in
-                let succeeded = await onSave(selectedNickname)
+                let succeeded = await onSave(selectedNickname, trimmed)
                 isSaving = false
                 if succeeded {
                     withAnimation(.easeInOut(duration: 0.2)) { isShowingCompletion = true }
