@@ -231,6 +231,9 @@ struct BucketItemResult: Decodable, Sendable, Identifiable {
 struct BucketMission: Decodable, Sendable {
     let missionId: Int
     let title: String
+    /// 버킷 목록 응답에 포함될 수 있는 미션 설명입니다.
+    /// 구버전 응답에는 없을 수 있어 상세 API로 보완합니다.
+    let description: String?
     let imageUrl: URL?
     let imageSource: String?
     let status: String
