@@ -52,10 +52,11 @@ struct QuestionCard: View {
                 .font(KIRITypography.bodySmall)
                 .foregroundStyle(KIRIColor.Text.secondary)
 
-            Text("Q\(questionNumber). \(question)")
+            // 질문 ID는 답변 조회·저장에 계속 사용하고, 카드에는 본문만 표시합니다.
+            Text(question)
                 .font(KIRITypography.headingSmall)
                 .foregroundStyle(KIRIColor.Text.strong)
-                .padding(.top, 11)
+                .padding(.top, 8)
 
             HStack {
                 Spacer()
