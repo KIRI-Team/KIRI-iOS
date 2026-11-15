@@ -27,6 +27,7 @@ struct RecordCalendarView: View {
         case pendingSchedule
         case confirmedSchedule
         case completed
+        case answeredQuestion
     }
 
     struct ScheduleDetailData: Identifiable {
@@ -115,6 +116,9 @@ struct RecordCalendarView: View {
     @State private var serverUpcoming: UpcomingScheduleResult?
     @State private var isLoadingServerSchedules = false
     @State private var scheduleLoadError: String?
+    /// 오늘 질문 응답 여부는 질문 API의 실제 상태만 사용합니다.
+    /// 답변 이력 전체를 제공하는 캘린더 계약이 없으므로 과거 날짜를 임의로 표시하지 않습니다.
+    @State private var todayQuestionAnswered = false
 
     // MARK: - Initializer
 
@@ -368,6 +372,12 @@ struct RecordCalendarView: View {
             return .completed
         }
 
+        if todayQuestionAnswered,
+           let date = dateForDay(day),
+           calendar.isDate(date, inSameDayAs: Date()) {
+            return .answeredQuestion
+        }
+
         if daySchedules.contains(where: {
             $0.status == .confirmedSchedule
         }) || serverEvents.contains(where: { $0.status == "CONFIRMED" }) {
@@ -414,8 +424,10 @@ struct RecordCalendarView: View {
         do {
             async let calendarResult = AuthService.shared.calendar(year: displayedYear, month: displayedMonth)
             async let upcomingResult = AuthService.shared.upcomingSchedules()
+            async let questionResult: TodayQuestionResult? = try? await AuthService.shared.todayQuestion()
             serverCalendar = try await calendarResult
             serverUpcoming = try await upcomingResult
+            todayQuestionAnswered = (await questionResult)?.isAnswered == true
         } catch {
             scheduleLoadError = "일정을 불러오지 못했어요."
             #if DEBUG
@@ -638,6 +650,18 @@ struct RecordCalendarView: View {
                         .font(KIRITypography.caption)
                         .foregroundStyle(KIRIColor.Text.primary)
                 }
+            }
+
+        case .answeredQuestion:
+            ZStack {
+                Image("figma_calendar_puzzle_answered")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 45, height: 45)
+
+                Text(String(day))
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.strong)
             }
         }
     }
