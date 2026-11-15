@@ -131,7 +131,7 @@ struct FamilyHomeView: View {
                     existingAnswer: serverQuestion?.answer,
                     familyNicknames: displayedMembers.map(\.name),
                     onBack: { route = .home }
-                ) { savedAnswer in
+                ) { _, savedAnswer in
                     guard let questionId = serverQuestion?.questionId else { return false }
                     do {
                         try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
