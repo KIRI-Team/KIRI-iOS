@@ -104,33 +104,10 @@ struct MissionView: View {
                     VStack(spacing: 0) {
                         KIRISearchField(text: $searchText).padding(.horizontal, 18).padding(.top, 6)
                         categorySection.padding(.top, 13)
-                        HStack {
-                            Text("활동 \(filteredRows.count)개")
-                                .font(KIRITypography.bodySmall)
-                                .foregroundStyle(KIRIColor.Text.secondary)
-                            Spacer()
-                            if isLoading { ProgressView().controlSize(.small) }
-                            Button { isFilterPresented = true } label: {
-                                ZStack(alignment: .topTrailing) {
-                                    Image("mission_filter")
-                                        .renderingMode(.original)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 24, height: 24)
-                                    if appliedFilter.count > 0 {
-                                        Circle().fill(KIRIColor.Text.accent).frame(width: 6, height: 6).offset(x: 1, y: -1)
-                                    }
-                                }
-                                .frame(width: 44, height: 24, alignment: .trailing)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("mission.filter.button")
-                            .accessibilityLabel("미션 필터")
-                        }
-                        .frame(height: 20)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 24)
+                        featuredSection
+                            .padding(.top, 24)
+                        missionListHeader
+                            .padding(.top, 16)
                         content.padding(.horizontal, 18).padding(.top, 16)
                     }
                 }
@@ -222,6 +199,104 @@ struct MissionView: View {
                     }
                 }
             }.padding(.horizontal, 18)
+        }
+    }
+
+    /// Figma 10781:35516의 상단 추천 카드 영역입니다. 서버가 반환한
+    /// 미션만 사용하며, 응답이 없을 때는 영역 자체를 렌더링하지 않습니다.
+    @ViewBuilder
+    private var featuredSection: some View {
+        if !filteredRows.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(filteredRows.prefix(3)) { row in
+                        Button {
+                            selectedMission = row
+                        } label: {
+                            featuredCard(row)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 18)
+            }
+        }
+    }
+
+    private var missionListHeader: some View {
+        HStack(alignment: .center) {
+            Text("미션 둘러보기")
+                .font(.custom("Pretendard-Medium", fixedSize: 16))
+                .tracking(-0.64)
+                .foregroundStyle(KIRIColor.Text.strong)
+            Spacer()
+            if isLoading { ProgressView().controlSize(.small) }
+            Button { isFilterPresented = true } label: {
+                ZStack(alignment: .topTrailing) {
+                    Image("mission_filter")
+                        .renderingMode(.original)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                    if appliedFilter.count > 0 {
+                        Circle().fill(KIRIColor.Text.accent).frame(width: 6, height: 6).offset(x: 1, y: -1)
+                    }
+                }
+                .frame(width: 44, height: 24, alignment: .trailing)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("mission.filter.button")
+            .accessibilityLabel("미션 필터")
+        }
+        .frame(height: 24)
+        .padding(.horizontal, 18)
+    }
+
+    private func featuredCard(_ row: MissionRow) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            KIRIContentImage(imageURL: row.mission.imageUrl) {
+                KIRIColor.Background.elevated
+            }
+            .frame(width: 354, height: 120)
+            .clipped()
+
+            LinearGradient(
+                colors: [.clear, Color.black.opacity(0.72)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            VStack(alignment: .leading, spacing: 3) {
+                Text(row.mission.title)
+                    .font(.custom("Pretendard-Medium", fixedSize: 18))
+                    .tracking(-0.72)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text("\(row.mission.placeName) · 오늘의 끼리픽")
+                    .font(.custom("Pretendard-Regular", fixedSize: 14))
+                    .tracking(-0.56)
+                    .foregroundStyle(Color.white.opacity(0.82))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 15)
+        }
+        .frame(width: 354, height: 120)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(alignment: .topLeading) {
+            HStack(spacing: 4) {
+                Image("figma_kiri_pick")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+                Text("오늘의 끼리픽")
+                    .font(.custom("Pretendard-Medium", fixedSize: 11))
+            }
+            .foregroundStyle(KIRIColor.Text.accent)
+            .padding(.horizontal, 8)
+            .frame(height: 24)
+            .background(Color.black.opacity(0.76), in: RoundedRectangle(cornerRadius: 4))
+            .padding(12)
         }
     }
 

@@ -140,11 +140,10 @@ struct KIRITabBar: View {
     @ViewBuilder
     private func tabIcon(_ tab: MainTabView.AppTab, isSelected: Bool) -> some View {
         if tab == .mission {
-            Image("figma_place_disabled")
-                .renderingMode(isSelected ? .template : .original)
+            Image(isSelected ? "figma_place_active" : "figma_place_disabled")
+                .renderingMode(.original)
                 .resizable()
                 .scaledToFit()
-                .foregroundStyle(isSelected ? KIRIColor.Navigation.Item.contentActive : KIRIColor.Navigation.Item.contentDefault)
                 .frame(width: 24, height: 24)
         } else if let assetName = figmaAssetName(for: tab, isSelected: isSelected) {
             Image(assetName)
@@ -166,6 +165,7 @@ struct KIRITabBar: View {
         case (.myPage, true): return "figma_profile_active"
         case (.myPage, false): return "figma_profile_disabled"
         case (.mission, false): return "figma_place_disabled"
+        case (.mission, true): return "figma_place_active"
         default: return nil
         }
     }

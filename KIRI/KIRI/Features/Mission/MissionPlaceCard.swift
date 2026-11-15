@@ -164,8 +164,8 @@ struct MissionPlaceCard: View {
             spacing: 2
         ) {
             Text(title)
-                .font(.custom("Pretendard-Medium", fixedSize: 16))
-                .tracking(-0.64)
+                .font(.custom("Pretendard-Medium", fixedSize: 18))
+                .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
                 // 정보 영역의 HStack에서 계산된 폭 안에서만 두 줄까지 줄바꿈합니다.
                 // fixedSize(width:)나 offset을 사용하지 않아 이미지 영역을 침범하지 않습니다.
@@ -174,8 +174,8 @@ struct MissionPlaceCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(locationText)
-                .font(.custom("Pretendard-Regular", fixedSize: 13))
-                .tracking(-0.52)
+                .font(.custom("Pretendard-Regular", fixedSize: 14))
+                .tracking(-0.56)
                 .foregroundStyle(KIRIColor.Text.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
