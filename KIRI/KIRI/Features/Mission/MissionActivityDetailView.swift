@@ -362,12 +362,16 @@ struct MissionActivityDetailView: View {
     private func customItemCard(_ item: MissionDetailItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
-                // Figma 맞춤템의 원본 우산 Asset입니다.
-                Image("figma_umbrella")
-                    .resizable()
-                    .renderingMode(.original)
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
+                // 서버가 양산/우산 준비물을 반환할 때만 Figma 원본
+                // 우산 리소스를 사용합니다. 다른 항목에 같은 아이콘을
+                // 임의로 재사용하지 않습니다.
+                if isUmbrellaItem(item) {
+                    Image("figma_umbrella")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
                 Text(item.title)
                     .font(KIRITypography.bodySmallMedium)
                     .foregroundStyle(KIRIColor.Text.strong)
@@ -393,31 +397,29 @@ struct MissionActivityDetailView: View {
     /// steps 배열 순서를 그대로 유지해 제목과 설명이 서로 섞이지 않도록
     /// 하고, 긴 텍스트는 카드 높이를 자연스럽게 확장합니다.
     private func activityCard(_ item: MissionDetailItem) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image("figma_umbrella")
-                .resizable()
-                .renderingMode(.original)
-                .scaledToFit()
-                .frame(width: 24, height: 24)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.title)
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.strong)
+        VStack(alignment: .leading, spacing: 6) {
+            // 우산은 추천 활동 아이콘이 아니라 prepareItems의
+            // 양산/우산 카드 전용 리소스입니다.
+            Text(item.title)
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .fixedSize(horizontal: false, vertical: true)
+            if !item.description.isEmpty {
+                Text(item.description)
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if !item.description.isEmpty {
-                    Text(item.description)
-                        .font(KIRITypography.caption)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(KIRIColor.Background.secondary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func isUmbrellaItem(_ item: MissionDetailItem) -> Bool {
+        let value = item.title.lowercased()
+        return value.contains("우산") || value.contains("양산") || value.contains("umbrella")
     }
 
     private func emptyRecommendationMessage(_ message: String) -> some View {

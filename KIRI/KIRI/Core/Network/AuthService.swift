@@ -578,7 +578,8 @@ final class AuthService {
         #if DEBUG
         print(
             "[KIRI][Mission] detail decoded: missionId=\(result.missionId), "
-                + "bucketState=\(result.bucketState), steps=\(result.steps.count)"
+                + "bucketState=\(result.bucketState), steps=\(result.steps.count), "
+                + "prepareItems=\(result.prepareItems.count)"
         )
         #endif
         return result
