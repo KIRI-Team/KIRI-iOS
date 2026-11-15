@@ -26,6 +26,7 @@ struct ScheduleCreationSheet: View {
     @State private var memberLoadError: String?
     @State private var isLoadingMembers = false
     @State private var missionDescription: String?
+    @State private var dateTimeValidationMessage: String?
 
     private enum Step { case form, dateTime, members, preview }
     private var canPreview: Bool { membersLoaded && !selectedMemberIds.isEmpty }
@@ -89,11 +90,15 @@ struct ScheduleCreationSheet: View {
                         Task { await loadFamilyMembers(force: true) }
                     }
                     messageEditor
+                    if let dateTimeValidationMessage { errorText(dateTimeValidationMessage) }
                     if let errorMessage { errorText(errorMessage) }
                 }
                 .padding(.horizontal, 18).padding(.top, 24).padding(.bottom, 110)
             }
-            bottomButton(title: "초대장 만들기", enabled: canPreview && !isSubmitting) { step = .preview }
+            bottomButton(title: "초대장 만들기", enabled: canPreview && !isSubmitting && !isSelectedDateTimeInPast) {
+                guard validateDateTime() else { return }
+                step = .preview
+            }
         }
     }
 
@@ -155,16 +160,19 @@ struct ScheduleCreationSheet: View {
                 ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
                     if let day {
                         Button {
+                            guard isDateSelectable(day) else { return }
                             date = day
+                            dateTimeValidationMessage = nil
                         } label: {
                             Text(String(calendar.component(.day, from: day)))
                                 .font(KIRITypography.bodySmall)
-                                .foregroundStyle(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Text.onGreen : KIRIColor.Text.strong)
+                                .foregroundStyle(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Text.onGreen : (isDateSelectable(day) ? KIRIColor.Text.strong : KIRIColor.Text.tertiary))
                                 .frame(width: 34, height: 34)
-                                .background(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Primary.default : .clear)
+                                .background(calendar.isDate(day, inSameDayAs: date) && isDateSelectable(day) ? KIRIColor.Primary.default : .clear)
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
+                        .disabled(!isDateSelectable(day))
                     } else {
                         Color.clear.frame(height: 34)
                     }
@@ -180,22 +188,38 @@ struct ScheduleCreationSheet: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(timeOptions, id: \.self) { option in
+                        let unavailable = !isTimeSelectable(option)
                         Button(option) {
+                            guard !unavailable else { return }
                             setTime(option)
                         }
                         .font(KIRITypography.bodySmallMedium)
-                        .foregroundStyle(isTimeSelected(option) ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
+                        .foregroundStyle(isTimeSelected(option) ? KIRIColor.Text.onGreen : (unavailable ? KIRIColor.Text.tertiary : KIRIColor.Text.secondary))
                         .padding(.horizontal, 15)
                         .frame(height: 38)
-                        .background(isTimeSelected(option) ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
+                        .background(isTimeSelected(option) && !unavailable ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
                         .clipShape(Capsule())
                         .buttonStyle(.plain)
+                        .disabled(unavailable)
                     }
                 }
             }
 
+            Text("지난 날짜나 시간은 선택할 수 없어요.")
+                .font(KIRITypography.caption)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .padding(.top, 10)
+
+            if let dateTimeValidationMessage {
+                errorText(dateTimeValidationMessage)
+                    .padding(.top, 4)
+            }
+
             Spacer(minLength: 16)
-            bottomButton(title: "다음", enabled: true) { isDateTimePickerPresented = false }
+            bottomButton(title: "다음", enabled: !isSelectedDateTimeInPast) {
+                guard validateDateTime() else { return }
+                isDateTimePickerPresented = false
+            }
         }
         .padding(.horizontal, 18)
         .padding(.top, 24)
@@ -217,7 +241,7 @@ struct ScheduleCreationSheet: View {
         let weekday = calendar.component(.weekday, from: start)
         let leading = (weekday - calendar.firstWeekday + 7) % 7
         var days = Array(repeating: Optional<Date>.none, count: leading)
-        days += range.compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: start) }
+        days += range.map { calendar.date(byAdding: .day, value: $0 - 1, to: start) }
         return days
     }
 
@@ -239,10 +263,46 @@ struct ScheduleCreationSheet: View {
         Self.format(time, format: "HH:mm", locale: "en_US_POSIX") == value
     }
 
+    private var currentMinute: Date {
+        calendar.date(bySetting: .second, value: 0, of: Date()) ?? Date()
+    }
+
+    private var isSelectedDateTimeInPast: Bool {
+        selectedDateTime < currentMinute
+    }
+
+    private var selectedDateTime: Date {
+        let components = calendar.dateComponents([.hour, .minute], from: time)
+        return calendar.date(bySettingHour: components.hour ?? 0, minute: components.minute ?? 0, second: 0, of: date) ?? date
+    }
+
+    private func isDateSelectable(_ day: Date) -> Bool {
+        calendar.startOfDay(for: day) >= calendar.startOfDay(for: Date())
+    }
+
+    private func isTimeSelectable(_ value: String) -> Bool {
+        guard calendar.isDate(date, inSameDayAs: Date()) else { return true }
+        let components = value.split(separator: ":").compactMap { Int($0) }
+        guard components.count == 2 else { return false }
+        let candidate = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: date) ?? date
+        return candidate >= currentMinute
+    }
+
+    @discardableResult
+    private func validateDateTime() -> Bool {
+        guard !isSelectedDateTimeInPast else {
+            dateTimeValidationMessage = "지난 날짜나 시간은 선택할 수 없어요."
+            return false
+        }
+        dateTimeValidationMessage = nil
+        return true
+    }
+
     private func setTime(_ value: String) {
         let components = value.split(separator: ":").compactMap { Int($0) }
         guard components.count == 2 else { return }
         time = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: time) ?? time
+        dateTimeValidationMessage = nil
     }
 
     private var membersView: some View {
@@ -297,7 +357,10 @@ struct ScheduleCreationSheet: View {
                     if let errorMessage { errorText(errorMessage) }
                 }.padding(18).padding(.bottom, 110)
             }
-            bottomButton(title: "초대장 보내기", enabled: !isSubmitting) { isSendMethodVisible = true }
+            bottomButton(title: "초대장 보내기", enabled: !isSubmitting && !isSelectedDateTimeInPast) {
+                guard validateDateTime() else { return }
+                isSendMethodVisible = true
+            }
         }
         .overlay {
             if isSendMethodVisible {
@@ -307,33 +370,27 @@ struct ScheduleCreationSheet: View {
     }
 
     private var missionSummary: some View {
-        HStack(spacing: 12) {
-            missionImage
-            VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 19) {
+            VStack(alignment: .leading, spacing: 6) {
                 if let bucket, !bucket.saver.nickname.isEmpty {
                     Text("\(bucket.saver.nickname)이 저장했어요!")
                         .font(KIRITypography.captionMedium)
                         .foregroundStyle(KIRIColor.Primary.default)
                 }
-                Text(missionTitle).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong).lineLimit(2)
-                if let missionDescription, !missionDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(missionDescription)
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(missionTitle)
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .lineLimit(2)
             }
-            Spacer(minLength: 0)
-        }.padding(16).background(KIRIColor.Background.tertiary).clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    @ViewBuilder private var missionImage: some View {
-        if let url = bucket?.mission.imageUrl {
-            AsyncImage(url: url) { phase in
-                if case .success(let image) = phase { image.resizable().scaledToFill() } else { Color.gray.opacity(0.25) }
-            }.frame(width: 64, height: 64).clipShape(RoundedRectangle(cornerRadius: 8))
-        } else { Color.gray.opacity(0.25).frame(width: 64, height: 64).clipShape(RoundedRectangle(cornerRadius: 8)) }
+            if let missionDescription, !missionDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(missionDescription)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var messageEditor: some View {
@@ -422,6 +479,7 @@ struct ScheduleCreationSheet: View {
 
     private func submit() async {
         guard !isSubmitting else { return }
+        guard validateDateTime() else { return }
         let ids = selectedMemberIds.sorted()
         guard !ids.isEmpty else { errorMessage = "초대할 가족 구성원을 한 명 이상 선택해 주세요."; return }
         guard message.count <= 100 else { errorMessage = "메시지는 100자 이하로 입력해 주세요."; return }
