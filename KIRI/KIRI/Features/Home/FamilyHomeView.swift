@@ -131,15 +131,14 @@ struct FamilyHomeView: View {
                     existingAnswer: serverQuestion?.answer,
                     onBack: { route = .home }
                 ) { savedAnswer in
-                    guard let questionId = serverQuestion?.questionId else { return }
-                    Task { @MainActor in
-                        do {
-                            try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
-                            await loadTodayQuestion()
-                            route = .home
-                        } catch {
-                            todayQuestionError = error.localizedDescription
-                        }
+                    guard let questionId = serverQuestion?.questionId else { return false }
+                    do {
+                        try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
+                        await loadTodayQuestion()
+                        return true
+                    } catch {
+                        await MainActor.run { todayQuestionError = error.localizedDescription }
+                        return false
                     }
                 }
 
