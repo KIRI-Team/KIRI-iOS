@@ -26,7 +26,6 @@ struct FamilySettingsView: View {
 
     @State private var familyName: String
     @State private var nickname: String
-    @State private var isLeaveAlertPresented = false
     @State private var members: [FamilyMemberInfoResult] = []
     @State private var isLoadingMembers = false
     @State private var memberLoadError: String?
@@ -70,19 +69,6 @@ struct FamilySettingsView: View {
                     familyMemberSection
                         .padding(.top, 52)
 
-                    Button {
-                        isLeaveAlertPresented = true
-                    } label: {
-                        Text("가족공간 나가기")
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundStyle(KIRIColor.Status.error)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                            .frame(height: 52)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 28)
-
                     Spacer(minLength: 40)
                 }
                 .padding(.horizontal, 18)
@@ -104,12 +90,6 @@ struct FamilySettingsView: View {
             tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
         }
         .task { await loadFamilyMembers() }
-        .alert("가족공간을 나갈까요?", isPresented: $isLeaveAlertPresented) {
-            Button("취소", role: .cancel) {}
-            Button("나가기", role: .destructive) {}
-        } message: {
-            Text("가족과 함께한 기록은 유지될 수 있습니다.")
-        }
     }
 
     // MARK: - Header
@@ -237,11 +217,11 @@ struct FamilySettingsView: View {
 
     private func memberAsset(for role: String?) -> String {
         switch role?.uppercased() {
-        case "MOTHER": return "role_mom"
-        case "FATHER": return "role_dad"
-        case "SON": return "role_son"
-        case "DAUGHTER": return "role_daughter"
-        default: return "family-member"
+        case "MOTHER", "MOM": return "figma_family_member_active_mom"
+        case "FATHER", "DAD": return "figma_family_member_active"
+        case "SON": return "figma_family_member_active_son"
+        case "DAUGHTER": return "figma_family_member_active_daughter"
+        default: return "figma_family_member_active"
         }
     }
 
