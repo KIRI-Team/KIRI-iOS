@@ -56,6 +56,7 @@ struct FamilyHomeView: View {
     @State private var familyRecommendation: FamilyRecommendationResult?
     @State private var isLoadingRecommendations = false
     @State private var recommendationError: String?
+    @State private var missionFeedError: String?
 
 
     private enum HomeRoute {
@@ -581,7 +582,7 @@ struct FamilyHomeView: View {
             alignment: .leading,
             spacing: 16
         ) {
-            Text("추천 미션")
+            Text("가족과 함께라면 여기!")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -634,16 +635,31 @@ struct FamilyHomeView: View {
             alignment: .leading,
             spacing: 16
         ) {
-            Text("오늘 기분전환을 느끼고 싶다면")
+            Text("오늘 가을분위기를 느끼고 싶다면")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
 
-            Text("추천 콘텐츠가 아직 없어요")
-                .font(KIRITypography.bodySmall)
-                .foregroundStyle(KIRIColor.Text.tertiary)
+            if let missionFeedError {
+                VStack(spacing: 8) {
+                    Text("가을 미션을 불러오지 못했어요")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                    Button("다시 시도") { Task { await loadRecommendations() } }
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                        .accessibilityHint(missionFeedError)
+                }
                 .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+            } else if autumnMissions.isEmpty {
+                Text("가을 미션이 아직 없어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+            } else {
+                missionCards(autumnMissions)
+            }
         }
     }
 
@@ -665,18 +681,19 @@ struct FamilyHomeView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
         } else if let recommendation = familyRecommendation {
+            let feedMission = recommendedMissions.first { $0.missionId == recommendation.missionId }
             Button {
-                selectedRecommendation = recommendation
-                selectedMission = nil
+                selectedMission = feedMission
+                selectedRecommendation = feedMission == nil ? recommendation : nil
                 isPlaceBookmarked = false
                 route = .placeDetail
             } label: {
                 PlaceCard(
                     title: recommendation.title,
-                    location: "",
+                    location: feedMission?.placeName ?? "",
                     rating: recommendation.score,
                     description: recommendation.recommendationReason,
-                    imageURL: recommendation.imageUrl
+                    imageURL: feedMission?.imageUrl ?? recommendation.imageUrl
                 )
             }
             .buttonStyle(.plain)
@@ -685,6 +702,41 @@ struct FamilyHomeView: View {
                 .font(KIRITypography.bodySmall)
                 .foregroundStyle(KIRIColor.Text.tertiary)
                 .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        }
+    }
+
+    private var autumnMissions: [MissionFeedItem] {
+        let recommendedID = familyRecommendation?.missionId
+        return recommendedMissions.filter { mission in
+            guard mission.missionId != recommendedID else { return false }
+            let text = "\(mission.title) \(mission.placeName)".lowercased()
+            let explicitAutumn = ["가을", "단풍", "은행나무", "은행길", "코스모스", "억새", "갈대"].contains { text.contains($0) }
+            let seasonalWalk = ["산책", "걷기", "나들이", "공원", "숲", "길"].contains { text.contains($0) }
+            return explicitAutumn || seasonalWalk && mission.category.uppercased() == "OUTDOOR"
+        }
+    }
+
+    @ViewBuilder
+    private func missionCards(_ missions: [MissionFeedItem]) -> some View {
+        if missions.isEmpty {
+            EmptyView()
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 16) {
+                    ForEach(missions) { mission in
+                        Button {
+                            selectedMission = mission
+                            selectedRecommendation = nil
+                            isPlaceBookmarked = false
+                            route = .placeDetail
+                        } label: {
+                            PlaceCard(title: mission.title, location: mission.placeName, rating: nil, description: nil, imageURL: mission.imageUrl)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 18)
+            }
         }
     }
 
@@ -767,6 +819,7 @@ struct FamilyHomeView: View {
         await MainActor.run {
             isLoadingRecommendations = true
             recommendationError = nil
+            missionFeedError = nil
             familyRecommendation = nil
         }
 
@@ -776,7 +829,10 @@ struct FamilyHomeView: View {
             await MainActor.run { recommendedMissions = feed.missions }
         } catch {
             // 추천 섹션과 독립된 플립 카드 데이터 실패는 추천 카드 오류로 덮어쓰지 않습니다.
-            await MainActor.run { recommendedMissions = [] }
+            await MainActor.run {
+                recommendedMissions = []
+                missionFeedError = "mission-feed"
+            }
         }
 
         do {
