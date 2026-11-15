@@ -707,23 +707,22 @@ struct ScheduleCreationSheet: View {
     }
 
     private func loadMissionDescription() async {
-        let bucketDescription = bucket?.mission.description?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let bucketDescription, !bucketDescription.isEmpty {
-            missionDescription = bucketDescription
-            return
-        }
-
         let detailMissionId = bucket?.mission.missionId ?? missionId
         guard let detailMissionId else { return }
         do {
             let detail = try await AuthService.shared.missionDetail(missionId: detailMissionId)
             let description = detail.description?.trimmingCharacters(in: .whitespacesAndNewlines)
-            missionDescription = description?.isEmpty == false ? description : nil
+            if let description, !description.isEmpty {
+                missionDescription = description
+            } else {
+                // 상세 응답이 비어 있는 구버전 데이터에 한해 버킷 응답을 보완값으로 사용합니다.
+                missionDescription = bucket?.mission.description?.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
         } catch is CancellationError {
             // 화면이 닫힌 경우에는 설명을 갱신하지 않습니다.
         } catch {
-            // 설명 조회 실패는 일정 선택·구성원 선택을 막지 않습니다.
-            missionDescription = nil
+            // 상세 조회 실패 시에도 버킷 응답에 설명이 있으면 표시하고 입력은 유지합니다.
+            missionDescription = bucket?.mission.description?.trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }
 }

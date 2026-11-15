@@ -56,6 +56,7 @@ struct RecordBucketListView: View {
     let showsInvitationSentBanner: Bool
 
     let onSelectInvitation: (InvitationData) -> Void
+    let onInvitationSent: () -> Void
 
 
 
@@ -77,14 +78,15 @@ struct RecordBucketListView: View {
     init(
 
         showsInvitationSentBanner: Bool = false,
-
-        onSelectInvitation: @escaping (InvitationData) -> Void = { _ in }
+        onSelectInvitation: @escaping (InvitationData) -> Void = { _ in },
+        onInvitationSent: @escaping () -> Void = {}
 
     ) {
 
         self.showsInvitationSentBanner = showsInvitationSentBanner
 
         self.onSelectInvitation = onSelectInvitation
+        self.onInvitationSent = onInvitationSent
 
     }
 
@@ -195,6 +197,7 @@ struct RecordBucketListView: View {
             ScheduleCreationSheet(bucket: item) {
                 selectedScheduleItem = nil
                 Task { await loadBuckets(reset: true) }
+                onInvitationSent()
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.hidden)
