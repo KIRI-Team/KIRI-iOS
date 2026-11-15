@@ -420,8 +420,10 @@ struct MissionView: View {
             if reset {
                 rows = newRows
                 if category == nil, filter == .empty, !newRows.isEmpty {
-                    kiriPickRows = newRows
-                    kiriPickAnchorOffset = -CGFloat(newRows.count) * (354 + 12)
+                    // 기존 끼리픽 영역의 최대 3장 구성을 유지하면서,
+                    // 해당 카드 전체를 반복 배치해 연속 이동시킵니다.
+                    kiriPickRows = Array(newRows.prefix(3))
+                    kiriPickAnchorOffset = -CGFloat(min(newRows.count, 3)) * (354 + 12)
                     kiriPickAnchorDate = Date()
                 }
             } else { rows.append(contentsOf: newRows) }
