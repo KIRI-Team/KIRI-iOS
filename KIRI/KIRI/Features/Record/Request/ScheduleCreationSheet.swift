@@ -13,6 +13,9 @@ struct ScheduleCreationSheet: View {
     @State private var step: Step = .form
     @State private var date = Date()
     @State private var time = Date()
+    @State private var hasConfirmedDateTime = false
+    @State private var draftDate: Date?
+    @State private var draftTime: Date?
     @State private var message = ""
     @State private var familyMembers: [FamilyMemberInfoResult] = []
     @State private var selectedMemberIds: Set<Int> = []
@@ -33,7 +36,10 @@ struct ScheduleCreationSheet: View {
     private var canPreview: Bool { membersLoaded && !selectedMemberIds.isEmpty }
     private var dateString: String { Self.format(date, format: "yyyy-MM-dd", locale: "en_US_POSIX") }
     private var timeString: String { Self.format(time, format: "HH:mm", locale: "en_US_POSIX") }
-    private var displayDateTime: String { Self.format(date, format: "yy.MM.dd(E) · HH:mm", locale: "ko_KR") }
+    private var displayDateTime: String {
+        guard hasConfirmedDateTime else { return "날짜와 시간을 선택해 주세요" }
+        return Self.format(date, format: "yy.MM.dd(E) · HH:mm", locale: "ko_KR")
+    }
     private static func format(_ date: Date, format: String, locale: String) -> String {
         let formatter = DateFormatter(); formatter.dateFormat = format; formatter.locale = Locale(identifier: locale); return formatter.string(from: date)
     }
@@ -109,7 +115,10 @@ struct ScheduleCreationSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     missionSummary
                     formRow(title: "일정 선택", value: displayDateTime, icon: "calendar") {
-                        displayedMonth = monthStart(for: date)
+                        draftDate = hasConfirmedDateTime ? date : nil
+                        draftTime = hasConfirmedDateTime ? time : nil
+                        displayedMonth = monthStart(for: draftDate ?? Date())
+                        dateTimeValidationMessage = nil
                         isDateTimePickerPresented = true
                     }
                     formRow(title: "가족 구성원 선택", value: selectedMembers.isEmpty ? "가족 구성원을 선택해 주세요" : "인원 \(selectedMembers.count)명", icon: "person.2") {
@@ -124,7 +133,7 @@ struct ScheduleCreationSheet: View {
                 }
                 .padding(.horizontal, 18).padding(.top, 24).padding(.bottom, 110)
             }
-            bottomButton(title: "초대장 만들기", enabled: canPreview && !isSubmitting && !isSelectedDateTimeInPast) {
+            bottomButton(title: "초대장 만들기", enabled: canPreview && hasConfirmedDateTime && !isSubmitting && !isSelectedDateTimeInPast) {
                 guard validateDateTime() else { return }
                 step = .preview
             }
@@ -190,14 +199,14 @@ struct ScheduleCreationSheet: View {
                     if let day {
                         Button {
                             guard isDateSelectable(day) else { return }
-                            date = day
+                            draftDate = day
                             dateTimeValidationMessage = nil
                         } label: {
                             Text(String(calendar.component(.day, from: day)))
                                 .font(KIRITypography.bodySmall)
-                                .foregroundStyle(calendar.isDate(day, inSameDayAs: date) ? KIRIColor.Text.onGreen : (isDateSelectable(day) ? KIRIColor.Text.strong : KIRIColor.Text.tertiary))
+                                .foregroundStyle(isDraftDateSelected(day) ? KIRIColor.Text.onGreen : (isDateSelectable(day) ? KIRIColor.Text.strong : KIRIColor.Text.tertiary))
                                 .frame(width: 34, height: 34)
-                                .background(calendar.isDate(day, inSameDayAs: date) && isDateSelectable(day) ? KIRIColor.Primary.default : .clear)
+                                .background(isDraftDateSelected(day) && isDateSelectable(day) ? KIRIColor.Primary.default : .clear)
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -245,9 +254,8 @@ struct ScheduleCreationSheet: View {
             }
 
             Spacer(minLength: 16)
-            bottomButton(title: "다음", enabled: !isSelectedDateTimeInPast) {
-                guard validateDateTime() else { return }
-                isDateTimePickerPresented = false
+            bottomButton(title: "다음", enabled: draftDate != nil && draftTime != nil && !isDraftDateTimeInPast) {
+                confirmDateTime()
             }
         }
         .padding(.horizontal, 18)
@@ -289,7 +297,8 @@ struct ScheduleCreationSheet: View {
     }
 
     private func isTimeSelected(_ value: String) -> Bool {
-        Self.format(time, format: "HH:mm", locale: "en_US_POSIX") == value
+        guard let draftTime else { return false }
+        return Self.format(draftTime, format: "HH:mm", locale: "en_US_POSIX") == value
     }
 
     private var currentMinute: Date {
@@ -297,7 +306,13 @@ struct ScheduleCreationSheet: View {
     }
 
     private var isSelectedDateTimeInPast: Bool {
-        selectedDateTime < currentMinute
+        guard hasConfirmedDateTime else { return false }
+        return selectedDateTime < currentMinute
+    }
+
+    private var isDraftDateTimeInPast: Bool {
+        guard let draftDate, let draftTime else { return false }
+        return combinedDateTime(date: draftDate, time: draftTime) < currentMinute
     }
 
     private var selectedDateTime: Date {
@@ -310,15 +325,20 @@ struct ScheduleCreationSheet: View {
     }
 
     private func isTimeSelectable(_ value: String) -> Bool {
-        guard calendar.isDate(date, inSameDayAs: Date()) else { return true }
+        guard let draftDate else { return false }
+        guard calendar.isDate(draftDate, inSameDayAs: Date()) else { return true }
         let components = value.split(separator: ":").compactMap { Int($0) }
         guard components.count == 2 else { return false }
-        let candidate = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: date) ?? date
+        let candidate = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: draftDate) ?? draftDate
         return candidate >= currentMinute
     }
 
     @discardableResult
     private func validateDateTime() -> Bool {
+        guard hasConfirmedDateTime else {
+            dateTimeValidationMessage = "날짜와 시간을 선택해 주세요."
+            return false
+        }
         guard !isSelectedDateTimeInPast else {
             dateTimeValidationMessage = "지난 날짜나 시간은 선택할 수 없어요."
             return false
@@ -328,10 +348,37 @@ struct ScheduleCreationSheet: View {
     }
 
     private func setTime(_ value: String) {
+        guard let draftDate else { return }
         let components = value.split(separator: ":").compactMap { Int($0) }
         guard components.count == 2 else { return }
-        time = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: time) ?? time
+        draftTime = calendar.date(bySettingHour: components[0], minute: components[1], second: 0, of: draftDate)
         dateTimeValidationMessage = nil
+    }
+
+    private func isDraftDateSelected(_ day: Date) -> Bool {
+        guard let draftDate else { return false }
+        return calendar.isDate(day, inSameDayAs: draftDate)
+    }
+
+    private func combinedDateTime(date: Date, time: Date) -> Date {
+        let components = calendar.dateComponents([.hour, .minute], from: time)
+        return calendar.date(bySettingHour: components.hour ?? 0, minute: components.minute ?? 0, second: 0, of: date) ?? date
+    }
+
+    private func confirmDateTime() {
+        guard let draftDate, let draftTime else {
+            dateTimeValidationMessage = "날짜와 시간을 선택해 주세요."
+            return
+        }
+        guard combinedDateTime(date: draftDate, time: draftTime) >= currentMinute else {
+            dateTimeValidationMessage = "지난 날짜나 시간은 선택할 수 없어요."
+            return
+        }
+        date = draftDate
+        time = draftTime
+        hasConfirmedDateTime = true
+        dateTimeValidationMessage = nil
+        isDateTimePickerPresented = false
     }
 
     private var membersView: some View {
@@ -447,7 +494,7 @@ struct ScheduleCreationSheet: View {
                 .frame(maxWidth: .infinity).frame(height: 54)
                 .background(KIRIColor.Primary.default)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                .disabled(isSubmitting || isSelectedDateTimeInPast)
+                .disabled(isSubmitting || !hasConfirmedDateTime || isSelectedDateTimeInPast)
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 12)
@@ -460,33 +507,42 @@ struct ScheduleCreationSheet: View {
     }
 
     private var requestCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("활동명")
-                .font(KIRITypography.captionMedium)
-                .foregroundStyle(KIRIColor.Text.tertiary)
-            Text(missionTitle)
-                .font(KIRITypography.headingLarge)
-                .foregroundStyle(KIRIColor.Text.strong)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                Image(systemName: "clock")
-                    .foregroundStyle(KIRIColor.Icon.secondary)
-                Text(displayDateTime)
-                    .font(KIRITypography.bodySmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
+        ZStack {
+            Image("figma_invitation_envelope")
+                .resizable()
+                .scaledToFill()
+                .frame(height: 181)
+                .clipped()
+
+            VStack(alignment: .center, spacing: 10) {
+                Text("활동명")
+                    .font(KIRITypography.captionMedium)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                Text(missionTitle)
+                    .font(KIRITypography.headingLarge)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .foregroundStyle(KIRIColor.Icon.secondary)
+                    Text(displayDateTime)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: "person.2.fill")
+                        .foregroundStyle(KIRIColor.Icon.secondary)
+                    Text(selectedMembers.map(\.nickname).joined(separator: ", "))
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .lineLimit(2)
+                }
             }
-            HStack(spacing: 8) {
-                Image(systemName: "person.2.fill")
-                    .foregroundStyle(KIRIColor.Icon.secondary)
-                Text(selectedMembers.map(\.nickname).joined(separator: ", "))
-                    .font(KIRITypography.bodySmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .lineLimit(2)
-            }
+            .padding(.horizontal, 22)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, minHeight: 167, alignment: .leading)
-        .background(KIRIColor.Background.secondary)
+        .frame(maxWidth: .infinity)
+        .frame(height: 181)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
