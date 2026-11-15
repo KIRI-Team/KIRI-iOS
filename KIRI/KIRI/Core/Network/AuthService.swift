@@ -863,10 +863,9 @@ final class AuthService {
     func uploadImage(data: Data, to presignedURL: URL, contentType: String) async throws {
         var request = URLRequest(url: presignedURL)
         request.httpMethod = "PUT"
-        request.httpBody = data
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         let response: URLResponse
-        do { response = try await URLSession.shared.data(for: request).1 }
+        do { response = try await URLSession.shared.upload(for: request, from: data).1 }
         catch { throw APIError.networkError(error) }
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
             throw APIError.httpError(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0)
