@@ -127,10 +127,19 @@ struct FamilyHomeView: View {
                 HomeQuestionAnswerView(
                     question: serverQuestion?.question ?? "오늘의 질문",
                     existingAnswer: serverQuestion?.answer,
-                    familyNicknames: displayedMembers.map(\.name),
+                    familyMembers: displayedMembers,
+                    currentMemberId: try? AuthService.shared.currentMemberId(),
+                    familyMembersError: familyAnswersError,
+                    onRetryFamilyMembers: {
+                        if let questionId = serverQuestion?.questionId {
+                            Task { await loadFamilyAnswers(questionId: questionId) }
+                        }
+                    },
                     onBack: { route = .home }
-                ) { _, savedAnswer in
-                    guard let questionId = serverQuestion?.questionId else { return false }
+                ) { selectedMemberId, savedAnswer in
+                    guard let questionId = serverQuestion?.questionId,
+                          let currentMemberId = try? AuthService.shared.currentMemberId(),
+                          selectedMemberId == currentMemberId else { return false }
                     do {
                         try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
                         await loadTodayQuestion()
@@ -614,10 +623,10 @@ struct FamilyHomeView: View {
         // question payload even when the family answer list is empty. Do not
         // invent other family members, but keep the authenticated member
         // visible when the family itself is known.
-        guard familyId != nil else { return [] }
+        guard familyId != nil, familyAnswersError == nil else { return [] }
         return [HomeMember(
             id: "me",
-            memberId: nil,
+            memberId: try? AuthService.shared.currentMemberId(),
             name: (nickname?.isEmpty == false ? nickname! : "나"),
             role: familyRole,
             hasAnswered: serverQuestion?.isAnswered ?? false,
@@ -735,6 +744,7 @@ struct FamilyHomeView: View {
                 serverQuestion = result
                 familyAnswers = []
                 familyAnswersQuestion = nil
+                familyAnswersError = nil
                 didLoadTodayQuestion = true
                 todayQuestionError = nil
             }
