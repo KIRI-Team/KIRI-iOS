@@ -585,6 +585,27 @@ final class AuthService {
         return result
     }
 
+    /// 일정이 없는 미션 상세에서도 서버가 계산한 맞춤 준비물을 조회합니다.
+    func missionEssentials(missionId: Int) async throws -> [MissionDetailItem] {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/missions/\(missionId)/essentials",
+            method: .GET,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<MissionEssentialsResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+        #if DEBUG
+        print("[KIRI][Mission] essentials decoded count=\(result.items.count)")
+        #endif
+        return result.items
+    }
+
     func saveMissionToBucket(missionId: Int) async throws -> BucketSaveResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/missions/\(missionId)/bucket",

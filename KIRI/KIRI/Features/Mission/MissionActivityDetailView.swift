@@ -30,6 +30,9 @@ struct MissionActivityDetailView: View {
     @State private var detail: MissionDetailResult?
     @State private var isLoadingDetail = false
     @State private var detailError: String?
+    @State private var essentials: [MissionDetailItem] = []
+    @State private var isLoadingEssentials = false
+    @State private var essentialsError: String?
     @State private var isSavingBookmark = false
     @State private var bookmarkError: String?
     @State private var isShowingBucketToast = false
@@ -105,6 +108,7 @@ struct MissionActivityDetailView: View {
         }
         .task {
             await loadDetail()
+            await loadEssentials()
             await loadNearbyMissions()
         }
         .overlay(alignment: .top) {
@@ -241,8 +245,8 @@ struct MissionActivityDetailView: View {
             ProgressView().frame(maxWidth: .infinity, minHeight: 140)
         } else {
             VStack(alignment: .leading, spacing: 16) {
-                // steps / prepareItems는 미션 상세 응답에 포함된 데이터라
-                // 일정이 없거나 약속일 전이어도 바로 표시할 수 있습니다.
+                // 추천 활동은 미션 상세의 steps를 사용하고, 맞춤템은
+                // 일정과 무관한 전용 essentials 응답을 사용합니다.
                 detailSectionTitle("오늘의 끼리 추천 활동", accent: false)
                 if let detail, !detail.steps.isEmpty {
                     VStack(spacing: 12) {
@@ -255,12 +259,23 @@ struct MissionActivityDetailView: View {
                 }
 
                 detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
-                if let detail, !detail.prepareItems.isEmpty {
+                if isLoadingEssentials {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 96)
+                } else if let essentialsError {
+                    VStack(spacing: 8) {
+                        Text(essentialsError)
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await loadEssentials() } }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 96)
+                } else if !essentials.isEmpty {
                     LazyVGrid(
                         columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
                         spacing: 12
                     ) {
-                        ForEach(detail.prepareItems) { item in
+                        ForEach(essentials) { item in
                             customItemCard(item)
                         }
                     }
@@ -304,6 +319,22 @@ struct MissionActivityDetailView: View {
         } catch {
             nearbyMissions = []
             nearbyError = "근처 놀거리를 불러오지 못했어요."
+        }
+    }
+
+    private func loadEssentials() async {
+        guard let missionId, !isLoadingEssentials else { return }
+        isLoadingEssentials = true
+        essentialsError = nil
+        defer { isLoadingEssentials = false }
+        do {
+            essentials = try await AuthService.shared.missionEssentials(missionId: missionId)
+        } catch {
+            essentials = []
+            essentialsError = "맞춤템을 불러오지 못했어요."
+            #if DEBUG
+            print("[KIRI][Mission] essentials load failed")
+            #endif
         }
     }
 

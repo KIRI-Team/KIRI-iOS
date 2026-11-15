@@ -129,10 +129,7 @@ struct ScheduleDetailView: View {
                 case .upcoming:
                     upcomingContent
                 case .past:
-                    statusView(
-                        title: "지난 약속이에요",
-                        message: "활동 완료 여부는 가족이 남긴 기록을 기준으로 확인해요."
-                    )
+                    pastContent
                 case .unknown:
                     statusView(
                         title: "일정 날짜를 확인할 수 없어요",
@@ -147,6 +144,7 @@ struct ScheduleDetailView: View {
                 onSubmit: { draft in
                     localEditedReview = draft
                     onReviewSaved?(draft)
+                    onScheduleChanged?()
                     showingReviewEditor = false
                 },
                 onSubmitToServer: schedule.scheduleId.map { scheduleId in
@@ -365,6 +363,72 @@ struct ScheduleDetailView: View {
             }
             .padding(.horizontal, 18)
         }
+    }
+
+    @ViewBuilder
+    private var pastContent: some View {
+        if isLoadingReviews {
+            VStack(spacing: 16) {
+                navigationBar
+                ProgressView("리뷰 기록을 확인하고 있어요")
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            }
+            .padding(.horizontal, 18)
+        } else if let reviewsLoadError {
+            VStack(spacing: 16) {
+                navigationBar
+                Text(reviewsLoadError)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                Button("다시 시도") { Task { await loadReviews() } }
+            }
+            .frame(maxWidth: .infinity, minHeight: 220)
+            .padding(.horizontal, 18)
+        } else if let review = serverReviews.first(where: { $0.isMine }) {
+            ReviewDetailView(
+                review: reviewDetailData(review),
+                localDraft: nil,
+                onBack: onBack,
+                onEdit: { showingReviewEditor = true },
+                onDelete: { reviewToDelete = review }
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 18) {
+                navigationBar
+                Text("지난 약속이에요")
+                    .font(KIRITypography.title)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Text("아직 내 리뷰가 없어요. 활동을 기록해 보세요.")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                Button {
+                    showingReviewEditor = true
+                } label: {
+                    Text("리뷰 작성하기")
+                        .font(KIRITypography.bodyMedium)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(KIRIColor.Primary.default)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 12)
+        }
+    }
+
+    private func reviewDetailData(_ review: ReviewItemResult) -> RecordCalendarView.ReviewDetailData {
+        RecordCalendarView.ReviewDetailData(
+            title: schedule.title,
+            date: effectiveDate,
+            familyName: "가족",
+            authorName: review.writer.nickname,
+            isCurrentUser: review.isMine,
+            review: review.content,
+            writtenDate: review.createdAt,
+            representativePhotoURL: review.photos.first?.imageUrl
+        )
     }
     private var navigationBar: some View {
         ZStack {

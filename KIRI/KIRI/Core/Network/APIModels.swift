@@ -712,6 +712,26 @@ struct MissionDetailItem: Decodable, Sendable, Identifiable {
     }
 }
 
+/// 미션 일정과 무관하게 조회하는 맞춤 준비물 응답입니다.
+/// 서버 버전에 따라 배열 또는 essentials/items/prepareItems 래퍼를 수용합니다.
+struct MissionEssentialsResult: Decodable, Sendable {
+    let items: [MissionDetailItem]
+
+    private enum CodingKeys: String, CodingKey { case essentials, items, prepareItems }
+
+    init(from decoder: Decoder) throws {
+        if let values = try? decoder.singleValueContainer().decode([MissionDetailItem].self) {
+            items = values
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        items = try container.decodeIfPresent([MissionDetailItem].self, forKey: .essentials)
+            ?? container.decodeIfPresent([MissionDetailItem].self, forKey: .items)
+            ?? container.decodeIfPresent([MissionDetailItem].self, forKey: .prepareItems)
+            ?? []
+    }
+}
+
 struct WriteAnswerRequest: Encodable, Sendable {
     let answer: String
 }
