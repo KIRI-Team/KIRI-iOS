@@ -50,7 +50,10 @@ struct BrowseHomeView: View {
                         familyStateCard
                             .padding(.top, 18)
 
-                        recommendationSection(title: "추천 미션")
+                        recommendationSection(title: "가족과 함께라면 여기!", missions: familyMissions)
+                            .padding(.top, 36)
+
+                        recommendationSection(title: "오늘 가을분위기를 느끼고 싶다면", missions: autumnMissions)
                             .padding(.top, 36)
 
                         Spacer()
@@ -165,22 +168,36 @@ struct BrowseHomeView: View {
         .accessibilityLabel("가족공간 만들러 가기")
     }
 
-    private func recommendationSection(title: String) -> some View {
+    private var autumnMissions: [MissionFeedItem] {
+        missions.filter { mission in
+            let text = "\(mission.title) \(mission.placeName)".lowercased()
+            let explicitAutumn = ["가을", "단풍", "은행나무", "은행길", "코스모스", "억새", "갈대"].contains { text.contains($0) }
+            let seasonalWalk = ["산책", "걷기", "나들이", "공원", "숲", "길"].contains { text.contains($0) }
+            return explicitAutumn || seasonalWalk && mission.category.uppercased() == "OUTDOOR"
+        }
+    }
+
+    private var familyMissions: [MissionFeedItem] {
+        let autumnIDs = Set(autumnMissions.map(\.missionId))
+        return missions.filter { !autumnIDs.contains($0.missionId) }
+    }
+
+    private func recommendationSection(title: String, missions: [MissionFeedItem]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
 
-            missionContent
+            missionContent(for: missions)
         }
     }
 
     @ViewBuilder
-    private var missionContent: some View {
+    private func missionContent(for missions: [MissionFeedItem]) -> some View {
         if isLoadingMissions && missions.isEmpty {
             ProgressView().tint(KIRIColor.Primary.default).frame(height: 284)
-        } else if let missionError, missions.isEmpty {
+        } else if missionError != nil, self.missions.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("미션을 불러오지 못했어요")
                     .font(KIRITypography.bodySmall)
