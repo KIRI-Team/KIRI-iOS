@@ -357,32 +357,69 @@ struct ScheduleResult: Decodable, Sendable {
 }
 
 /// GET /api/v1/schedules/{scheduleId} 응답입니다.
-/// 서버가 일정 제목을 반환하지 않으므로 목록 제목은 화면에 유지하고
-/// 날짜·시간·상태·참여자만 최신 서버 값으로 갱신합니다.
+/// 일정 자체의 표시 정보와 응답 권한·재확인 변경 필드를 함께 보존합니다.
 struct ScheduleDetailResult: Decodable, Sendable {
     let missionId: Int?
+    let missionTitle: String?
+    let missionDescription: String?
     let date: String
     let time: String?
     let status: String?
+    let myStatus: String?
+    let canRespond: Bool
+    let canEdit: Bool
+    let canCancel: Bool
+    let changedFields: [String]
+    let requestMessage: String?
+    let proposer: ScheduleProposerResult?
     let participants: [ScheduleParticipantResult]
 
     private enum CodingKeys: String, CodingKey {
-        case missionId, date, time, status, participants
+        case missionId, missionTitle, missionDescription, date, time, status, myStatus
+        case canRespond, canEdit, canCancel, changedFields, requestMessage, proposer, participants
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         missionId = try container.decodeIfPresent(Int.self, forKey: .missionId)
+        missionTitle = try container.decodeIfPresent(String.self, forKey: .missionTitle)
+        missionDescription = try container.decodeIfPresent(String.self, forKey: .missionDescription)
         date = try container.decode(String.self, forKey: .date)
         time = try container.decodeIfPresent(String.self, forKey: .time)
         status = try container.decodeIfPresent(String.self, forKey: .status)
+        myStatus = try container.decodeIfPresent(String.self, forKey: .myStatus)
+        canRespond = try container.decodeIfPresent(Bool.self, forKey: .canRespond) ?? false
+        canEdit = try container.decodeIfPresent(Bool.self, forKey: .canEdit) ?? false
+        canCancel = try container.decodeIfPresent(Bool.self, forKey: .canCancel) ?? false
+        changedFields = try container.decodeIfPresent([String].self, forKey: .changedFields) ?? []
+        requestMessage = try container.decodeIfPresent(String.self, forKey: .requestMessage)
+        proposer = try container.decodeIfPresent(ScheduleProposerResult.self, forKey: .proposer)
         participants = try container.decodeIfPresent([ScheduleParticipantResult].self, forKey: .participants) ?? []
     }
 }
 
+struct ScheduleProposerResult: Decodable, Sendable {
+    let memberId: Int?
+    let nickname: String?
+    let familyRole: String?
+    let characterImageUrl: URL?
+}
+
 struct ScheduleParticipantResult: Decodable, Sendable {
     let nickname: String
-    let accepted: Bool
+    let memberId: Int?
+    let status: String
+    let characterImageUrl: URL?
+
+    private enum CodingKeys: String, CodingKey { case memberId, nickname, status, characterImageUrl }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        memberId = try container.decodeIfPresent(Int.self, forKey: .memberId)
+        nickname = try container.decodeIfPresent(String.self, forKey: .nickname) ?? "가족 구성원"
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? "PENDING"
+        characterImageUrl = try container.decodeIfPresent(URL.self, forKey: .characterImageUrl)
+    }
 }
 
 struct CalendarScheduleResult: Decodable, Sendable, Identifiable {

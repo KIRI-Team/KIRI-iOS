@@ -35,6 +35,9 @@ struct TodayActivityView: View {
     let schedule: RecordCalendarView.ScheduleDetailData
     let content: Content
     let onBack: () -> Void
+    var missionTitle: String? = nil
+    var missionDescription: String? = nil
+    var requestMessage: String? = nil
     @State private var selectedTab = 0
     @State private var showingConditionScreen = false
     @State private var showingReviewEditor = false
@@ -82,12 +85,25 @@ struct TodayActivityView: View {
                 navigationBar
                 statusBadge
                     .padding(.top, 21)
-                Text(schedule.title)
+                Text(missionTitle?.isEmpty == false ? missionTitle! : schedule.title)
                     .font(KIRITypography.title)
                     .foregroundStyle(
                         KIRIColor.Text.strong
                     )
                     .padding(.top, 12)
+                if let missionDescription, !missionDescription.isEmpty {
+                    Text(missionDescription)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 8)
+                }
+                if let requestMessage, !requestMessage.isEmpty {
+                    Text("\"\(requestMessage)\"")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .padding(.top, 6)
+                }
                 participantSection
                     .padding(.top, 10)
                 activityDetail
