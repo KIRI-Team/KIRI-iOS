@@ -463,7 +463,32 @@ final class AuthService {
         return try await familyInfo(familyId: familyId).members
     }
 
-    func pokeMember(memberId: Int) async throws {
+    /// 오늘 질문의 가족 구성원을 콕 찌릅니다.
+    ///
+    /// 가족 답변 목록이 세션 전환 직후의 값으로 남아 있으면 목록의 memberId가
+    /// 현재 가족의 ID와 달라질 수 있습니다. 서버가 이 경우 QUESTION404_3을
+    /// 반환하므로, 해당 응답에서만 현재 가족 정보를 다시 조회해 같은 닉네임의
+    /// 실제 구성원 ID로 한 번 재시도합니다. QUESTION404_3 자체를 중복 전송으로
+    /// 처리하지는 않습니다.
+    func pokeMember(memberId: Int, familyId: Int? = nil, nickname: String? = nil) async throws {
+        do {
+            try await sendPoke(to: memberId)
+        } catch let error as APIError {
+            guard case let .serverError(code, _) = error,
+                  code.uppercased() == "QUESTION404_3",
+                  let familyId,
+                  let nickname,
+                  let family = try? await familyInfo(familyId: familyId),
+                  let refreshedMember = family.members.first(where: {
+                      $0.memberId != memberId && $0.nickname == nickname
+                  }) else {
+                throw error
+            }
+            try await sendPoke(to: refreshedMember.memberId)
+        }
+    }
+
+    private func sendPoke(to memberId: Int) async throws {
         let endpoint = APIEndpoint(path: "/api/v1/questions/today/members/\(memberId)/pokes", method: .POST, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
         let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)

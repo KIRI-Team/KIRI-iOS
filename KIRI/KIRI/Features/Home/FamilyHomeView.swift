@@ -164,7 +164,11 @@ struct FamilyHomeView: View {
                             onBack: { route = .home },
                             onPoke: { memberId in
                                 do {
-                                    try await AuthService.shared.pokeMember(memberId: memberId)
+                                    try await AuthService.shared.pokeMember(
+                                        memberId: memberId,
+                                        familyId: familyId,
+                                        nickname: selectedMember.name
+                                    )
                                     if let questionId = serverQuestion?.questionId {
                                         await loadFamilyAnswers(questionId: questionId)
                                     }
@@ -290,10 +294,10 @@ struct FamilyHomeView: View {
         }
 
         let normalized = "\(code) \(message)".uppercased()
-        // QUESTION404_3은 현재 확인 가능한 계약상 중복 전송 코드가 아니므로
-        // 이미 전송된 상태로 처리하지 않고 질문 상태 확인 실패로 안내합니다.
+        // QUESTION404_3은 질문 상태나 중복 전송이 아니라 대상 memberId가
+        // 존재하지 않거나 현재 가족에 속하지 않을 때 반환됩니다.
         if code.uppercased() == "QUESTION404_3" {
-            return "오늘 질문 상태를 확인할 수 없어 콕을 보내지 못했어요. 다시 시도해 주세요."
+            return "가족 구성원을 확인하지 못해 콕을 보내지 못했어요. 다시 시도해 주세요."
         }
         if normalized.contains("ANSWERED") || normalized.contains("ALREADY_ANSWER") {
             return "이 가족에게는 지금 콕을 보낼 수 없어요."
