@@ -53,9 +53,7 @@ struct FamilyHomeView: View {
     @State private var pokeToastMessage: String?
     @State private var pokeToastIsError = false
     @State private var recommendedMissions: [MissionFeedItem] = []
-    @State private var familyRecommendation: FamilyRecommendationResult?
     @State private var isLoadingRecommendations = false
-    @State private var recommendationError: String?
     @State private var missionFeedError: String?
 
 
@@ -671,53 +669,29 @@ struct FamilyHomeView: View {
     private var recommendationCards: some View {
         if isLoadingRecommendations {
             ProgressView().frame(maxWidth: .infinity, minHeight: 144)
-        } else if let recommendationError {
+        } else if missionFeedError != nil {
             VStack(spacing: 8) {
-                Text("추천 미션을 불러오지 못했어요")
+                Text("미션을 불러오지 못했어요")
                     .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.tertiary)
-                Button("다시 시도") {
-                    Task { await loadRecommendations() }
-                }
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.accent)
-                .accessibilityHint(recommendationError)
+                Button("다시 시도") { Task { await loadRecommendations() } }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
             }
             .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
-        } else if let recommendation = familyRecommendation {
-            let feedMission = recommendedMissions.first { $0.missionId == recommendation.missionId }
-            Button {
-                selectedMission = feedMission
-                selectedRecommendation = feedMission == nil ? recommendation : nil
-                isPlaceBookmarked = false
-                route = .placeDetail
-            } label: {
-                PlaceCard(
-                    title: recommendation.title,
-                    location: feedMission?.placeName ?? "",
-                    rating: recommendation.score,
-                    description: recommendation.recommendationReason,
-                    imageURL: feedMission?.imageUrl ?? recommendation.imageUrl
-                )
-            }
-            .buttonStyle(.plain)
-        } else {
-            Text("추천할 미션이 아직 없어요")
+        } else if recommendedMissions.isEmpty {
+            Text("추천 미션이 아직 없어요")
                 .font(KIRITypography.bodySmall)
                 .foregroundStyle(KIRIColor.Text.tertiary)
                 .frame(maxWidth: .infinity, minHeight: 144, alignment: .center)
+        } else {
+            missionCards(recommendedMissions)
         }
     }
 
     private var autumnMissions: [MissionFeedItem] {
-        let recommendedID = familyRecommendation?.missionId
-        return recommendedMissions.filter { mission in
-            guard mission.missionId != recommendedID else { return false }
-            let text = "\(mission.title) \(mission.placeName)".lowercased()
-            let explicitAutumn = ["가을", "단풍", "은행나무", "은행길", "코스모스", "억새", "갈대"].contains { text.contains($0) }
-            let seasonalWalk = ["산책", "걷기", "나들이", "공원", "숲", "길"].contains { text.contains($0) }
-            return explicitAutumn || seasonalWalk && mission.category.uppercased() == "OUTDOOR"
-        }
+        // 계절 키워드가 아니라 서버의 미션 카테고리만 신뢰합니다.
+        recommendedMissions.filter { $0.category.caseInsensitiveCompare("OUTDOOR") == .orderedSame }
     }
 
     @ViewBuilder
@@ -822,37 +796,34 @@ struct FamilyHomeView: View {
     private func loadRecommendations() async {
         await MainActor.run {
             isLoadingRecommendations = true
-            recommendationError = nil
             missionFeedError = nil
-            familyRecommendation = nil
         }
 
-        // 플립 카드의 실제 미션과 가족 맞춤 추천은 각각 계약된 API에서 읽습니다.
+        // 가족 홈의 두 섹션은 모두 공개 미션 목록을 사용합니다. 추천/계절
+        // 전용 API의 결과로 목록을 제한하지 않고, 커서가 있는 모든 페이지를
+        // 읽어 둡니다. OUTDOOR 필터는 화면에서만 적용합니다.
         do {
-            let feed = try await AuthService.shared.missionFeed()
-            await MainActor.run { recommendedMissions = feed.missions }
+            var cursor: Int?
+            var allMissions: [MissionFeedItem] = []
+            repeat {
+                let page = try await AuthService.shared.missionFeed(cursor: cursor)
+                allMissions.append(contentsOf: page.missions)
+                guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
+                cursor = nextCursor
+            } while true
+
+            var seen = Set<Int>()
+            let uniqueMissions = allMissions.filter { seen.insert($0.missionId).inserted }
+            await MainActor.run {
+                recommendedMissions = uniqueMissions
+                isLoadingRecommendations = false
+            }
         } catch {
-            // 추천 섹션과 독립된 플립 카드 데이터 실패는 추천 카드 오류로 덮어쓰지 않습니다.
             await MainActor.run {
                 recommendedMissions = []
                 missionFeedError = "mission-feed"
-            }
-        }
-
-        do {
-            let recommendation = try await AuthService.shared.familyRecommendation()
-            await MainActor.run {
-                familyRecommendation = recommendation
                 isLoadingRecommendations = false
             }
-        } catch {
-            await MainActor.run {
-                recommendationError = error.localizedDescription
-                isLoadingRecommendations = false
-            }
-            #if DEBUG
-            print("[KIRI][Recommendation] family recommendation load failed")
-            #endif
         }
     }
 

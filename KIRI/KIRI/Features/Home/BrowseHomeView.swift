@@ -169,17 +169,13 @@ struct BrowseHomeView: View {
     }
 
     private var autumnMissions: [MissionFeedItem] {
-        missions.filter { mission in
-            let text = "\(mission.title) \(mission.placeName)".lowercased()
-            let explicitAutumn = ["가을", "단풍", "은행나무", "은행길", "코스모스", "억새", "갈대"].contains { text.contains($0) }
-            let seasonalWalk = ["산책", "걷기", "나들이", "공원", "숲", "길"].contains { text.contains($0) }
-            return explicitAutumn || seasonalWalk && mission.category.uppercased() == "OUTDOOR"
-        }
+        missions.filter { $0.category.caseInsensitiveCompare("OUTDOOR") == .orderedSame }
     }
 
     private var familyMissions: [MissionFeedItem] {
-        let autumnIDs = Set(autumnMissions.map(\.missionId))
-        return missions.filter { !autumnIDs.contains($0.missionId) }
+        // 전체 공개 미션을 그대로 보여 줍니다. 산책·야외 미션도 두 섹션에
+        // 함께 노출될 수 있으며, 제목·태그로 임의 분류하지 않습니다.
+        missions
     }
 
     private func recommendationSection(title: String, missions: [MissionFeedItem]) -> some View {
@@ -244,7 +240,17 @@ struct BrowseHomeView: View {
         missionError = nil
         defer { isLoadingMissions = false }
         do {
-            missions = try await AuthService.shared.missionFeed().missions
+            var cursor: Int?
+            var allMissions: [MissionFeedItem] = []
+            repeat {
+                let page = try await AuthService.shared.missionFeed(cursor: cursor)
+                allMissions.append(contentsOf: page.missions)
+                guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
+                cursor = nextCursor
+            } while true
+
+            var seen = Set<Int>()
+            missions = allMissions.filter { seen.insert($0.missionId).inserted }
         } catch {
             missionError = "미션 조회 실패"
         }

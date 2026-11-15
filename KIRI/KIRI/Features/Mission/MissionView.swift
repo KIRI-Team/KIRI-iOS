@@ -44,6 +44,8 @@ struct MissionView: View {
         var count: Int { [regionCode != nil, distance != nil, isFree != nil, maxPrice != nil, date != nil, time != nil, peopleCount != nil].filter { $0 }.count }
     }
     @State private var rows: [MissionRow] = []
+    // 필터 결과가 비어도 서버가 반환한 오늘의 끼리픽은 유지합니다.
+    @State private var kiriPick: MissionRow?
     @State private var selectedMission: MissionRow?
     @State private var searchText = ""
     @State private var selectedCategory: Category = .all
@@ -206,17 +208,11 @@ struct MissionView: View {
     /// 미션만 사용하며, 응답이 없을 때는 영역 자체를 렌더링하지 않습니다.
     @ViewBuilder
     private var featuredSection: some View {
-        if !filteredRows.isEmpty {
+        if let kiriPick {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(filteredRows.prefix(3)) { row in
-                        Button {
-                            selectedMission = row
-                        } label: {
-                            featuredCard(row)
-                        }
+                    Button { selectedMission = kiriPick } label: { featuredCard(kiriPick) }
                         .buttonStyle(.plain)
-                    }
                 }
                 .padding(.horizontal, 18)
             }
@@ -305,8 +301,21 @@ struct MissionView: View {
             VStack(spacing: 12) { Text(errorMessage).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary); Button("다시 시도") { Task { await load(reset: true) } }.foregroundStyle(KIRIColor.Text.accent) }.frame(maxWidth: .infinity, minHeight: 260)
         } else if isLoading && rows.isEmpty {
             ProgressView().frame(maxWidth: .infinity, minHeight: 260)
-        } else if rows.isEmpty {
-            Text("아직 진행할 미션이 없어요").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary).frame(maxWidth: .infinity, minHeight: 260)
+        } else if filteredRows.isEmpty {
+            VStack(spacing: 10) {
+                Text(appliedFilter.count > 0 ? "선택한 조건에 맞는 미션이 없어요" : "검색 결과가 없어요")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.tertiary)
+                if appliedFilter.count > 0 {
+                    Button("필터 초기화") {
+                        appliedFilter = .empty
+                        Task { await load(reset: true, filterOverride: .empty) }
+                    }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 260)
         } else {
             LazyVStack(spacing: 16) {
                 ForEach(filteredRows) { row in
@@ -360,7 +369,12 @@ struct MissionView: View {
                 await refreshSavedMissionIDs()
             }
             let newRows = result.missions.map { MissionRow(id: $0.missionId, mission: $0, isBookmarked: savedMissionIDs.contains($0.missionId)) }
-            if reset { rows = newRows } else { rows.append(contentsOf: newRows) }
+            if reset {
+                rows = newRows
+                if category == nil, filter == .empty, let first = newRows.first {
+                    kiriPick = first
+                }
+            } else { rows.append(contentsOf: newRows) }
             nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil
         } catch {
             guard !Task.isCancelled, generation == loadGeneration else { return nil }
