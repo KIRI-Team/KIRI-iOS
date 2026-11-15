@@ -182,6 +182,10 @@ struct FamilyHomeView: View {
                                     await MainActor.run {
                                         pokedMemberIDs.insert(memberId)
                                         showPokeToast("\(selectedMember.name)님을 콕 찔렀어요!", isError: false)
+                                        // 전송이 끝난 뒤에는 질문 모아보기 경로를 남기지
+                                        // 않고 가족 홈으로 돌아갑니다. 토스트는 루트 오버레이에서
+                                        // 계속 표시됩니다.
+                                        route = .home
                                     }
                                     return true
                                 } catch let error as APIError {
@@ -194,6 +198,7 @@ struct FamilyHomeView: View {
                                         await MainActor.run {
                                             pokedMemberIDs.insert(memberId)
                                             showPokeToast("이미 \(selectedMember.name)님을 콕 찔렀어요!", isError: false)
+                                            route = .home
                                         }
                                         return true
                                     }
@@ -210,20 +215,23 @@ struct FamilyHomeView: View {
                             },
                             onAlreadyPoked: {
                                 showPokeToast("이미 \(selectedMember.name)님을 콕 찔렀어요!", isError: false)
+                                route = .home
                             }
                         )
                         .zIndex(1)
                     }
-                    if let pokeToastMessage {
-                        KIRIToast(message: pokeToastMessage, isError: pokeToastIsError)
-                            .padding(.horizontal, 18)
-                            .safeAreaPadding(.top, 8)
-                            // 말풍선·dim과 같은 ZStack 안에서도 토스트는 화면 최상단에 고정합니다.
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                            .zIndex(2)
-                    }
                 }
+            }
+
+            // 답변/콕 화면을 닫거나 전송을 완료해 홈으로 돌아와도
+            // 결과 토스트가 최상위 safe area에서 보이도록 합니다.
+            if let pokeToastMessage {
+                KIRIToast(message: pokeToastMessage, isError: pokeToastIsError)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(20)
             }
         }
         .fullScreenCover(isPresented: $isInvitePresented) {
@@ -506,7 +514,10 @@ struct FamilyHomeView: View {
                         ForEach(displayedMembers) { member in
                             Button {
                                 selectedMember = member
-                                route = member.isMe ? .questionAnswer : .memberDetail
+                                // 서버가 내려주는 isMe는 오래된 응답이나
+                                // 다른 질문의 매핑에서 틀릴 수 있으므로, 현재
+                                // 세션의 실제 memberId를 화면 전환 기준으로 사용합니다.
+                                route = isCurrentMember(member) ? .questionAnswer : .memberDetail
                             } label: {
                                 FamilyMemberItem(name: member.name, role: member.role, isMe: member.isMe, hasAnswered: member.hasAnswered)
                             }
@@ -606,15 +617,17 @@ struct FamilyHomeView: View {
 
     private var displayedMembers: [HomeMember] {
         if !familyAnswers.isEmpty {
+            let currentMemberId = try? AuthService.shared.currentMemberId()
             return familyAnswers.map { member in
-                HomeMember(
+                let isMe = member.memberId == currentMemberId
+                return HomeMember(
                     id: String(member.memberId),
                     memberId: member.memberId,
                     name: member.nickname,
-                    role: member.isMe ? (member.familyRole ?? familyRole) : member.familyRole,
+                    role: isMe ? (member.familyRole ?? familyRole) : member.familyRole,
                     hasAnswered: member.isAnswered,
                     answer: member.answer,
-                    isMe: member.isMe
+                    isMe: isMe
                 )
             }
         }
@@ -633,6 +646,14 @@ struct FamilyHomeView: View {
             answer: serverQuestion?.answer,
             isMe: true
         )]
+    }
+
+    private func isCurrentMember(_ member: HomeMember) -> Bool {
+        guard let memberId = member.memberId,
+              let currentMemberId = try? AuthService.shared.currentMemberId() else {
+            return false
+        }
+        return memberId == currentMemberId
     }
 
     private var tutorialMission: MissionFeedItem? {

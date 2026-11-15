@@ -552,6 +552,9 @@ struct MissionDetailResult: Decodable, Sendable {
     let missionType: String
     let status: String
     let indoorOutdoor: String?
+    /// Android and the current API contract expose the activity level as
+    /// `walkingLevel`; older responses may omit it.
+    let walkingLevel: String?
     let imageUrl: URL?
     let imageSource: String?
     let startDate: String?
@@ -564,7 +567,7 @@ struct MissionDetailResult: Decodable, Sendable {
     let estimatedStepsMin: Int?
     let estimatedStepsMax: Int?
     let sourceUrl: URL?
-    let place: MissionDetailPlace
+    let place: MissionDetailPlace?
     let prepareItems: [MissionDetailItem]
     let steps: [MissionDetailItem]
     let bucketSaved: Bool
@@ -577,7 +580,80 @@ struct MissionDetailResult: Decodable, Sendable {
     }
 
     var district: String {
-        place.address.split(separator: " ").first.map(String.init) ?? place.address
+        place?.address.split(separator: " ").first.map(String.init) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case missionId, title, description, category, missionType, status
+        case indoorOutdoor, walkingLevel, imageUrl, imageSource, startDate, endDate
+        case openingTime, closingTime, price, durationMinMinutes, durationMaxMinutes
+        case estimatedStepsMin, estimatedStepsMax, sourceUrl, place, prepareItems, steps
+        case bucketSaved, bucketState, averageRating, reviewCount
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        missionId = try container.decode(Int.self, forKey: .missionId)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        category = try container.decodeIfPresent(String.self, forKey: .category) ?? ""
+        missionType = try container.decodeIfPresent(String.self, forKey: .missionType) ?? ""
+        status = try container.decodeIfPresent(String.self, forKey: .status) ?? ""
+        indoorOutdoor = try container.decodeIfPresent(String.self, forKey: .indoorOutdoor)
+        walkingLevel = try container.decodeIfPresent(String.self, forKey: .walkingLevel)
+        imageUrl = Self.decodeURL(container, key: .imageUrl)
+        imageSource = try container.decodeIfPresent(String.self, forKey: .imageSource)
+        startDate = try container.decodeIfPresent(String.self, forKey: .startDate)
+        endDate = try container.decodeIfPresent(String.self, forKey: .endDate)
+        openingTime = try container.decodeIfPresent(String.self, forKey: .openingTime)
+        closingTime = try container.decodeIfPresent(String.self, forKey: .closingTime)
+        price = try container.decodeIfPresent(Int.self, forKey: .price)
+        durationMinMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinMinutes)
+        durationMaxMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMaxMinutes)
+        estimatedStepsMin = try container.decodeIfPresent(Int.self, forKey: .estimatedStepsMin)
+        estimatedStepsMax = try container.decodeIfPresent(Int.self, forKey: .estimatedStepsMax)
+        sourceUrl = Self.decodeURL(container, key: .sourceUrl)
+        place = try container.decodeIfPresent(MissionDetailPlace.self, forKey: .place)
+        prepareItems = try container.decodeIfPresent([MissionDetailItem].self, forKey: .prepareItems) ?? []
+        steps = try container.decodeIfPresent([MissionDetailItem].self, forKey: .steps) ?? []
+        bucketState = try container.decodeIfPresent(String.self, forKey: .bucketState) ?? ""
+        bucketSaved = try container.decodeIfPresent(Bool.self, forKey: .bucketSaved)
+            ?? ["SAVED", "IN_BUCKET", "BUCKETED"].contains(bucketState.uppercased())
+        averageRating = try container.decodeIfPresent(Double.self, forKey: .averageRating)
+        reviewCount = try container.decodeIfPresent(Int.self, forKey: .reviewCount) ?? 0
+    }
+
+    init(
+        missionId: Int, title: String, description: String?, category: String,
+        missionType: String, status: String, indoorOutdoor: String?, imageUrl: URL?,
+        imageSource: String?, startDate: String?, endDate: String?, openingTime: String?,
+        closingTime: String?, price: Int?, durationMinMinutes: Int?, durationMaxMinutes: Int?,
+        estimatedStepsMin: Int?, estimatedStepsMax: Int?, sourceUrl: URL?,
+        place: MissionDetailPlace?, prepareItems: [MissionDetailItem], steps: [MissionDetailItem],
+        bucketSaved: Bool, bucketState: String, averageRating: Double?, reviewCount: Int,
+        walkingLevel: String? = nil
+    ) {
+        self.missionId = missionId; self.title = title; self.description = description
+        self.category = category; self.missionType = missionType; self.status = status
+        self.indoorOutdoor = indoorOutdoor; self.walkingLevel = walkingLevel
+        self.imageUrl = imageUrl; self.imageSource = imageSource; self.startDate = startDate
+        self.endDate = endDate; self.openingTime = openingTime; self.closingTime = closingTime
+        self.price = price; self.durationMinMinutes = durationMinMinutes; self.durationMaxMinutes = durationMaxMinutes
+        self.estimatedStepsMin = estimatedStepsMin; self.estimatedStepsMax = estimatedStepsMax
+        self.sourceUrl = sourceUrl; self.place = place; self.prepareItems = prepareItems; self.steps = steps
+        self.bucketSaved = bucketSaved; self.bucketState = bucketState; self.averageRating = averageRating
+        self.reviewCount = reviewCount
+    }
+
+    private static func decodeURL<K: CodingKey>(_ container: KeyedDecodingContainer<K>, key: K) -> URL? {
+        let raw: String?
+        do {
+            raw = try container.decodeIfPresent(String.self, forKey: key)
+        } catch {
+            return nil
+        }
+        guard let raw, !raw.isEmpty else { return nil }
+        return URL(string: raw)
     }
 }
 
@@ -599,6 +675,22 @@ struct MissionDetailPlace: Decodable, Sendable {
     let address: String
     let latitude: Double?
     let longitude: Double?
+
+    private enum CodingKeys: String, CodingKey { case placeId, name, address, latitude, longitude }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        placeId = try container.decode(Int.self, forKey: .placeId)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        address = try container.decodeIfPresent(String.self, forKey: .address) ?? ""
+        latitude = try container.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude = try container.decodeIfPresent(Double.self, forKey: .longitude)
+    }
+
+    init(placeId: Int, name: String, address: String, latitude: Double?, longitude: Double?) {
+        self.placeId = placeId; self.name = name; self.address = address
+        self.latitude = latitude; self.longitude = longitude
+    }
 }
 
 struct MissionDetailItem: Decodable, Sendable, Identifiable {
@@ -606,6 +698,18 @@ struct MissionDetailItem: Decodable, Sendable, Identifiable {
     let description: String
 
     var id: String { "\(title)-\(description)" }
+
+    private enum CodingKeys: String, CodingKey { case title, description }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? ""
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+    }
+
+    init(title: String, description: String) {
+        self.title = title; self.description = description
+    }
 }
 
 struct WriteAnswerRequest: Encodable, Sendable {
