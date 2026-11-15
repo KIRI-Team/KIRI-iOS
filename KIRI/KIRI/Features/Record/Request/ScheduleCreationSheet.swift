@@ -19,8 +19,10 @@ struct ScheduleCreationSheet: View {
     @State private var membersLoaded = false
     @State private var isSubmitting = false
     @State private var isSendMethodVisible = false
+    @State private var isMemberPickerPresented = false
     @State private var errorMessage: String?
     @State private var memberLoadError: String?
+    @State private var isLoadingMembers = false
 
     private enum Step { case form, dateTime, members, preview }
     private var canPreview: Bool { membersLoaded && !selectedMemberIds.isEmpty }
@@ -52,6 +54,12 @@ struct ScheduleCreationSheet: View {
             switch step { case .form: formView; case .dateTime: dateTimeView; case .members: membersView; case .preview: previewView }
         }
         .task { await loadFamilyMembers() }
+        .sheet(isPresented: $isMemberPickerPresented) {
+            membersView
+                .presentationDetents([.large])
+                .presentationDragIndicator(.hidden)
+                .task { await loadFamilyMembers() }
+        }
     }
 
     private var formView: some View {
@@ -61,7 +69,12 @@ struct ScheduleCreationSheet: View {
                 VStack(alignment: .leading, spacing: 16) {
                     missionSummary
                     formRow(title: "일정 선택", value: displayDateTime, icon: "calendar") { step = .dateTime }
-                    formRow(title: "가족 구성원 선택", value: selectedMembers.isEmpty ? "가족 구성원을 선택해 주세요" : "인원 \(selectedMembers.count)명", icon: "person.2") { step = .members }
+                    formRow(title: "가족 구성원 선택", value: selectedMembers.isEmpty ? "가족 구성원을 선택해 주세요" : "인원 \(selectedMembers.count)명", icon: "person.2") {
+                        isMemberPickerPresented = true
+                        // 일정 등록 화면에 들어올 때 구성원 조회가 실패했거나
+                        // 세션 복원이 늦어진 경우에도 행을 누르면 즉시 재조회합니다.
+                        Task { await loadFamilyMembers(force: true) }
+                    }
                     messageEditor
                     if let errorMessage { errorText(errorMessage) }
                 }
@@ -87,7 +100,7 @@ struct ScheduleCreationSheet: View {
 
     private var membersView: some View {
         VStack(spacing: 0) {
-            appBar(title: "가족 구성원 선택", onBack: { step = .form })
+            appBar(title: "가족 구성원 선택", onBack: { isMemberPickerPresented = false })
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("함께하고 싶은 가족을 선택해 주세요").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong).padding(.bottom, 8)
@@ -120,7 +133,7 @@ struct ScheduleCreationSheet: View {
                     if let errorMessage { errorText(errorMessage) }
                 }.padding(18)
             }
-            bottomButton(title: "선택 완료", enabled: !selectedMemberIds.isEmpty) { step = .form }
+            bottomButton(title: "선택 완료", enabled: !selectedMemberIds.isEmpty) { isMemberPickerPresented = false }
         }
     }
 
@@ -259,14 +272,30 @@ struct ScheduleCreationSheet: View {
 
     private func loadFamilyMembers(force: Bool = false) async {
         guard force || !membersLoaded else { return }
+        guard !isLoadingMembers else { return }
+        isLoadingMembers = true
         membersLoaded = false
         memberLoadError = nil
+        defer { isLoadingMembers = false }
+
         do {
-            guard let familyId = AppSessionStore().familyId else { throw AuthServiceError.missingStoredSession }
-            let result = try await AuthService.shared.scheduleParticipantMembers(familyId: familyId)
-            let current = try? AuthService.shared.currentMemberId()
-            familyMembers = result.filter { $0.memberId != current }
+            // 오늘 질문의 답변 목록은 미답변 구성원을 누락시킬 수 있습니다.
+            // 일정 참여자 선택은 질문 배정 여부와 무관한 가족 전체를 사용하므로
+            // 가족 상세 계약을 기준으로 조회합니다. 저장된 세션이 아직 갱신되지
+            // 않은 경우에도 서버의 현재 사용자 가족 ID를 한 번 더 확인합니다.
+            let session = AppSessionStore()
+            let familyId: Int
+            if let storedFamilyId = session.familyId {
+                familyId = storedFamilyId
+            } else {
+                familyId = try await AuthService.shared.familyIdForCurrentMember().familyId
+            }
+            let result = try await AuthService.shared.familyInfo(familyId: familyId)
+            let currentMemberId = try? AuthService.shared.currentMemberId()
+            familyMembers = result.members.filter { $0.memberId != currentMemberId }
             membersLoaded = true
+        } catch is CancellationError {
+            // 시트가 닫힌 경우 입력 상태를 유지하고 다음 진입에서 다시 조회합니다.
         } catch {
             memberLoadError = "가족 구성원을 불러오지 못했어요. 다시 시도해 주세요."
             membersLoaded = true
