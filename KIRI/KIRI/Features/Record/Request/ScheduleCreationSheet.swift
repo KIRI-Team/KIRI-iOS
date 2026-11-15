@@ -27,6 +27,7 @@ struct ScheduleCreationSheet: View {
     @State private var isLoadingMembers = false
     @State private var missionDescription: String?
     @State private var dateTimeValidationMessage: String?
+    @State private var isMissionDetailPresented = false
 
     private enum Step { case form, dateTime, members, preview }
     private var canPreview: Bool { membersLoaded && !selectedMemberIds.isEmpty }
@@ -70,6 +71,34 @@ struct ScheduleCreationSheet: View {
                 .presentationDetents([.height(560)])
                 .presentationDragIndicator(.hidden)
                 .presentationCornerRadius(28)
+        }
+        .fullScreenCover(isPresented: $isMissionDetailPresented) {
+            if let bucket {
+                MissionActivityDetailView(
+                    missionId: bucket.mission.missionId,
+                    title: bucket.mission.title,
+                    placeName: "",
+                    district: "",
+                    rating: nil,
+                    tags: [],
+                    isRecommended: false,
+                    imageURL: bucket.mission.imageUrl,
+                    isBookmarked: .constant(false),
+                    onBack: { isMissionDetailPresented = false }
+                )
+            } else if let missionId {
+                MissionActivityDetailView(
+                    missionId: missionId,
+                    title: missionTitle,
+                    placeName: "",
+                    district: "",
+                    rating: nil,
+                    tags: [],
+                    isRecommended: false,
+                    isBookmarked: .constant(false),
+                    onBack: { isMissionDetailPresented = false }
+                )
+            }
         }
     }
 
@@ -346,27 +375,119 @@ struct ScheduleCreationSheet: View {
 
     private var previewView: some View {
         VStack(spacing: 0) {
-            appBar(title: "초대장 미리보기", onBack: { step = .form })
+            appBar(title: "요청알림", onBack: { step = .form })
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text("가족에게 보낼 요청서를 확인해 주세요").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong)
-                    missionSummary
-                    detailLine(label: "일정", value: displayDateTime)
-                    detailLine(label: "초대할 가족", value: selectedMembers.map(\.nickname).joined(separator: ", "))
-                    if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { detailLine(label: "가족에게 한 줄", value: message) }
+                VStack(spacing: 0) {
+                    Text(bucket.map { "\($0.saver.nickname)이 저장한 미션이에요!" } ?? "내가 저장한 미션이에요!")
+                        .font(KIRITypography.bodyMedium)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.bottom, 24)
+
+                    requestCard
+
+                    Button { isMissionDetailPresented = true } label: {
+                        Text("자세히 보러가기")
+                            .font(KIRITypography.bodyMedium)
+                            .foregroundStyle(KIRIColor.Text.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 45)
+                            .background(KIRIColor.Background.tertiary)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 16)
+
+                    if let missionDescription, !missionDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("행사설명")
+                                .font(KIRITypography.headingSmall)
+                                .foregroundStyle(KIRIColor.Text.tertiary)
+                            Text(missionDescription)
+                                .font(KIRITypography.body)
+                                .foregroundStyle(KIRIColor.Text.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 26)
+                    }
+
+                    if !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("가족에게 한 줄")
+                                .font(KIRITypography.bodyMedium)
+                                .foregroundStyle(KIRIColor.Text.accent)
+                            Text(message)
+                                .font(KIRITypography.bodySmall)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 30)
+                    }
                     if let errorMessage { errorText(errorMessage) }
-                }.padding(18).padding(.bottom, 110)
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 110)
             }
-            bottomButton(title: "초대장 보내기", enabled: !isSubmitting && !isSelectedDateTimeInPast) {
-                guard validateDateTime() else { return }
-                isSendMethodVisible = true
+            HStack(spacing: 8) {
+                Button("취소") { step = .form }
+                    .font(KIRITypography.button)
+                    .foregroundStyle(KIRIColor.Text.primary)
+                    .frame(maxWidth: .infinity).frame(height: 54)
+                    .background(KIRIColor.Background.secondary)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                Button("요청 보내기") {
+                    guard validateDateTime() else { return }
+                    isSendMethodVisible = true
+                }
+                .font(KIRITypography.button)
+                .foregroundStyle(KIRIColor.Text.onGreen)
+                .frame(maxWidth: .infinity).frame(height: 54)
+                .background(KIRIColor.Primary.default)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .disabled(isSubmitting || isSelectedDateTimeInPast)
             }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 12)
         }
         .overlay {
             if isSendMethodVisible {
                 InvitationSendMethodSheet(onClose: { isSendMethodVisible = false }, onSendInApp: { isSendMethodVisible = false; Task { await submit() } }, onSendKakao: { isSendMethodVisible = false; errorMessage = "카카오톡 발송은 일정 생성 후 제공되는 초대 링크로 진행해 주세요." }).zIndex(10)
             }
         }
+    }
+
+    private var requestCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("활동명")
+                .font(KIRITypography.captionMedium)
+                .foregroundStyle(KIRIColor.Text.tertiary)
+            Text(missionTitle)
+                .font(KIRITypography.headingLarge)
+                .foregroundStyle(KIRIColor.Text.strong)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Image(systemName: "clock")
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+                Text(displayDateTime)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "person.2.fill")
+                    .foregroundStyle(KIRIColor.Icon.secondary)
+                Text(selectedMembers.map(\.nickname).joined(separator: ", "))
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, minHeight: 167, alignment: .leading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
     private var missionSummary: some View {
