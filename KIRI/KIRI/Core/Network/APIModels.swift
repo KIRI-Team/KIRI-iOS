@@ -290,7 +290,8 @@ struct ReviewItemResult: Decodable, Identifiable, Sendable {
 
 struct ReviewWriterResult: Decodable, Sendable {
     let memberId: Int
-    let nickname: String
+    /// 일부 리뷰 응답은 작성자 ID만 내려주므로 화면에서 가족 구성원 정보로 보완합니다.
+    let nickname: String?
     let familyRole: String?
 }
 

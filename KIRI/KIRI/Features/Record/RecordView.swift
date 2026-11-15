@@ -329,8 +329,10 @@ struct RecordView: View {
 
     private func reviewData(for schedule: RecordCalendarView.ScheduleDetailData,
                             draft: ActivityReviewWriteView.Draft) -> RecordCalendarView.ReviewDetailData {
-        .init(title: schedule.title, date: schedule.date,
-              familyName: "끼리네가족", authorName: "나", isCurrentUser: true,
+        let session = AppSessionStore()
+        return .init(title: schedule.title, date: schedule.date,
+              familyName: session.familyName ?? "가족",
+              authorName: session.nickname ?? "", isCurrentUser: true,
               review: draft.comment, writtenDate: Date.now.formatted(.dateTime.month().day()),
               representativePhotoURL: nil,
               draft: draft)

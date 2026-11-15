@@ -18,8 +18,8 @@ struct ActivityReviewCompleteView: View {
     let onBack: () -> Void
     let onEdit: () -> Void
 
-    var userName: String = "김주연"
-    var familyRole: String = "나"
+    var userName: String = ""
+    var familyRole: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -35,7 +35,7 @@ struct ActivityReviewCompleteView: View {
 
     private var reviewSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("끼리네가족 님의 한 줄")
+            Text(userName.isEmpty ? "나의 한 줄" : "\(userName)님의 한 줄")
                 .font(KIRITypography.headingSmall)
                 .foregroundStyle(KIRIColor.Text.strong)
 
@@ -50,7 +50,7 @@ struct ActivityReviewCompleteView: View {
                     .font(.system(size: 36))
                     .foregroundStyle(KIRIColor.Text.secondary)
 
-                Text("\(userName) | \(familyRole)")
+                Text([userName, familyRole].filter { !$0.isEmpty }.joined(separator: " | "))
                     .font(KIRITypography.body)
                     .foregroundStyle(KIRIColor.Text.primary)
 
