@@ -22,20 +22,21 @@ struct HomeQuestionAnswerView: View {
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     let question: String
     let existingAnswer: String?
+    let familyNicknames: [String]
     let onBack: () -> Void
     let onSave: (String) async -> Bool
-    private enum Step { case prompt, writing, saved }
-    @State private var answer: String
-    @State private var step: Step = .prompt
+    @State private var selectedNickname: String?
     @State private var isSaving = false
     @State private var saveError: String?
+    @State private var isShowingCompletion = false
 
-    init(question: String, existingAnswer: String?, onBack: @escaping () -> Void, onSave: @escaping (String) async -> Bool) {
+    init(question: String, existingAnswer: String?, familyNicknames: [String], onBack: @escaping () -> Void, onSave: @escaping (String) async -> Bool) {
         self.question = question
         self.existingAnswer = existingAnswer
+        self.familyNicknames = familyNicknames
         self.onBack = onBack
         self.onSave = onSave
-        _answer = State(initialValue: existingAnswer ?? "")
+        _selectedNickname = State(initialValue: familyNicknames.first { $0 == existingAnswer })
     }
 
     var body: some View {
@@ -45,12 +46,18 @@ struct HomeQuestionAnswerView: View {
                 HomeInteractionBar(title: "오늘의 질문", onBack: onBack)
                 ScrollView(showsIndicators: false) { content }
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomAction
+                        submitButton
                             .padding(.horizontal, 18)
                             .padding(.top, 12)
                             .padding(.bottom, 10)
                             .background(KIRIColor.Background.base)
                     }
+            }
+
+            if isShowingCompletion {
+                completionModal
+                    .transition(.opacity)
+                    .zIndex(2)
             }
         }
         .onAppear { tabBarVisibility.wrappedValue = false }
@@ -67,53 +74,30 @@ struct HomeQuestionAnswerView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
                 .fixedSize(horizontal: false, vertical: true)
 
-            switch step {
-            case .prompt:
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "아직 답변하지 않았어요" : "내 답변")
-                        .font(KIRITypography.bodySmallMedium)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                    if !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(answer)
-                            .font(KIRITypography.body)
-                            .foregroundStyle(KIRIColor.Text.primary)
-                            .fixedSize(horizontal: false, vertical: true)
+            Text("가족 닉네임을 선택하세요")
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.secondary)
+            Menu {
+                if familyNicknames.isEmpty {
+                    Text("가족 구성원이 없어요")
+                } else {
+                    ForEach(familyNicknames, id: \.self) { nickname in
+                        Button(nickname) { selectedNickname = nickname }
                     }
                 }
-                .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
-                .padding(18)
-                .background(KIRIColor.Background.secondary)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            case .writing:
-                TextEditor(text: $answer)
-                    .font(KIRITypography.body)
-                    .foregroundStyle(KIRIColor.Text.primary)
-                    .scrollContentBackground(.hidden)
-                    .padding(12)
-                    .frame(height: 170)
-                    .background(KIRIColor.Background.secondary)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } label: {
                 HStack {
-                    Text("공백 제외 \(answer.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
-                    Spacer()
-                }
-                .font(KIRITypography.caption)
-                .foregroundStyle(KIRIColor.Text.tertiary)
-                Text("오늘의 질문은 텍스트로만 답변할 수 있으며, 저장 버튼을 눌러야 답변 상태가 변경됩니다.")
-                    .font(KIRITypography.caption)
-                    .foregroundStyle(KIRIColor.Text.tertiary)
-            case .saved:
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("답변을 저장했어요")
-                        .font(KIRITypography.headingSmall)
-                        .foregroundStyle(KIRIColor.Text.accent)
-                    Text(answer)
+                    Text(selectedNickname ?? "가족 닉네임을 선택하세요")
                         .font(KIRITypography.body)
-                        .foregroundStyle(KIRIColor.Text.primary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(selectedNickname == nil ? KIRIColor.Text.tertiary : KIRIColor.Text.primary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(KIRIColor.Text.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
-                .padding(18)
+                .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
                 .background(KIRIColor.Background.secondary)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
@@ -127,44 +111,54 @@ struct HomeQuestionAnswerView: View {
         .padding(18)
     }
 
-    @ViewBuilder
-    private var bottomAction: some View {
-        switch step {
-        case .prompt:
-            Button(answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "답변하기" : "답변 수정하기") {
-                withAnimation(.easeInOut(duration: 0.2)) { step = .writing }
-            }
-            .buttonStyle(QuestionActionButtonStyle(isEnabled: true))
-        case .writing:
-            answerSaveButton
-        case .saved:
-            Button("홈으로 돌아가기", action: onBack)
-                .buttonStyle(QuestionActionButtonStyle(isEnabled: true))
-        }
-    }
-
-    private var answerSaveButton: some View {
-        let isEnabled = !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && answer.count <= 500
+    private var submitButton: some View {
+        let isEnabled = selectedNickname != nil && !isSaving
         return Button {
-            let normalized = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard isEnabled, !isSaving else { return }
+            guard let selectedNickname, isEnabled else { return }
             isSaving = true
             saveError = nil
             Task { @MainActor in
-                let succeeded = await onSave(normalized)
+                let succeeded = await onSave(selectedNickname)
                 isSaving = false
                 if succeeded {
-                    answer = normalized
-                    withAnimation(.easeInOut(duration: 0.2)) { step = .saved }
+                    withAnimation(.easeInOut(duration: 0.2)) { isShowingCompletion = true }
                 } else {
                     saveError = "답변을 저장하지 못했어요. 다시 시도해 주세요."
                 }
             }
         } label: {
-            Text(isSaving ? "저장 중..." : "답변 저장")
+            Text(isSaving ? "제출 중..." : "답변 제출")
         }
-        .disabled(!isEnabled || isSaving)
-        .buttonStyle(QuestionActionButtonStyle(isEnabled: isEnabled && !isSaving))
+        .disabled(!isEnabled)
+        .buttonStyle(QuestionActionButtonStyle(isEnabled: isEnabled))
+    }
+
+    private var completionModal: some View {
+        ZStack {
+            Color.black.opacity(0.56).ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image("kiri_character")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 96, height: 96)
+                VStack(spacing: 8) {
+                    Text("답변이 완료됐어요!")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                    Text("다른 가족의 답변을 기다려볼까요?")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                Button("홈으로 돌아가기") { onBack() }
+                    .buttonStyle(QuestionActionButtonStyle(isEnabled: true))
+            }
+            .padding(24)
+            .frame(maxWidth: 330)
+            .background(KIRIColor.Background.primary)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 30)
+        }
     }
 }
 

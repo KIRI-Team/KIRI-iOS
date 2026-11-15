@@ -129,6 +129,7 @@ struct FamilyHomeView: View {
                 HomeQuestionAnswerView(
                     question: serverQuestion?.question ?? "오늘의 질문",
                     existingAnswer: serverQuestion?.answer,
+                    familyNicknames: displayedMembers.map(\.name),
                     onBack: { route = .home }
                 ) { savedAnswer in
                     guard let questionId = serverQuestion?.questionId else { return false }
