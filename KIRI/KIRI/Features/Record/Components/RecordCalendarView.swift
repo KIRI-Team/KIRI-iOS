@@ -116,6 +116,8 @@ struct RecordCalendarView: View {
     @State private var serverUpcoming: UpcomingScheduleResult?
     @State private var isLoadingServerSchedules = false
     @State private var scheduleLoadError: String?
+    @State private var reviewedScheduleIDs: Set<Int> = []
+    @State private var representativePhotoURLs: [Int: URL] = [:]
     /// 오늘 질문 응답 여부는 질문 API의 실제 상태만 사용합니다.
     /// 답변 이력 전체를 제공하는 캘린더 계약이 없으므로 과거 날짜를 임의로 표시하지 않습니다.
     @State private var todayQuestionAnswered = false
@@ -262,7 +264,8 @@ struct RecordCalendarView: View {
 
                 return calendar.startOfDay(for: date) >=
                     calendar.startOfDay(for: Date()) &&
-                    !hasSavedReview(schedule)
+                    !hasSavedReview(schedule) &&
+                    !(schedule.scheduleId.map { reviewedScheduleIDs.contains($0) } ?? false)
             }
             .sorted {
                 (parseDate($0.date) ?? .distantFuture) <
@@ -368,7 +371,8 @@ struct RecordCalendarView: View {
         } ?? []
 
         if !reviews(for: day).isEmpty ||
-            daySchedules.contains(where: hasSavedReview) {
+            daySchedules.contains(where: hasSavedReview) ||
+            daySchedules.contains(where: { $0.scheduleId.map { reviewedScheduleIDs.contains($0) } == true }) {
             return .completed
         }
 
@@ -428,6 +432,21 @@ struct RecordCalendarView: View {
             serverCalendar = try await calendarResult
             serverUpcoming = try await upcomingResult
             todayQuestionAnswered = (await questionResult)?.isAnswered == true
+            let scheduleIDs = Set((serverCalendar?.schedules ?? []).map(\.scheduleId))
+            var reviewed = Set<Int>()
+            var photoURLs: [Int: URL] = [:]
+            for scheduleID in scheduleIDs {
+                if let result = try? await AuthService.shared.scheduleReviews(scheduleId: scheduleID),
+                   !result.reviews.isEmpty {
+                    reviewed.insert(scheduleID)
+                    if let representativeID = result.representativePhotoId,
+                       let photo = result.reviews.flatMap(\.photos).first(where: { $0.reviewPhotoId == representativeID }) {
+                        photoURLs[scheduleID] = photo.imageUrl
+                    }
+                }
+            }
+            reviewedScheduleIDs = reviewed
+            representativePhotoURLs = photoURLs
         } catch {
             scheduleLoadError = "일정을 불러오지 못했어요."
             #if DEBUG
@@ -463,7 +482,8 @@ struct RecordCalendarView: View {
         case "PENDING_RESPONSE", "PENDING", "RECONFIRM_REQUIRED", "NOT_CONFIRMED":
             return .pendingSchedule
         case "COMPLETED":
-            return .completed
+            // 완료 퍼즐은 리뷰가 실제로 존재할 때만 표시합니다.
+            return .confirmedSchedule
         case "CANCELLED", "CANCELED":
             return nil
         default:
@@ -587,7 +607,7 @@ struct RecordCalendarView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
-                    selected
+                    selected || isToday(day)
                         ? KIRIColor.Primary.default
                         : Color.clear,
                     lineWidth: 1
@@ -603,7 +623,7 @@ struct RecordCalendarView: View {
         switch state {
         case .pendingSchedule:
             VStack(spacing: 2) {
-                Image("figma_calendar_disabled")
+                Image(isPast(day) ? "figma_calendar_disabled" : "figma_calendar_active")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 17, height: 17)
@@ -615,7 +635,7 @@ struct RecordCalendarView: View {
 
         case .confirmedSchedule:
             VStack(spacing: 2) {
-                Image("figma_calendar_active")
+                Image(isPast(day) ? "figma_calendar_disabled" : "figma_calendar_active")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 17, height: 17)
@@ -626,7 +646,22 @@ struct RecordCalendarView: View {
             }
 
         case .completed:
-            if let image = reviews(for: day).first?.draft?.images.first {
+            if let schedule = schedules(for: day).first(where: { $0.scheduleId.map { reviewedScheduleIDs.contains($0) } == true }),
+               let photoURL = schedule.scheduleId.flatMap({ representativePhotoURLs[$0] }) {
+                KIRIContentImage(imageURL: photoURL, mockAssetName: nil) {
+                    KIRIColor.Background.secondary
+                }
+                    .frame(width: 45, height: 45)
+                    .mask(Image("figma_calendar_puzzle_answered").resizable().scaledToFit())
+                    .overlay(alignment: .bottom) {
+                        Text(String(day))
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.black.opacity(0.35))
+                    }
+                    .clipped()
+            } else if let image = reviews(for: day).first?.draft?.images.first {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
@@ -642,7 +677,7 @@ struct RecordCalendarView: View {
                     .clipped()
             } else {
                 VStack(spacing: 2) {
-                    Image("figma_toast_check")
+                    Image("figma_calendar_puzzle_answered")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 17, height: 17)
@@ -677,6 +712,32 @@ struct RecordCalendarView: View {
         )
     }
 
+    private func isToday(_ day: Int) -> Bool {
+        guard let date = dateForDay(day) else { return false }
+        return calendar.isDate(date, inSameDayAs: Date())
+    }
+
+    private func isPast(_ day: Int) -> Bool {
+        guard let date = dateForDay(day) else { return false }
+        if calendar.startOfDay(for: date) < calendar.startOfDay(for: Date()) { return true }
+        guard let schedule = schedules(for: day).first,
+              let time = parseTime(schedule.startTime) else { return false }
+        return calendar.isDateInToday(date) && time < Date()
+    }
+
+    private func parseTime(_ value: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.timeZone = .current
+        let parsed = ["HH:mm", "HH:mm:ss"].compactMap { format -> Date? in
+            formatter.dateFormat = format
+            return formatter.date(from: value)
+        }.first
+        guard let parsed else { return nil }
+        let components = calendar.dateComponents([.hour, .minute], from: parsed)
+        return calendar.date(bySettingHour: components.hour ?? 0, minute: components.minute ?? 0, second: 0, of: Date())
+    }
+
     private func selectDay(_ day: Int) {
         guard let date = dateForDay(day) else {
             return
@@ -693,6 +754,7 @@ struct RecordCalendarView: View {
         }
 
         if let schedule = schedules(for: day).first {
+            // 서버 리뷰가 있는 날짜는 일정 상세에서 실제 리뷰 응답을 읽습니다.
             openSchedule(schedule)
         }
     }
@@ -727,6 +789,10 @@ struct RecordCalendarView: View {
             openSchedule(schedule)
         } label: {
             HStack(alignment: .top, spacing: 12) {
+                Image(isPastSchedule(schedule) ? "figma_calendar_disabled" : "figma_calendar_active")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
                 VStack(alignment: .leading, spacing: 8) {
                     statusBadge(for: schedule)
 
@@ -807,6 +873,13 @@ struct RecordCalendarView: View {
         formatter.dateFormat = "yy.MM.dd"
 
         return formatter.string(from: date)
+    }
+
+    private func isPastSchedule(_ schedule: ScheduleDetailData) -> Bool {
+        guard let date = parseDate(schedule.date) else { return false }
+        if calendar.startOfDay(for: date) < calendar.startOfDay(for: Date()) { return true }
+        guard calendar.isDateInToday(date), let time = parseTime(schedule.startTime) else { return false }
+        return time < Date()
     }
 
     // MARK: - Empty State
