@@ -378,11 +378,7 @@ struct ScheduleDetailView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 navigationBar
-                Text(
-                    effectiveStatus == "CONFIRMED"
-                        ? "약속 확정"
-                        : "약속 예정"
-                )
+                Text(statusBadgeTitle)
                 .font(KIRITypography.bodySmall)
                 .foregroundStyle(KIRIColor.Text.primary)
                 .padding(.horizontal, 10)
@@ -544,6 +540,12 @@ struct ScheduleDetailView: View {
         }
     }
 
+    private var statusBadgeTitle: String {
+        if serverDetail?.myStatus == "PENDING", serverDetail?.canRespond == true { return "일정 요청" }
+        if serverDetail?.myStatus == "RECONFIRM_REQUIRED" { return "일정 재확인" }
+        return effectiveStatus == "CONFIRMED" ? "약속 확정" : "약속 예정"
+    }
+
     private func participantSummary(_ participants: [ScheduleParticipantResult]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("참여 가족")
@@ -654,13 +656,13 @@ struct ScheduleDetailView: View {
 
                 if serverDetail?.canRespond == true {
                     HStack(spacing: 8) {
-                    Button("거절") {
+                    Button(serverDetail?.myStatus == "RECONFIRM_REQUIRED" ? "취소" : "거절") {
                         Task { await respond(action: "DECLINED") }
                     }
                     .buttonStyle(scheduleActionStyle(isPrimary: false))
                     .disabled(isMutatingSchedule)
 
-                    Button("수락") {
+                    Button(serverDetail?.myStatus == "RECONFIRM_REQUIRED" ? "약속 확정하기" : "수락") {
                         Task { await respond(action: "ACCEPTED") }
                     }
                     .buttonStyle(scheduleActionStyle(isPrimary: true))
