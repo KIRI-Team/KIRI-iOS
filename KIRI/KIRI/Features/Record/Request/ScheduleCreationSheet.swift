@@ -232,26 +232,41 @@ struct ScheduleCreationSheet: View {
 
     @ViewBuilder
     private func memberImage(_ member: FamilyMemberInfoResult) -> some View {
-        if let url = member.characterImageUrl {
+        // 구성원 선택 상태는 캐릭터 자체의 Figma 원본으로 구분합니다.
+        // 서버 URL이 있더라도 역할별 선택/미선택 에셋을 우선해 상태가
+        // 카드 배경에만 반영되는 문제를 막습니다.
+        if let asset = roleAsset(for: member.familyRole, selected: selectedMemberIds.contains(member.memberId)) {
+            Image(asset)
+                .resizable()
+                .scaledToFit()
+        } else if let url = member.characterImageUrl {
             AsyncImage(url: url) { phase in
                 if case .success(let image) = phase { image.resizable().scaledToFit() }
-                else { roleImage(for: member.familyRole) }
+                else { Image("figma_family_member_default").resizable().scaledToFit() }
             }
         } else {
-            roleImage(for: member.familyRole)
+            Image("figma_family_member_default").resizable().scaledToFit()
         }
     }
 
-    private func roleImage(for role: String?) -> some View {
-        let asset: String
-        switch role?.uppercased() {
-        case "FATHER": asset = "role_dad"
-        case "MOTHER": asset = "role_mom"
-        case "SON": asset = "role_son"
-        case "DAUGHTER": asset = "role_daughter"
-        default: asset = "family-member"
+    private func roleAsset(for role: String?, selected: Bool) -> String? {
+        let normalizedRole = role?.uppercased()
+        if selected {
+            switch normalizedRole {
+            case "FATHER": return "figma_family_member_active"
+            case "MOTHER": return "figma_family_member_active_mom"
+            case "SON": return "figma_family_member_active_son"
+            case "DAUGHTER": return "figma_family_member_active_daughter"
+            default: return "figma_family_member_active"
+            }
         }
-        return Image(asset).resizable().scaledToFit()
+        switch role?.uppercased() {
+        case "FATHER": return "role_dad"
+        case "MOTHER": return "role_mom"
+        case "SON": return "role_son"
+        case "DAUGHTER": return "role_daughter"
+        default: return "figma_family_member_default"
+        }
     }
 
     private func detailLine(label: String, value: String) -> some View { VStack(alignment: .leading, spacing: 5) { Text(label).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary); Text(value).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.strong) } }
