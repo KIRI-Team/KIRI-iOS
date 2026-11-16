@@ -168,7 +168,19 @@ struct ScheduleDetailView: View {
                     crowdLevel: nil,
                     imageURL: mission.imageUrl
                 )
-            }
+            },
+            reviewMemories: serverReviews.map { review in
+                TodayActivityView.ReviewMemory(
+                    id: review.reviewId,
+                    authorName: reviewWriterName(review),
+                    familyRole: review.writer.familyRole,
+                    content: review.content,
+                    imageURL: review.photos.first?.imageUrl,
+                    isMine: review.isMine
+                )
+            },
+            currentUserNickname: currentUserNickname,
+            currentUserRole: currentUserRole
         )
     }
     private func hasChanged(_ field: String) -> Bool { serverDetail?.changedFields.contains(field) == true }
