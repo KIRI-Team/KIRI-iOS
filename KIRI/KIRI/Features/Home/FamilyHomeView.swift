@@ -21,6 +21,7 @@ private struct FamilyMemberFramePreferenceKey: PreferenceKey {
 struct FamilyHomeView: View {
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     // 기존 가족공간 데이터가 준비되면 실제 값을 전달합니다.
     var familyName: String?
     var familyId: Int? = nil
@@ -41,6 +42,8 @@ struct FamilyHomeView: View {
     @State private var showsMissionFace = false
     @State private var didLoadTodayQuestion = false
     @State private var todayQuestionError: String?
+    @State private var todayQuestionUnavailable = false
+    @State private var questionLoadedDay: Date?
     @State private var serverQuestion: TodayQuestionResult?
     @State private var familyAnswers: [FamilyAnswer] = []
     // 답변 목록 응답의 질문을 함께 보존해 선택한 구성원의 상태와 같은 질문을 표시합니다.
@@ -333,6 +336,13 @@ struct FamilyHomeView: View {
             tabBarVisibility.wrappedValue = newRoute == .home
             if newRoute == .home {
                 Task { await refreshUnreadNotifications() }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, loadsServerQuestion else { return }
+            let today = Calendar.current.startOfDay(for: Date())
+            if questionLoadedDay != today {
+                Task { await loadTodayQuestion() }
             }
         }
         .onDisappear {
@@ -744,6 +754,19 @@ struct FamilyHomeView: View {
             if !didLoadTodayQuestion {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 136)
+            } else if let serverQuestion, let questionId = serverQuestion.questionId,
+                      !(serverQuestion.question ?? "").isEmpty {
+                QuestionMissionFlipCard(
+                    questionNumber: questionId,
+                    question: serverQuestion.question ?? "오늘의 질문",
+                    answer: serverQuestion.answer,
+                    mission: tutorialMission,
+                    showsMission: $showsMissionFace,
+                    onQuestionAnswer: { route = .questionAnswer },
+                    onMissionDetail: { route = .missionDetail },
+                    onMissionExplore: onExploreMission
+                )
+                .homeTutorialMeasured(.questionMissionCard)
             } else if let todayQuestionError {
                 VStack(spacing: 10) {
                     Text(todayQuestionError)
@@ -756,19 +779,7 @@ struct FamilyHomeView: View {
                     .foregroundStyle(KIRIColor.Text.accent)
                 }
                 .frame(maxWidth: .infinity, minHeight: 136)
-            } else if let serverQuestion, let questionId = serverQuestion.questionId {
-                QuestionMissionFlipCard(
-                    questionNumber: questionId,
-                    question: serverQuestion.question ?? "오늘의 질문",
-                    answer: serverQuestion.answer,
-                    mission: tutorialMission,
-                    showsMission: $showsMissionFace,
-                    onQuestionAnswer: { route = .questionAnswer },
-                    onMissionDetail: { route = .missionDetail },
-                    onMissionExplore: onExploreMission
-                )
-                .homeTutorialMeasured(.questionMissionCard)
-            } else {
+            } else if todayQuestionUnavailable {
                 Text("오늘의 질문이 아직 없어요")
                     .font(KIRITypography.bodyMedium)
                     .foregroundStyle(KIRIColor.Text.tertiary)
@@ -953,6 +964,8 @@ struct FamilyHomeView: View {
             let result = try await AuthService.shared.todayQuestion()
             await MainActor.run {
                 serverQuestion = result
+                todayQuestionUnavailable = !result.hasFamily || result.questionId == nil || (result.question ?? "").isEmpty
+                questionLoadedDay = Calendar.current.startOfDay(for: Date())
                 familyAnswers = []
                 familyAnswersQuestion = nil
                 familyAnswersError = nil
@@ -970,11 +983,18 @@ struct FamilyHomeView: View {
             // family home visible and render its empty state instead of an
             // API error or a fake question.
             await MainActor.run {
-                serverQuestion = nil
-                familyAnswers = []
-                familyAnswersQuestion = nil
-                familyAnswersError = nil
-                todayQuestionError = nil
+                // Keep a question already received today visible through a
+                // transient refresh failure. Only the initial 404 is an
+                // authoritative unassigned state.
+                let isSameDay = questionLoadedDay == Calendar.current.startOfDay(for: Date())
+                if serverQuestion == nil || !isSameDay {
+                    serverQuestion = nil
+                    todayQuestionUnavailable = true
+                    familyAnswers = []
+                    familyAnswersQuestion = nil
+                    familyAnswersError = nil
+                    todayQuestionError = nil
+                }
                 didLoadTodayQuestion = true
             }
             #if DEBUG
@@ -982,9 +1002,12 @@ struct FamilyHomeView: View {
             #endif
         } catch {
             await MainActor.run {
-                familyAnswers = []
-                familyAnswersQuestion = nil
-                todayQuestionError = error.localizedDescription
+                let isSameDay = questionLoadedDay == Calendar.current.startOfDay(for: Date())
+                if serverQuestion == nil || !isSameDay {
+                    serverQuestion = nil
+                    todayQuestionUnavailable = false
+                    todayQuestionError = "오늘의 질문을 불러오지 못했어요"
+                }
                 didLoadTodayQuestion = true
             }
             #if DEBUG
