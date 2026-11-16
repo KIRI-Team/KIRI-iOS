@@ -84,15 +84,39 @@ struct PlaceCard: View {
     }
 
     private var imagePlaceholder: some View {
-        // Give the loader both dimensions. If only the outer height is fixed,
-        // AsyncImage's aspect-ratio view can be centered inside that frame and
-        // expose the card background as a horizontal strip above the photo.
-        // The card's outer clip applies the matching rounded top corners.
-        KIRIContentImage(imageURL: imageURL, mockAssetName: imageName) {
-            Rectangle().fill(KIRIColor.Background.tertiary)
+        // Render the image directly in the card's fixed frame. Keeping the
+        // frame on the AsyncImage content (rather than only on its wrapper)
+        // prevents a loading/intrinsic-size alignment from exposing the dark
+        // card background above portrait or landscape photos.
+        ZStack(alignment: .top) {
+            KIRIColor.Background.tertiary
+
+            if let imageURL {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .empty, .failure:
+                        imageFallback
+                    @unknown default:
+                        imageFallback
+                    }
+                }
+            } else {
+                imageFallback
+            }
         }
         .frame(width: 251, height: 144, alignment: .top)
         .clipped()
+    }
+
+    @ViewBuilder
+    private var imageFallback: some View {
+        if let imageName {
+            Image(imageName).resizable().scaledToFill()
+        } else {
+            Rectangle().fill(KIRIColor.Background.tertiary)
+        }
     }
 }
 
