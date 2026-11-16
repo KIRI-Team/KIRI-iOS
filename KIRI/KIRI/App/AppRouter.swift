@@ -348,8 +348,17 @@ final class AppRouter {
             nickname = result.nickname
             saveAccountSnapshot()
             return nil
+        } catch let APIError.serverError(code, message) {
+            switch code {
+            case "MEMBER409_1":
+                return "이미 사용 중인 닉네임입니다."
+            case "COMMON400_1":
+                return message.isEmpty ? "닉네임 형식을 확인해 주세요." : message
+            default:
+                return "닉네임을 저장하지 못했어요. 다시 시도해 주세요."
+            }
         } catch {
-            return error.localizedDescription
+            return "닉네임을 저장하지 못했어요. 다시 시도해 주세요."
         }
     }
 

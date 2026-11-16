@@ -180,11 +180,14 @@ enum KIRIColor {
 
         enum FilledAccent {
             static let backgroundDefault = Primary.default
-            static let backgroundDisabled = Primary.disabled
+            // Figma KIRI/Button Disabled: #404140 / #D9D9D8.
+            // Keep the disabled state opaque so the accent green is never
+            // visible through the button.
+            static let backgroundDisabled = Color(hex: 0x404140)
             static let backgroundPressed = Primary.pressed
 
             static let contentDefault = Text.onGreen
-            static let contentDisabled = Text.disabled
+            static let contentDisabled = Color(hex: 0xD9D9D8)
             static let contentPressed = Text.onGreen
         }
 
