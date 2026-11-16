@@ -183,7 +183,16 @@ struct NotificationView: View {
         guard let id = item.referenceId else { return .unavailable }
         if item.notificationType.hasPrefix("SCHEDULE") { return .schedule(id) }
         if item.notificationType == "QUESTION_REMINDER" || item.notificationType == "QUESTION_COMPLETE" || item.notificationType == "POKE" { return .question(id) }
-        if item.notificationType.contains("MISSION") || item.notificationType == "EXTERNAL_EVENT_CANCELLED" { return .mission(id) }
+        if item.notificationType == "RECORD" || item.notificationType == "RECORD_CREATED" {
+            // 백엔드 NotificationConverter는 두 유형의 referenceId에
+            // schedule.id를 넣으므로 일정 상세로 이동합니다.
+            return .schedule(id)
+        }
+        if item.notificationType == "MISSION" || item.notificationType == "MISSION_CHANGED" || item.notificationType == "EXTERNAL_EVENT_CANCELLED" {
+            return .mission(id)
+        }
+        // WEEKLY_MISSION_COMPLETED의 referenceId는 미션 ID가 아닌
+        // 가족 추천 ID이므로 임의로 미션 상세로 이동하지 않습니다.
         return .unavailable
     }
 
@@ -196,7 +205,16 @@ struct NotificationView: View {
 
     private func formatDate(_ value: String) -> String {
         let input = ISO8601DateFormatter(); input.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let date = input.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+        let local = DateFormatter()
+        local.locale = Locale(identifier: "en_US_POSIX")
+        local.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        let localWithoutFraction = DateFormatter()
+        localWithoutFraction.locale = Locale(identifier: "en_US_POSIX")
+        localWithoutFraction.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let date = input.date(from: value)
+            ?? ISO8601DateFormatter().date(from: value)
+            ?? local.date(from: value)
+            ?? localWithoutFraction.date(from: value)
         guard let date else { return value }
         let formatter = RelativeDateTimeFormatter(); formatter.locale = Locale(identifier: "ko_KR"); formatter.unitsStyle = .full
         return formatter.localizedString(for: date, relativeTo: Date())
