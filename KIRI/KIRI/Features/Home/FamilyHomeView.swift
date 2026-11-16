@@ -405,39 +405,33 @@ struct FamilyHomeView: View {
         Button {
             route = .todayActivity
         } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("오늘 약속 당일이에요!")
-                            .font(KIRITypography.bodySmallMedium)
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    (
+                        Text("오늘 ")
+                            .foregroundStyle(KIRIColor.Text.strong)
+                        + Text("약속 당일")
                             .foregroundStyle(KIRIColor.Text.accent)
-                        Text("코스를 확인하세요")
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                }
-                Text(todayScheduleDetail?.missionTitle ?? "오늘의 약속")
-                    .font(KIRITypography.title)
-                    .foregroundStyle(KIRIColor.Text.strong)
-                    .multilineTextAlignment(.leading)
-                if let description = todayScheduleDetail?.missionDescription, !description.isEmpty {
-                    Text(description)
+                        + Text("이에요!")
+                            .foregroundStyle(KIRIColor.Text.strong)
+                    )
+                    .font(KIRITypography.bodySmallMedium)
+
+                    Text("코스를 확인하세요")
                         .font(KIRITypography.bodySmall)
                         .foregroundStyle(KIRIColor.Text.secondary)
-                        .lineLimit(2)
                 }
-                Text("오늘 \(todayScheduleDetail?.time ?? "")")
-                    .font(KIRITypography.caption)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
-            .padding(18)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
