@@ -46,6 +46,9 @@ struct FamilyHomeView: View {
     @State private var questionLoadedDay: Date?
     @State private var serverQuestion: TodayQuestionResult?
     @State private var familyAnswers: [FamilyAnswer] = []
+    @State private var familyMembers: [FamilyMemberInfoResult] = []
+    @State private var familyMembersError: String?
+    @State private var isLoadingFamilyMembers = false
     // 답변 목록 응답의 질문을 함께 보존해 선택한 구성원의 상태와 같은 질문을 표시합니다.
     @State private var familyAnswersQuestion: String?
     @State private var isLoadingFamilyAnswers = false
@@ -358,6 +361,9 @@ struct FamilyHomeView: View {
                 return
             }
             await loadTodayQuestion()
+        }
+        .task {
+            await loadFamilyMembers()
         }
         .task {
             await loadRecommendations()
@@ -678,9 +684,19 @@ struct FamilyHomeView: View {
                 .homeTutorialMeasured(.invite)
             }
 
-            if isLoadingFamilyAnswers && displayedMembers.isEmpty {
+            if (isLoadingFamilyMembers || isLoadingFamilyAnswers) && displayedMembers.isEmpty {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .leading)
+            } else if let familyMembersError, displayedMembers.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("가족 구성원을 불러오지 못했어요")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                    Button("다시 시도") { Task { await loadFamilyMembers() } }
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                        .accessibilityHint(familyMembersError)
+                }
             } else if let familyAnswersError, displayedMembers.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("가족 답변을 불러오지 못했어요")
@@ -700,17 +716,34 @@ struct FamilyHomeView: View {
                     .foregroundStyle(KIRIColor.Text.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
+                if let familyAnswersError, let questionId = serverQuestion?.questionId {
+                    HStack(spacing: 8) {
+                        Text("답변 상태를 확인하지 못했어요")
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                        Button("다시 시도") {
+                            Task { await loadFamilyAnswers(questionId: questionId) }
+                        }
+                        .font(KIRITypography.captionMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                        .accessibilityHint(familyAnswersError)
+                    }
+                }
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(displayedMembers) { member in
                             Button {
+                                guard member.answerStatusKnown else {
+                                    showPokeToast("답변 상태를 확인할 수 없어요. 다시 시도해 주세요.", isError: true)
+                                    return
+                                }
                                 selectedMember = member
                                 // 서버가 내려주는 isMe는 오래된 응답이나
                                 // 다른 질문의 매핑에서 틀릴 수 있으므로, 현재
                                 // 세션의 실제 memberId를 화면 전환 기준으로 사용합니다.
                                 route = isCurrentMember(member) ? .questionAnswer : .memberDetail
                             } label: {
-                                FamilyMemberItem(name: member.name, role: member.role, isMe: member.isMe, hasAnswered: member.hasAnswered)
+                                FamilyMemberItem(name: member.name, role: member.role, isMe: member.isMe, hasAnswered: member.hasAnswered, answerStatusKnown: member.answerStatusKnown)
                             }
                             .buttonStyle(.plain)
                             .background(
@@ -808,38 +841,33 @@ struct FamilyHomeView: View {
     }
 
     private var displayedMembers: [HomeMember] {
-        if !familyAnswers.isEmpty {
-            let currentMemberId = try? AuthService.shared.currentMemberId()
-            return familyAnswers.map { member in
-                // 서버의 isMe는 인증된 memberId를 기준으로 계산된 값입니다.
-                // JWT subject를 읽지 못하는 환경에서도 서버가 식별한 본인을
-                // 잃지 않도록 두 ID 경로를 함께 사용합니다.
-                let isMe = member.isMe || member.memberId == currentMemberId
+        let currentMemberId = try? AuthService.shared.currentMemberId()
+        let answersByMemberId = Dictionary(uniqueKeysWithValues: familyAnswers.map { ($0.memberId, $0) })
+        if !familyMembers.isEmpty {
+            return familyMembers.map { member in
+                let answer = answersByMemberId[member.memberId]
+                let isMe = member.memberId == currentMemberId
                 return HomeMember(
-                    id: String(member.memberId),
-                    memberId: member.memberId,
+                    id: String(member.memberId), memberId: member.memberId,
                     name: member.nickname,
-                    role: isMe ? (member.familyRole ?? familyRole) : member.familyRole,
-                    hasAnswered: member.isAnswered,
-                    answer: member.answer,
-                    isMe: isMe
+                    role: member.familyRole ?? (isMe ? familyRole : nil),
+                    hasAnswered: answer?.isAnswered ?? false,
+                    answerStatusKnown: answer != nil,
+                    answer: answer?.answer, isMe: isMe
                 )
             }
         }
-        // The server response identifies the authenticated user through the
-        // question payload even when the family answer list is empty. Do not
-        // invent other family members, but keep the authenticated member
-        // visible when the family itself is known.
-        guard familyId != nil, familyAnswersError == nil else { return [] }
-        return [HomeMember(
-            id: "me",
-            memberId: try? AuthService.shared.currentMemberId(),
-            name: (nickname?.isEmpty == false ? nickname! : "나"),
-            role: familyRole,
-            hasAnswered: serverQuestion?.isAnswered ?? false,
-            answer: serverQuestion?.answer,
-            isMe: true
-        )]
+        // 가족 구성원 조회가 완료되기 전에는 답변 응답에 포함된 실제 구성원만
+        // 임시로 표시합니다. 임의의 가족 구성원을 생성하지 않습니다.
+        return familyAnswers.map { member in
+            let isMe = member.memberId == currentMemberId || member.isMe
+            return HomeMember(
+                id: String(member.memberId), memberId: member.memberId,
+                name: member.nickname, role: member.familyRole,
+                hasAnswered: member.isAnswered, answerStatusKnown: true,
+                answer: member.answer, isMe: isMe
+            )
+        }
     }
 
     private var currentAuthenticatedMemberId: Int? {
@@ -1030,6 +1058,8 @@ struct FamilyHomeView: View {
             }
         } catch {
             await MainActor.run {
+                // 구성원 목록은 유지하고 답변 상태를 미확인으로 둡니다.
+                // 이전 질문의 답변을 남겨 미답변으로 오인하지 않도록 비웁니다.
                 familyAnswers = []
                 familyAnswersQuestion = nil
                 familyAnswersError = error.localizedDescription
@@ -1038,6 +1068,26 @@ struct FamilyHomeView: View {
             #if DEBUG
             print("[KIRI][Question] family answers load failed: \(error.localizedDescription)")
             #endif
+        }
+    }
+
+    private func loadFamilyMembers() async {
+        guard let familyId else { return }
+        await MainActor.run {
+            isLoadingFamilyMembers = true
+            familyMembersError = nil
+        }
+        do {
+            let result = try await AuthService.shared.familyInfo(familyId: familyId)
+            await MainActor.run {
+                familyMembers = result.members
+                isLoadingFamilyMembers = false
+            }
+        } catch {
+            await MainActor.run {
+                familyMembersError = error.localizedDescription
+                isLoadingFamilyMembers = false
+            }
         }
     }
 

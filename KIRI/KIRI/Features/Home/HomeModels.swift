@@ -7,6 +7,7 @@ struct HomeMember: Identifiable, Equatable {
     let name: String
     let role: String?
     let hasAnswered: Bool
+    let answerStatusKnown: Bool
     let answer: String?
     let isMe: Bool
 }
