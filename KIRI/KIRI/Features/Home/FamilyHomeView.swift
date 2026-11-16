@@ -69,6 +69,7 @@ struct FamilyHomeView: View {
     @State private var unreadNotificationCount = 0
     @State private var todayScheduleDetail: ScheduleDetailResult?
     @State private var todayScheduleData: RecordCalendarView.ScheduleDetailData?
+    @State private var todayNearbyMissions: [NearbyMissionResult] = []
 
 
     private enum HomeRoute {
@@ -356,14 +357,20 @@ struct FamilyHomeView: View {
         .onChange(of: route) { _, newRoute in
             tabBarVisibility.wrappedValue = newRoute == .home
             if newRoute == .home {
-                Task { await refreshUnreadNotifications() }
+                Task {
+                    await refreshUnreadNotifications()
+                    await loadTodayAppointment()
+                }
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active, loadsServerQuestion else { return }
-            let today = Calendar.current.startOfDay(for: Date())
-            if questionLoadedDay != today {
-                Task { await loadTodayQuestion() }
+            guard phase == .active else { return }
+            Task {
+                await loadTodayAppointment()
+                if loadsServerQuestion {
+                    let today = Calendar.current.startOfDay(for: Date())
+                    if questionLoadedDay != today { await loadTodayQuestion() }
+                }
             }
         }
         .onDisappear {
@@ -399,10 +406,15 @@ struct FamilyHomeView: View {
             route = .todayActivity
         } label: {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("약속 당일이에요!")
-                        .font(KIRITypography.bodySmallMedium)
-                        .foregroundStyle(KIRIColor.Text.accent)
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("오늘 약속 당일이에요!")
+                            .font(KIRITypography.bodySmallMedium)
+                            .foregroundStyle(KIRIColor.Text.accent)
+                        Text("코스를 확인하세요")
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                    }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
@@ -436,7 +448,18 @@ struct FamilyHomeView: View {
             participantNames: detail.participants.filter { $0.status.uppercased() == "ACCEPTED" }.map(\.nickname),
             requiredActivities: [],
             requiredItems: [],
-            nearbyRecommendations: []
+            nearbyRecommendations: todayNearbyMissions.map { item in
+                TodayActivityView.Recommendation(
+                    id: item.id,
+                    title: item.placeName,
+                    location: item.region,
+                    description: item.description,
+                    distanceMeters: item.distance,
+                    isRestPlace: false,
+                    price: item.price,
+                    crowdLevel: nil
+                )
+            }
         )
     }
 
@@ -446,21 +469,37 @@ struct FamilyHomeView: View {
             let upcoming = try await AuthService.shared.upcomingSchedules()
             let candidate = [upcoming.upcoming, upcoming.responseRequired]
                 .compactMap { $0 }
-                .first { $0.dDay == 0 && ["SCHEDULED", "CONFIRMED"].contains($0.status.uppercased()) && $0.myStatus.uppercased() == "ACCEPTED" }
+                .first { $0.type.uppercased() == "TODAY" && $0.myStatus.uppercased() == "ACCEPTED" }
             guard let candidate else {
                 await MainActor.run {
                     todayScheduleDetail = nil
                     todayScheduleData = nil
+                    todayNearbyMissions = []
                 }
                 return
             }
             let detail = try await AuthService.shared.scheduleDetail(scheduleId: candidate.scheduleId)
-            guard ["SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
+            guard ["TODAY", "SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
                   detail.myStatus?.uppercased() == "ACCEPTED",
                   detail.participants.contains(where: { $0.memberId == (try? AuthService.shared.currentMemberId()) && $0.status.uppercased() == "ACCEPTED" }) else {
                 return
             }
+            let nearby = (try? await AuthService.shared.nearbyMissions(scheduleId: candidate.scheduleId)) ?? []
+            let mission: MissionDetailResult?
+            if let missionID = detail.missionId {
+                mission = try? await AuthService.shared.missionDetail(missionId: missionID)
+            } else {
+                mission = nil
+            }
             let components = detail.date.split(separator: "-").compactMap { Int($0) }
+            let steps: String
+            if let min = mission?.estimatedStepsMin {
+                steps = if let max = mission?.estimatedStepsMax, max != min { "\(min)~\(max)보" } else { "\(min)보" }
+            } else { steps = "" }
+            let duration: String
+            if let min = mission?.durationMinMinutes {
+                duration = if let max = mission?.durationMaxMinutes, max != min { "\(min)~\(max)분" } else { "\(min)분" }
+            } else { duration = "" }
             let schedule = RecordCalendarView.ScheduleDetailData(
                 scheduleId: candidate.scheduleId,
                 day: components.last ?? 1,
@@ -469,18 +508,20 @@ struct FamilyHomeView: View {
                 title: detail.missionTitle ?? candidate.title,
                 date: detail.date,
                 startTime: detail.time ?? candidate.time,
-                location: "",
-                expectedSteps: "",
-                duration: ""
+                location: mission?.place?.address ?? "",
+                expectedSteps: steps,
+                duration: duration
             )
             await MainActor.run {
                 todayScheduleDetail = detail
                 todayScheduleData = schedule
+                todayNearbyMissions = nearby
             }
         } catch {
             await MainActor.run {
                 todayScheduleDetail = nil
                 todayScheduleData = nil
+                todayNearbyMissions = []
             }
         }
     }

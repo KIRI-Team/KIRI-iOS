@@ -44,6 +44,7 @@ struct TodayActivityView: View {
     @State private var selectedConditions:
         Set<ConditionAdjustmentSheet.Condition> = []
     @State private var conditionsLoadError: String?
+    @State private var refreshedRecommendations: [Recommendation]?
     var savedReview: ActivityReviewWriteView.Draft? = nil
     var onReviewSaved: ((ActivityReviewWriteView.Draft) -> Void)? = nil
     @State private var localReview: ActivityReviewWriteView.Draft?
@@ -51,7 +52,7 @@ struct TodayActivityView: View {
         savedReview ?? localReview
     }
     private var sortedRecommendations: [Recommendation] {
-        content.nearbyRecommendations.sorted {
+        (refreshedRecommendations ?? content.nearbyRecommendations).sorted {
             score($0) < score($1)
         }
     }
@@ -140,6 +141,25 @@ struct TodayActivityView: View {
                             scheduleId: scheduleId,
                             conditions: conditions.map(\.serverValue)
                         )
+                        // 조건 저장 직후 서버가 계산한 최신 추천을 다시 읽어
+                        // 상세 화면에 즉시 반영합니다. 조회에 실패해도
+                        // 저장 성공 상태와 기존 추천은 유지합니다.
+                        if let nearby = try? await AuthService.shared.nearbyMissions(scheduleId: scheduleId) {
+                            await MainActor.run {
+                                refreshedRecommendations = nearby.map { item in
+                                    Recommendation(
+                                        id: item.id,
+                                        title: item.placeName,
+                                        location: item.region,
+                                        description: item.description,
+                                        distanceMeters: item.distance,
+                                        isRestPlace: false,
+                                        price: item.price,
+                                        crowdLevel: nil
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 activityTitle: schedule.title,
@@ -506,7 +526,7 @@ struct TodayActivityView: View {
                     showingConditionScreen = true
                 } label: {
                     Label(
-                        "컨디션 조정",
+                        "컨디션 조정하러가기",
                         systemImage: "slider.horizontal.3"
                     )
                     .font(
