@@ -58,12 +58,15 @@ struct FamilyHomeView: View {
     @State private var missionFeedError: String?
     @State private var notificationMission: MissionDetailResult?
     @State private var unreadNotificationCount = 0
+    @State private var todayScheduleDetail: ScheduleDetailResult?
+    @State private var todayScheduleData: RecordCalendarView.ScheduleDetailData?
 
 
     private enum HomeRoute {
         case home
         case notification
         case notificationMission
+        case todayActivity
         case placeDetail
         case taste
         case questionAnswer
@@ -105,8 +108,10 @@ struct FamilyHomeView: View {
                                     route = .questionAnswer
                                 }
                             }
-                        default:
-                            onSelectNotification(destination)
+                        case .schedule(let scheduleId):
+                            Task { await openNotificationSchedule(scheduleId) }
+                        case .unavailable:
+                            showPokeToast("이 알림의 화면을 열 수 없어요.", isError: true)
                         }
                     }
                 )
@@ -125,6 +130,18 @@ struct FamilyHomeView: View {
                         imageURL: notificationMission.imageUrl,
                         isBookmarked: .constant(notificationMission.bucketSaved),
                         onBack: { route = .notification }
+                    )
+                }
+
+            case .todayActivity:
+                if let detail = todayScheduleDetail, let schedule = todayScheduleData {
+                    TodayActivityView(
+                        schedule: schedule,
+                        content: todayActivityContent(detail),
+                        onBack: { route = .home },
+                        missionTitle: detail.missionTitle,
+                        missionDescription: detail.missionDescription,
+                        requestMessage: detail.requestMessage
                     )
                 }
 
@@ -327,6 +344,100 @@ struct FamilyHomeView: View {
         .task {
             await refreshUnreadNotifications()
         }
+        .task {
+            await loadTodayAppointment()
+        }
+    }
+
+    private var todayAppointmentCard: some View {
+        Button {
+            route = .todayActivity
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("약속 당일이에요!")
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
+                Text(todayScheduleDetail?.missionTitle ?? "오늘의 약속")
+                    .font(KIRITypography.title)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .multilineTextAlignment(.leading)
+                if let description = todayScheduleDetail?.missionDescription, !description.isEmpty {
+                    Text(description)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .lineLimit(2)
+                }
+                Text("오늘 \(todayScheduleDetail?.time ?? "")")
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func todayActivityContent(_ detail: ScheduleDetailResult) -> TodayActivityView.Content {
+        TodayActivityView.Content(
+            isCurrentUserConfirmed: detail.myStatus?.uppercased() == "ACCEPTED",
+            participantNames: detail.participants.filter { $0.status.uppercased() == "ACCEPTED" }.map(\.nickname),
+            requiredActivities: [],
+            requiredItems: [],
+            nearbyRecommendations: []
+        )
+    }
+
+    private func loadTodayAppointment() async {
+        guard familyId != nil else { return }
+        do {
+            let upcoming = try await AuthService.shared.upcomingSchedules()
+            let candidate = [upcoming.upcoming, upcoming.responseRequired]
+                .compactMap { $0 }
+                .first { $0.dDay == 0 && ["SCHEDULED", "CONFIRMED"].contains($0.status.uppercased()) && $0.myStatus.uppercased() == "ACCEPTED" }
+            guard let candidate else {
+                await MainActor.run {
+                    todayScheduleDetail = nil
+                    todayScheduleData = nil
+                }
+                return
+            }
+            let detail = try await AuthService.shared.scheduleDetail(scheduleId: candidate.scheduleId)
+            guard ["SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
+                  detail.myStatus?.uppercased() == "ACCEPTED",
+                  detail.participants.contains(where: { $0.memberId == (try? AuthService.shared.currentMemberId()) && $0.status.uppercased() == "ACCEPTED" }) else {
+                return
+            }
+            let components = detail.date.split(separator: "-").compactMap { Int($0) }
+            let schedule = RecordCalendarView.ScheduleDetailData(
+                scheduleId: candidate.scheduleId,
+                day: components.last ?? 1,
+                month: components.dropLast().last ?? Calendar.current.component(.month, from: Date()),
+                status: .confirmedSchedule,
+                title: detail.missionTitle ?? candidate.title,
+                date: detail.date,
+                startTime: detail.time ?? candidate.time,
+                location: "",
+                expectedSteps: "",
+                duration: ""
+            )
+            await MainActor.run {
+                todayScheduleDetail = detail
+                todayScheduleData = schedule
+            }
+        } catch {
+            await MainActor.run {
+                todayScheduleDetail = nil
+                todayScheduleData = nil
+            }
+        }
     }
 
     private func showPokeToast(_ message: String, isError: Bool) {
@@ -390,6 +501,11 @@ struct FamilyHomeView: View {
                         alignment: .leading,
                         spacing: 0
                     ) {
+                        if todayScheduleDetail != nil {
+                            todayAppointmentCard
+                                .padding(.horizontal, 18)
+                                .padding(.top, 16)
+                        }
                         answerCollectionSection
                             .id("tutorial-top")
                             .padding(.top, 23)
@@ -894,6 +1010,43 @@ struct FamilyHomeView: View {
                 route = .home
                 showPokeToast("미션을 불러오지 못했어요. 다시 시도해 주세요.", isError: true)
             }
+        }
+    }
+
+    private func openNotificationSchedule(_ scheduleId: Int) async {
+        do {
+            let detail = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
+            let values = detail.date.split(separator: "-").compactMap { Int($0) }
+            let today = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            let isToday = values.count >= 3
+                && today.year == values[0]
+                && today.month == values[1]
+                && today.day == values[2]
+            guard isToday,
+                  ["SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
+                  detail.myStatus?.uppercased() == "ACCEPTED" else {
+                onSelectNotification(.schedule(scheduleId))
+                return
+            }
+            let schedule = RecordCalendarView.ScheduleDetailData(
+                scheduleId: scheduleId,
+                day: values.last ?? 1,
+                month: values.dropLast().last ?? Calendar.current.component(.month, from: Date()),
+                status: .confirmedSchedule,
+                title: detail.missionTitle ?? "오늘의 약속",
+                date: detail.date,
+                startTime: detail.time ?? "",
+                location: "",
+                expectedSteps: "",
+                duration: ""
+            )
+            await MainActor.run {
+                todayScheduleDetail = detail
+                todayScheduleData = schedule
+                route = .todayActivity
+            }
+        } catch {
+            await MainActor.run { showPokeToast("일정 정보를 불러오지 못했어요. 다시 시도해 주세요.", isError: true) }
         }
     }
 
