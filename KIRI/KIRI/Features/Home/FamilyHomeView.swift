@@ -464,7 +464,6 @@ struct FamilyHomeView: View {
     }
 
     private func loadTodayAppointment() async {
-        guard familyId != nil else { return }
         do {
             let upcoming = try await AuthService.shared.upcomingSchedules()
             let candidate = [upcoming.upcoming, upcoming.responseRequired]
@@ -480,8 +479,7 @@ struct FamilyHomeView: View {
             }
             let detail = try await AuthService.shared.scheduleDetail(scheduleId: candidate.scheduleId)
             guard ["TODAY", "SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
-                  detail.myStatus?.uppercased() == "ACCEPTED",
-                  detail.participants.contains(where: { $0.memberId == (try? AuthService.shared.currentMemberId()) && $0.status.uppercased() == "ACCEPTED" }) else {
+                  detail.myStatus?.uppercased() == "ACCEPTED" else {
                 await MainActor.run {
                     todayScheduleDetail = nil
                     todayScheduleData = nil
@@ -489,22 +487,7 @@ struct FamilyHomeView: View {
                 }
                 return
             }
-            let nearby = (try? await AuthService.shared.nearbyMissions(scheduleId: candidate.scheduleId)) ?? []
-            let mission: MissionDetailResult?
-            if let missionID = detail.missionId {
-                mission = try? await AuthService.shared.missionDetail(missionId: missionID)
-            } else {
-                mission = nil
-            }
             let components = detail.date.split(separator: "-").compactMap { Int($0) }
-            let steps: String
-            if let min = mission?.estimatedStepsMin {
-                steps = if let max = mission?.estimatedStepsMax, max != min { "\(min)~\(max)보" } else { "\(min)보" }
-            } else { steps = "" }
-            let duration: String
-            if let min = mission?.durationMinMinutes {
-                duration = if let max = mission?.durationMaxMinutes, max != min { "\(min)~\(max)분" } else { "\(min)분" }
-            } else { duration = "" }
             let schedule = RecordCalendarView.ScheduleDetailData(
                 scheduleId: candidate.scheduleId,
                 day: components.last ?? 1,
@@ -513,14 +496,47 @@ struct FamilyHomeView: View {
                 title: detail.missionTitle ?? candidate.title,
                 date: detail.date,
                 startTime: detail.time ?? candidate.time,
-                location: mission?.place?.address ?? "",
-                expectedSteps: steps,
-                duration: duration
+                location: "",
+                expectedSteps: "",
+                duration: ""
             )
             await MainActor.run {
                 todayScheduleDetail = detail
                 todayScheduleData = schedule
+                todayNearbyMissions = []
+            }
+
+            // 배너와 당일 상세는 일정 상세 응답만으로 즉시 열고, 부가 데이터는
+            // 각 섹션에서 독립적으로 보강합니다.
+            let nearby = (try? await AuthService.shared.nearbyMissions(scheduleId: candidate.scheduleId)) ?? []
+            let mission: MissionDetailResult?
+            if let missionID = detail.missionId {
+                mission = try? await AuthService.shared.missionDetail(missionId: missionID)
+            } else {
+                mission = nil
+            }
+            await MainActor.run {
                 todayNearbyMissions = nearby
+                if let mission {
+                    let steps = if let min = mission.estimatedStepsMin {
+                        if let max = mission.estimatedStepsMax, max != min { "\(min)~\(max)보" } else { "\(min)보" }
+                    } else { "" }
+                    let duration = if let min = mission.durationMinMinutes {
+                        if let max = mission.durationMaxMinutes, max != min { "\(min)~\(max)분" } else { "\(min)분" }
+                    } else { "" }
+                    todayScheduleData = RecordCalendarView.ScheduleDetailData(
+                        scheduleId: candidate.scheduleId,
+                        day: components.last ?? 1,
+                        month: components.dropLast().last ?? Calendar.current.component(.month, from: Date()),
+                        status: .confirmedSchedule,
+                        title: detail.missionTitle ?? candidate.title,
+                        date: detail.date,
+                        startTime: detail.time ?? candidate.time,
+                        location: mission.place?.address ?? "",
+                        expectedSteps: steps,
+                        duration: duration
+                    )
+                }
             }
         } catch {
             await MainActor.run {

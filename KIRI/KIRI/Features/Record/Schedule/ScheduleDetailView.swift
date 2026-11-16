@@ -431,7 +431,10 @@ struct ScheduleDetailView: View {
     }
 
     private func loadServerDetail() async {
-        guard let scheduleId = schedule.scheduleId, !isLoadingServerDetail else { return }
+        // 초기 상태는 로딩 플래그가 먼저 true로 설정될 수 있으므로,
+        // 아직 상세가 없는 첫 요청은 반드시 통과시킵니다.
+        guard let scheduleId = schedule.scheduleId,
+              serverDetail == nil || !isLoadingServerDetail else { return }
         isLoadingServerDetail = true
         serverDetailError = nil
         do {
