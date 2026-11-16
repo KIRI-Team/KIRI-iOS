@@ -592,8 +592,13 @@ struct NearbyMissionResult: Decodable, Identifiable, Sendable {
     }
 }
 
+enum ScheduleResponseAction: String, Encodable, Sendable {
+    case accept = "ACCEPT"
+    case decline = "DECLINE"
+}
+
 struct ScheduleResponseRequest: Encodable, Sendable {
-    let action: String
+    let action: ScheduleResponseAction
 }
 
 struct MissionFeedItem: Decodable, Identifiable, Sendable {
