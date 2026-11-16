@@ -84,17 +84,14 @@ struct PlaceCard: View {
     }
 
     private var imagePlaceholder: some View {
-        ZStack {
-            KIRIContentImage(imageURL: imageURL, mockAssetName: imageName) {
-                Rectangle().fill(KIRIColor.Background.tertiary)
-            }
-            // The image must occupy the complete card width before the fixed
-            // height is applied. Without an explicit width proposal,
-            // AsyncImage can keep its intrinsic aspect ratio and leave an
-            // empty strip above or below portrait/landscape photos.
-            .frame(maxWidth: .infinity)
+        // Give the loader both dimensions. If only the outer height is fixed,
+        // AsyncImage's aspect-ratio view can be centered inside that frame and
+        // expose the card background as a horizontal strip above the photo.
+        // The card's outer clip applies the matching rounded top corners.
+        KIRIContentImage(imageURL: imageURL, mockAssetName: imageName) {
+            Rectangle().fill(KIRIColor.Background.tertiary)
         }
-        .frame(height: 144)
+        .frame(width: 251, height: 144, alignment: .top)
         .clipped()
     }
 }
