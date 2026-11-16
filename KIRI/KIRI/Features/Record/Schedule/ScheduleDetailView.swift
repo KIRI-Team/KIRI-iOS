@@ -109,7 +109,7 @@ struct ScheduleDetailView: View {
         guard let detail = serverDetail else { return "일정 정보를 확인한 뒤 리뷰를 작성할 수 있어요." }
         let status = detail.status?.uppercased() ?? ""
         if status == "SCHEDULED" || status == "PENDING" {
-            return "아직 확정되지 않은 약속은 리뷰를 작성할 수 없어요."
+            return "확정되지 않은 약속이에요"
         }
         if detail.myStatus?.uppercased() != "ACCEPTED" {
             return "참여가 확정된 가족만 리뷰를 작성할 수 있어요."
@@ -560,25 +560,10 @@ struct ScheduleDetailView: View {
             .padding(.horizontal, 18)
             .padding(.top, 12)
         } else {
-            VStack(alignment: .leading, spacing: 18) {
-                navigationBar
-                Text("지난 약속이에요")
-                    .font(KIRITypography.title)
-                    .foregroundStyle(KIRIColor.Text.strong)
-                Text(reviewEligibilityMessage)
-                    .font(KIRITypography.bodySmall)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                Button("일정 상태 다시 확인") {
-                    Task {
-                        await loadServerDetail()
-                        await loadReviews()
-                    }
-                }
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.strong)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 12)
+            statusView(
+                title: reviewEligibilityMessage,
+                message: nil
+            )
         }
     }
 
@@ -990,25 +975,27 @@ struct ScheduleDetailView: View {
     }
     private func statusView(
         title: String,
-        message: String
+        message: String?
     ) -> some View {
         VStack(spacing: 0) {
             navigationBar
                 .padding(.horizontal, 18)
             Spacer()
-            Image(systemName: "calendar.badge.exclamationmark")
+            Image(systemName: "clock.fill")
                 .font(.system(size: 36))
                 .foregroundStyle(KIRIColor.Text.tertiary)
             Text(title)
                 .font(KIRITypography.headingSmall)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.top, 20)
-            Text(message)
-                .font(KIRITypography.bodySmall)
-                .foregroundStyle(KIRIColor.Text.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 10)
-                .padding(.horizontal, 24)
+            if let message, !message.isEmpty {
+                Text(message)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 10)
+                    .padding(.horizontal, 24)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

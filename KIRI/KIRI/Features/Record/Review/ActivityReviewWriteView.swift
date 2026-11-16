@@ -62,26 +62,24 @@ struct ActivityReviewWriteView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    userSection
+                    photoSection
                         .padding(.top, 18)
 
-                    ratingSection
-                        .padding(.top, 42)
-
-                    photoSection
-                        .padding(.top, 48)
-
                     commentSection
-                        .padding(.top, 52)
+                        .padding(.top, 30)
+
+                    ratingSection
+                        .padding(.top, 30)
 
                     repeatSection
-                        .padding(.top, 52)
+                        .padding(.top, 30)
 
                     Color.clear.frame(height: 80)
                 }
                 .padding(.horizontal, 18)
             }
             .scrollDismissesKeyboard(.interactively)
+            .scrollIndicators(.hidden)
         }
         .background(
             KIRIColor.Background.base.ignoresSafeArea()
@@ -432,7 +430,7 @@ struct ActivityReviewWriteView: View {
                         }
                     }
             }
-            .frame(height: 149)
+            .frame(height: 116)
             .background(
                 KIRIColor.Background.secondary
             )
@@ -457,22 +455,7 @@ struct ActivityReviewWriteView: View {
 
     private var repeatSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(
-                alignment: .leading,
-                spacing: 4
-            ) {
-                sectionTitle(
-                    "이 활동을 다시 참여하고 싶으신가요?"
-                )
-
-                Text(
-                    "추후 AI 미션 추천에 반영됩니다"
-                )
-                .font(KIRITypography.bodySmall)
-                .foregroundStyle(
-                    KIRIColor.Text.secondary
-                )
-            }
+            sectionTitle("이 활동을 다시 참여하고 싶으신가요?")
 
             HStack(spacing: 8) {
                 repeatButton(
