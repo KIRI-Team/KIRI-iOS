@@ -146,7 +146,20 @@ struct NotificationView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(item.title).font(KIRITypography.bodySmallMedium).foregroundStyle(item.isRead ? KIRIColor.Text.secondary : KIRIColor.Text.strong)
+                            HStack(spacing: 5) {
+                                Text(displayTitle(for: item))
+                                    .font(KIRITypography.bodySmallMedium)
+                                    .foregroundStyle(item.isRead ? KIRIColor.Text.secondary : KIRIColor.Text.strong)
+                                    .lineLimit(1)
+                                if isInvitationNotification(item.notificationType) {
+                                    Image("invite_behind")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 22, height: 12)
+                                        .opacity(item.isRead ? 0.72 : 1)
+                                        .accessibilityHidden(true)
+                                }
+                            }
                             Text(item.body).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
@@ -228,6 +241,23 @@ struct NotificationView: View {
         if type == "RECORD" || type == "RECORD_CREATED" || type == "WEEKLY_MISSION_COMPLETED" { return "figma_calendar_puzzle_answered" }
         if type.contains("MISSION") || type == "EXTERNAL_EVENT_CANCELLED" { return "figma_place_active" }
         return "figma_notification"
+    }
+
+    private func isInvitationNotification(_ type: String) -> Bool {
+        let normalized = type.uppercased()
+        return normalized == "INVITE" || normalized.contains("INVIT")
+    }
+
+    private func displayTitle(for item: NotificationPreviewResult) -> String {
+        guard isInvitationNotification(item.notificationType) else { return item.title }
+        var title = item.title
+        // 일부 서버 알림 제목에 남아 있는 깨진 끝 기호만 초대장 행에서 제거합니다.
+        for suffix in ["□?", "�?", "□", "�"] {
+            while title.hasSuffix(suffix) {
+                title.removeLast(suffix.count)
+            }
+        }
+        return title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func markAllAsRead() async {
