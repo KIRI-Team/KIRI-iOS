@@ -221,9 +221,20 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        // Copy and validate the value before crossing the async boundary. The
+        // nickname originates in a SwiftUI TextField and must never share its
+        // mutable String storage with request construction. JSONSerialization
+        // also lets us validate the exact object sent by the PATCH contract
+        // (`{\"nickname\": string}`) without passing an existential Encodable
+        // through the request pipeline.
+        let nicknameValue = String(nickname)
+        let bodyData = try JSONSerialization.data(
+            withJSONObject: ["nickname": nicknameValue],
+            options: []
+        )
         let envelope: APIEnvelope<NicknameUpdateResult> = try await client.requestEnvelope(
             endpoint: endpoint,
-            body: NicknameUpdateRequest(nickname: nickname),
+            bodyData: bodyData,
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
