@@ -752,13 +752,13 @@ struct ScheduleDetailView: View {
                 if serverDetail?.canRespond == true {
                     HStack(spacing: 8) {
                     Button(serverDetail?.myStatus == "RECONFIRM_REQUIRED" ? "취소" : "거절") {
-                        Task { await respond(action: "DECLINED") }
+                        Task { await respond(action: .decline) }
                     }
                     .buttonStyle(scheduleActionStyle(isPrimary: false))
                     .disabled(isMutatingSchedule)
 
                     Button(serverDetail?.myStatus == "RECONFIRM_REQUIRED" ? "약속 확정하기" : "수락") {
-                        Task { await respond(action: "ACCEPTED") }
+                        Task { await respond(action: .accept) }
                     }
                     .buttonStyle(scheduleActionStyle(isPrimary: true))
                     .disabled(isMutatingSchedule)
@@ -793,7 +793,7 @@ struct ScheduleDetailView: View {
         ScheduleActionButtonStyle(isPrimary: isPrimary)
     }
 
-    private func respond(action: String) async {
+    private func respond(action: ScheduleResponseAction) async {
         guard let scheduleId = schedule.scheduleId, !isMutatingSchedule else { return }
         guard serverDetail?.canRespond == true else { return }
         isMutatingSchedule = true
@@ -804,7 +804,7 @@ struct ScheduleDetailView: View {
             await loadServerDetail()
             await loadNearbyMissions()
             onScheduleChanged?()
-            showToast(action == "ACCEPTED" ? "일정 참여를 수락했어요." : "일정 참여를 거절했어요.")
+            showToast(action == .accept ? "일정 참여를 수락했어요." : "일정 참여를 거절했어요.")
         } catch {
             scheduleMutationError = "일정 응답을 저장하지 못했어요. 다시 시도해 주세요."
         }

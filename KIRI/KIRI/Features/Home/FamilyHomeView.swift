@@ -148,8 +148,8 @@ struct FamilyHomeView: View {
                     InvitationRequestView(
                         request: invitationRequestData(from: detail),
                         onBack: { route = .notification },
-                        onCancel: { respondToNotificationSchedule(detail, action: "DECLINED") },
-                        onConfirmSchedule: { respondToNotificationSchedule(detail, action: "ACCEPTED") },
+                        onCancel: { respondToNotificationSchedule(detail, action: .decline) },
+                        onConfirmSchedule: { respondToNotificationSchedule(detail, action: .accept) },
                         onMissionDetail: detail.missionId.map { missionID in
                             { Task { await openNotificationMission(missionID) } }
                         },
@@ -1191,7 +1191,7 @@ struct FamilyHomeView: View {
         )
     }
 
-    private func respondToNotificationSchedule(_ detail: ScheduleDetailResult, action: String) {
+    private func respondToNotificationSchedule(_ detail: ScheduleDetailResult, action: ScheduleResponseAction) {
         guard detail.canRespond, let scheduleId = notificationScheduleID, !isRespondingToNotification else { return }
         isRespondingToNotification = true
         Task {
@@ -1205,7 +1205,7 @@ struct FamilyHomeView: View {
                     notificationScheduleDetail = refreshed
                     isRespondingToNotification = false
                     route = .home
-                    showPokeToast(action == "ACCEPTED" ? "약속을 확정했어요." : "초대를 거절했어요.", isError: false)
+                    showPokeToast(action == .accept ? "약속을 확정했어요." : "초대를 거절했어요.", isError: false)
                 }
             } catch {
                 await MainActor.run {

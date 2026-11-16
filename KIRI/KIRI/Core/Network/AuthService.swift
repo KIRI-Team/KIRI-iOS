@@ -907,7 +907,7 @@ final class AuthService {
         return result
     }
 
-    func respondToSchedule(scheduleId: Int, action: String) async throws -> ScheduleResult {
+    func respondToSchedule(scheduleId: Int, action: ScheduleResponseAction) async throws -> ScheduleResult {
         let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/response", method: .PATCH, requiresAuthentication: true)
         let tokens = try authenticatedTokens()
         let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: ScheduleResponseRequest(action: action), accessToken: tokens.accessToken)
