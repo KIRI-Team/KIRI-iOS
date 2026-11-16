@@ -71,6 +71,7 @@ struct FamilyHomeView: View {
     @State private var todayScheduleData: RecordCalendarView.ScheduleDetailData?
     @State private var todayNearbyMissions: [NearbyMissionResult] = []
     @State private var todayMissionDetail: MissionDetailResult?
+    @State private var todayReviews: [ReviewItemResult] = []
 
 
     private enum HomeRoute {
@@ -469,16 +470,49 @@ struct FamilyHomeView: View {
                     crowdLevel: nil,
                     imageURL: item.imageUrl
                 )
-            }
+            },
+            reviewMemories: todayReviews.map { review in
+                TodayActivityView.ReviewMemory(
+                    id: review.reviewId,
+                    authorName: review.writer.nickname
+                        ?? familyMembers.first(where: { $0.memberId == review.writer.memberId })?.nickname
+                        ?? (review.isMine ? (nickname ?? "나") : "가족 구성원"),
+                    familyRole: review.writer.familyRole
+                        ?? familyMembers.first(where: { $0.memberId == review.writer.memberId })?.familyRole,
+                    content: review.content,
+                    imageURL: review.photos.first?.imageUrl,
+                    isMine: review.isMine
+                )
+            },
+            currentUserNickname: nickname ?? ""
         )
     }
 
     private func loadTodayAppointment() async {
         do {
             let upcoming = try await AuthService.shared.upcomingSchedules()
-            let candidate = [upcoming.upcoming, upcoming.responseRequired]
+            struct TodayCandidate {
+                let scheduleId: Int
+                let title: String
+                let time: String
+            }
+            var candidate = [upcoming.upcoming, upcoming.responseRequired]
                 .compactMap { $0 }
                 .first { $0.type.uppercased() == "TODAY" && $0.myStatus.uppercased() == "ACCEPTED" }
+                .map { TodayCandidate(scheduleId: $0.scheduleId, title: $0.title, time: $0.time) }
+            // 리뷰가 저장된 당일 일정은 upcoming 응답에서 빠질 수 있습니다.
+            // 캘린더의 현재 월 일정은 완료된 오늘 일정도 포함하므로 보조 조회로 사용합니다.
+            if candidate == nil {
+                let now = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+                if let year = now.year, let month = now.month, let day = now.day,
+                   let calendar = try? await AuthService.shared.calendar(year: year, month: month),
+                   let item = calendar.schedules.first(where: {
+                       Int($0.date.split(separator: "-").last ?? "") == day &&
+                       $0.myStatus.uppercased() == "ACCEPTED"
+                   }) {
+                    candidate = TodayCandidate(scheduleId: item.scheduleId, title: "오늘의 약속", time: item.time)
+                }
+            }
             guard let candidate else {
                 let isViewingToday = await MainActor.run {
                     route == .todayActivity && todayScheduleDetail != nil
@@ -491,11 +525,12 @@ struct FamilyHomeView: View {
                     todayScheduleData = nil
                     todayNearbyMissions = []
                     todayMissionDetail = nil
+                    todayReviews = []
                 }
                 return
             }
             let detail = try await AuthService.shared.scheduleDetail(scheduleId: candidate.scheduleId)
-            guard ["TODAY", "SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
+            guard ["TODAY", "SCHEDULED", "CONFIRMED", "COMPLETED"].contains((detail.status ?? "").uppercased()),
                   detail.myStatus?.uppercased() == "ACCEPTED" else {
                 let isViewingToday = await MainActor.run {
                     route == .todayActivity && todayScheduleDetail != nil
@@ -506,6 +541,7 @@ struct FamilyHomeView: View {
                     todayScheduleData = nil
                     todayNearbyMissions = []
                     todayMissionDetail = nil
+                    todayReviews = []
                 }
                 return
             }
@@ -527,11 +563,13 @@ struct FamilyHomeView: View {
                 todayScheduleData = schedule
                 todayNearbyMissions = []
                 todayMissionDetail = nil
+                todayReviews = []
             }
 
             // 배너와 당일 상세는 일정 상세 응답만으로 즉시 열고, 부가 데이터는
             // 각 섹션에서 독립적으로 보강합니다.
             let nearby = (try? await AuthService.shared.nearbyMissions(scheduleId: candidate.scheduleId)) ?? []
+            let reviews = (try? await AuthService.shared.scheduleReviews(scheduleId: candidate.scheduleId))?.reviews ?? []
             let mission: MissionDetailResult?
             if let missionID = detail.missionId {
                 mission = try? await AuthService.shared.missionDetail(missionId: missionID)
@@ -541,6 +579,7 @@ struct FamilyHomeView: View {
             await MainActor.run {
                 todayNearbyMissions = nearby
                 todayMissionDetail = mission
+                todayReviews = reviews
                 if let mission {
                     let steps = if let min = mission.estimatedStepsMin {
                         if let max = mission.estimatedStepsMax, max != min { "\(min)~\(max)보" } else { "\(min)보" }
@@ -568,6 +607,7 @@ struct FamilyHomeView: View {
                 todayScheduleData = nil
                 todayNearbyMissions = []
                 todayMissionDetail = nil
+                todayReviews = []
             }
         }
     }
