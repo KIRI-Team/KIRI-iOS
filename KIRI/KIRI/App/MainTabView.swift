@@ -32,7 +32,6 @@ struct MainTabView: View {
     let onFamilyJoined: (String, String, Int?) -> Void
     let onLogout: () -> Void
     let onDeleteAccount: () async -> String?
-    let onUpdateNickname: (String) async -> String?
     let onUpdateFamilyName: (String) async -> String?
 
     @State private var selectedTab: AppTab = .home
@@ -55,7 +54,6 @@ struct MainTabView: View {
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onLogout: @escaping () -> Void
         , onDeleteAccount: @escaping () async -> String? = { nil },
-        onUpdateNickname: @escaping (String) async -> String? = { _ in nil },
         onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
     ) {
         self.userMode = userMode
@@ -71,7 +69,6 @@ struct MainTabView: View {
         self.onFamilyJoined = onFamilyJoined
         self.onLogout = onLogout
         self.onDeleteAccount = onDeleteAccount
-        self.onUpdateNickname = onUpdateNickname
         self.onUpdateFamilyName = onUpdateFamilyName
         _homeTutorialStore = State(
             initialValue: HomeTutorialStore(
@@ -159,13 +156,6 @@ struct MainTabView: View {
                 familyName: familyName,
                 familyId: familyId,
                 familyRole: familyRole,
-                onUpdateNickname: { value in
-                    let snapshot = String(decoding: Array(value.utf8), as: UTF8.self)
-                    #if DEBUG
-                    print("[KIRI][MainTab] nickname callback trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(snapshot.count)")
-                    #endif
-                    return await onUpdateNickname(snapshot)
-                },
                 onUpdateFamilyName: onUpdateFamilyName
             )
         }

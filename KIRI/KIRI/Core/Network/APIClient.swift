@@ -353,7 +353,6 @@ final class APIClient {
                 let nickname = object?["nickname"] as? String
                 print(
                     "[KIRI][APIClient] nickname URLRequest "
-                        + "trace=\(NicknameSaveTrace.id ?? "-") "
                         + "keyPresent=\(nickname != nil) "
                         + "nicknameLength=\(nickname?.count ?? 0) "
                         + "bodyBytes=\(bodyData.count)"

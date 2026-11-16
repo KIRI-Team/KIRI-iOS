@@ -237,7 +237,6 @@ final class AuthService {
         #if DEBUG
         print(
             "[KIRI][AuthService] updateNickname "
-                + "trace=\(NicknameSaveTrace.id ?? "-") "
                 + "inputLength=\(nickname.count) utf8Length=\(nicknameValue.utf8.count)"
         )
         #endif

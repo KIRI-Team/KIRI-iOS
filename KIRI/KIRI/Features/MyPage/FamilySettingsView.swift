@@ -12,6 +12,7 @@
 import SwiftUI
 
 struct FamilySettingsView: View {
+    @Environment(AppRouter.self) private var router
     @Environment(\.dismiss) private var dismiss
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     @Environment(\.kiriTabBarSubscreenCount) private var tabBarSubscreenCount
@@ -23,7 +24,6 @@ struct FamilySettingsView: View {
     let familyRole: String?
     let currentMemberId: Int?
     let onUpdateFamilyName: (String) async -> String?
-    let onUpdateNickname: (String) async -> String?
 
     @State private var familyName: String
     @State private var nickname: String
@@ -37,8 +37,7 @@ struct FamilySettingsView: View {
         nickname: String? = nil,
         familyRole: String? = nil,
         currentMemberId: Int? = AppSessionStore().memberId,
-        onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil },
-        onUpdateNickname: @escaping (String) async -> String? = { _ in nil }
+        onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
     ) {
         self.familyId = familyId
         self.initialFamilyName = familyName
@@ -46,7 +45,6 @@ struct FamilySettingsView: View {
         self.familyRole = familyRole
         self.currentMemberId = currentMemberId
         self.onUpdateFamilyName = onUpdateFamilyName
-        self.onUpdateNickname = onUpdateNickname
         _familyName = State(initialValue: familyName ?? "")
         _nickname = State(initialValue: nickname ?? "")
     }
@@ -212,13 +210,7 @@ struct FamilySettingsView: View {
                 NavigationLink {
                     NicknameEditView(
                         nickname: Binding(get: { nickname }, set: { nickname = $0 }),
-                        onSave: { value in
-                            let snapshot = String(decoding: Array(value.utf8), as: UTF8.self)
-                            #if DEBUG
-                            print("[KIRI][FamilySettings] nickname callback trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(snapshot.count)")
-                            #endif
-                            return await onUpdateNickname(snapshot)
-                        }
+                        onSave: { value in await router.updateNickname(value) }
                     )
                 } label: {
                     Image("figma_edit").resizable().scaledToFit().frame(width: 18, height: 18).frame(width: 36, height: 36)
