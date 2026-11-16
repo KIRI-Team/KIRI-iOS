@@ -82,7 +82,11 @@ struct RootView: View {
                             await router.deleteAccount()
                         },
                         onUpdateNickname: { value in
-                            await router.updateNickname(value)
+                            let snapshot = String(decoding: Array(value.utf8), as: UTF8.self)
+                            #if DEBUG
+                            print("[KIRI][RootView] nickname callback trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(snapshot.count)")
+                            #endif
+                            return await router.updateNickname(snapshot)
                         },
                         onUpdateFamilyName: { value in
                             await router.updateFamilyName(value)

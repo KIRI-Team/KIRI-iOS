@@ -10,6 +10,10 @@
 
 import SwiftUI
 
+enum NicknameSaveTrace {
+    @TaskLocal static var id: String?
+}
+
 @MainActor
 @Observable
 final class AppRouter {
@@ -343,7 +347,7 @@ final class AppRouter {
 
     func updateNickname(_ value: String) async -> String? {
         #if DEBUG
-        print("[KIRI][AppRouter] updateNickname inputLength=\(value.count)")
+        print("[KIRI][AppRouter] updateNickname trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(value.count)")
         #endif
         do {
             let result = try await AuthService.shared.updateNickname(value)

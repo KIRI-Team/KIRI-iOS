@@ -46,7 +46,8 @@ struct MyPageView: View {
                                     familyName: familyName,
                                     nickname: nickname,
                                     familyRole: familyRole,
-                                    onUpdateFamilyName: onUpdateFamilyName
+                                    onUpdateFamilyName: onUpdateFamilyName,
+                                    onUpdateNickname: onUpdateNickname
                                 )
                             } label: { menuRow("가족 기본 설정") }
                             NavigationLink {
@@ -85,7 +86,18 @@ struct MyPageView: View {
                 Text(profileSubtitle).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
             }
             Spacer()
-            NavigationLink { NicknameEditView(nickname: Binding(get: { nickname ?? "" }, set: { editedNickname = $0 }), onSave: onUpdateNickname) } label: {
+            NavigationLink {
+                NicknameEditView(
+                    nickname: Binding(get: { nickname ?? "" }, set: { editedNickname = $0 }),
+                    onSave: { value in
+                        let snapshot = String(decoding: Array(value.utf8), as: UTF8.self)
+                        #if DEBUG
+                        print("[KIRI][MyPage] nickname callback trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(snapshot.count)")
+                        #endif
+                        return await onUpdateNickname(snapshot)
+                    }
+                )
+            } label: {
                 // Figma 9901:25894 / KIRI/Icon/Action/Edit 원본 벡터.
                 // 수정 아이콘 크기와 터치 영역은 각각 24pt·36pt로 유지합니다.
                 Image("figma_edit")
