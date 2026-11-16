@@ -244,10 +244,10 @@ struct HomeQuestionAnswerView: View {
 
     private func memberRoleAsset(_ role: String?) -> String {
         switch role?.uppercased() {
-        case "MOTHER", "MOM": return "figma_family_member_active_mom"
-        case "FATHER", "DAD": return "figma_family_member_active"
-        case "SON": return "figma_family_member_active_son"
-        case "DAUGHTER": return "figma_family_member_active_daughter"
+        case "MOTHER", "MOM": return "role_mom_active"
+        case "FATHER", "DAD": return "role_dad_active"
+        case "SON": return "role_son_active"
+        case "DAUGHTER": return "role_daughter_active"
         default: return "figma_family_member_default"
         }
     }
