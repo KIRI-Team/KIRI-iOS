@@ -159,7 +159,10 @@ struct MissionActivityDetailView: View {
             // 상세 조회가 실패한 경우 목록 응답의 제목·장소를 성공 데이터처럼
             // 보여주지 않습니다. 재시도 상태와 실제 상세 응답을 분리해야
             // 누락된 필드나 서버 오류를 사용자가 정상 데이터로 오해하지 않습니다.
-            if detailError == nil || detail != nil {
+            // 맞춤템은 일정과 무관하게 별도 essentials 요청으로 조회합니다.
+            // 미션 본문이 일시적으로 404/디코딩 실패해도 essentials 응답이
+            // 도착했다면 서버가 준 이름·설명을 숨기지 않습니다.
+            if detailError == nil || detail != nil || isLoadingEssentials || !essentials.isEmpty || essentialsError != nil {
                 VStack(alignment: .leading, spacing: 0) {
                     if isRecommended {
                         Text("끼리추천")
@@ -241,67 +244,66 @@ struct MissionActivityDetailView: View {
 
     @ViewBuilder
     private var recommendationContent: some View {
-        if isLoadingDetail {
-            ProgressView().frame(maxWidth: .infinity, minHeight: 140)
-        } else {
-            VStack(alignment: .leading, spacing: 16) {
-                // 추천 활동은 미션 상세의 steps를 사용하고, 맞춤템은
-                // 일정과 무관한 전용 essentials 응답을 사용합니다.
-                detailSectionTitle("오늘의 끼리 추천 활동", accent: false)
-                if let detail, !detail.steps.isEmpty {
-                    VStack(spacing: 12) {
-                        ForEach(detail.steps) { item in
-                            activityCard(item)
-                        }
-                    }
-                } else {
-                    emptyRecommendationMessage("추천 활동이 아직 없어요.")
-                }
-
-                detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
-                if isLoadingEssentials {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 96)
-                } else if let essentialsError {
-                    VStack(spacing: 8) {
-                        Text(essentialsError)
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                        Button("다시 시도") { Task { await loadEssentials() } }
-                    }
+        VStack(alignment: .leading, spacing: 16) {
+            // 추천 활동과 맞춤템은 서로 독립된 API입니다. 미션 상세 응답이
+            // 늦거나 실패해도 essentials가 도착하면 맞춤템을 먼저 보여줍니다.
+            detailSectionTitle("오늘의 끼리 추천 활동", accent: false)
+            if isLoadingDetail && detail == nil {
+                ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 96)
-                } else if !essentials.isEmpty {
-                    LazyVGrid(
-                        columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
-                        spacing: 12
-                    ) {
-                        ForEach(essentials) { item in
-                            customItemCard(item)
-                        }
+            } else if let detail, !detail.steps.isEmpty {
+                VStack(spacing: 12) {
+                    ForEach(detail.steps) { item in
+                        activityCard(item)
                     }
-                } else {
-                    emptyRecommendationMessage("추천 준비물이 아직 없어요.")
                 }
+            } else {
+                emptyRecommendationMessage("추천 활동이 아직 없어요.")
+            }
 
-                detailSectionTitle("근처 놀거리 추천", accent: false)
-                if isLoadingNearby {
-                    ProgressView().frame(maxWidth: .infinity, minHeight: 110)
-                } else if let nearbyError {
-                    VStack(spacing: 8) {
-                        Text(nearbyError)
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                        Button("다시 시도") { Task { await loadNearbyMissions() } }
+            detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
+            if isLoadingEssentials {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 96)
+            } else if let essentialsError {
+                VStack(spacing: 8) {
+                    Text(essentialsError)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Button("다시 시도") { Task { await loadEssentials() } }
+                }
+                .frame(maxWidth: .infinity, minHeight: 96)
+            } else if !essentials.isEmpty {
+                LazyVGrid(
+                    columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                    spacing: 12
+                ) {
+                    ForEach(essentials) { item in
+                        customItemCard(item)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 110)
-                } else if nearbyMissions.isEmpty {
-                    unavailableRecommendationCard("근처에 추천할 놀거리가 없어요.")
-                } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(nearbyMissions) { item in
-                                nearbyCard(item)
-                            }
+                }
+            } else {
+                emptyRecommendationMessage("추천 준비물이 아직 없어요.")
+            }
+
+            detailSectionTitle("근처 놀거리 추천", accent: false)
+            if isLoadingNearby {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 110)
+            } else if let nearbyError {
+                VStack(spacing: 8) {
+                    Text(nearbyError)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Button("다시 시도") { Task { await loadNearbyMissions() } }
+                }
+                .frame(maxWidth: .infinity, minHeight: 110)
+            } else if nearbyMissions.isEmpty {
+                unavailableRecommendationCard("근처에 추천할 놀거리가 없어요.")
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(nearbyMissions) { item in
+                            nearbyCard(item)
                         }
                     }
                 }

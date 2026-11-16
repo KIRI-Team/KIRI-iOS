@@ -864,6 +864,10 @@ final class AuthService {
         var request = URLRequest(url: presignedURL)
         request.httpMethod = "PUT"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        // The server signs the presigned PUT with the original content length.
+        // URLSession may otherwise omit it when using upload(for:from:), which
+        // makes S3 reject an otherwise valid upload before the review request.
+        request.setValue(String(data.count), forHTTPHeaderField: "Content-Length")
         let response: URLResponse
         do { response = try await URLSession.shared.upload(for: request, from: data).1 }
         catch { throw APIError.networkError(error) }

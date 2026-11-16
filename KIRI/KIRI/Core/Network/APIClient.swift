@@ -86,7 +86,9 @@ final class APIClient {
             || endpoint.path == "/api/v1/families"
             || endpoint.path.contains("/api/v1/questions")
             || endpoint.path.contains("/api/v1/missions")
-            || endpoint.path.contains("/api/v1/bucket-items") {
+            || endpoint.path.contains("/api/v1/bucket-items")
+            || endpoint.path.contains("/api/v1/schedules")
+            || endpoint.path.contains("/api/v1/images") {
             print(
                 "[KIRI][API] \(endpoint.method.rawValue) \(endpoint.path) "
                     + "status=\(httpResponse.statusCode)"
@@ -179,7 +181,8 @@ final class APIClient {
                     || endpoint.path == "/api/v1/families"
                     || endpoint.path.contains("/api/v1/questions")
                     || endpoint.path.contains("/api/v1/missions")
-            || endpoint.path.contains("/api/v1/schedules") {
+                    || endpoint.path.contains("/api/v1/schedules")
+                    || endpoint.path.contains("/api/v1/images") {
                     print(
                         "[KIRI][API] auth failure: "
                             + "code=\(envelope.code), message=\(envelope.message)"
