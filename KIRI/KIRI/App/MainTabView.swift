@@ -39,6 +39,7 @@ struct MainTabView: View {
     @State private var homeTutorialStore: HomeTutorialStore
     @State private var isTabBarVisible = true
     @State private var tabBarSubscreenCount = 0
+    @State private var pendingScheduleId: Int?
 
     init(
         userMode: AppRouter.UserMode,
@@ -135,14 +136,20 @@ struct MainTabView: View {
                 tutorialStore: homeTutorialStore,
                 onFamilyCreated: onFamilyCreated,
                 onFamilyJoined: onFamilyJoined,
-                onExploreMission: { selectedTab = .mission }
+                onExploreMission: { selectedTab = .mission },
+                onSelectNotification: { destination in
+                    if case .schedule(let scheduleId) = destination {
+                        pendingScheduleId = scheduleId
+                        selectedTab = .record
+                    }
+                }
             )
 
         case .mission:
             MissionView()
 
         case .record:
-            RecordView(userMode: userMode, familyState: familyState)
+            RecordView(userMode: userMode, familyState: familyState, initialScheduleId: pendingScheduleId)
 
         case .myPage:
             MyPageView(

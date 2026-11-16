@@ -66,6 +66,7 @@ struct HomeView: View {
     let onFamilyCreated: (String, String) -> Void
     let onFamilyJoined: (String, String, Int?) -> Void
     let onExploreMission: () -> Void
+    let onSelectNotification: (NotificationDestination) -> Void
 
     @State private var didApplyDebugReset = false
     @State private var tutorialFrames: [HomeTutorialTarget: CGRect] = [:]
@@ -82,7 +83,8 @@ struct HomeView: View {
         tutorialStore: HomeTutorialStore,
         onFamilyCreated: @escaping (String, String) -> Void,
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
-        onExploreMission: @escaping () -> Void
+        onExploreMission: @escaping () -> Void,
+        onSelectNotification: @escaping (NotificationDestination) -> Void = { _ in }
     ) {
         self.userMode = userMode
         self.familyName = familyName
@@ -96,6 +98,7 @@ struct HomeView: View {
         self.onFamilyCreated = onFamilyCreated
         self.onFamilyJoined = onFamilyJoined
         self.onExploreMission = onExploreMission
+        self.onSelectNotification = onSelectNotification
     }
 
     private var tutorialCompleted: Bool {
@@ -154,7 +157,8 @@ struct HomeView: View {
                     familyRole: familyRole,
                     tutorialStep: tutorialStore.isActive ? tutorialStore.step : nil,
                     loadsServerQuestion: true,
-                    onExploreMission: onExploreMission
+                    onExploreMission: onExploreMission,
+                    onSelectNotification: onSelectNotification
             )
 
         case .browse:

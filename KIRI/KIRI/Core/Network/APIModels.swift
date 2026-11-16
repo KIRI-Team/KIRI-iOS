@@ -19,6 +19,43 @@ struct APIEnvelope<Result: Decodable>: Decodable {
 
 struct EmptyAPIResult: Decodable {}
 
+/// 알림함 목록 응답. 서버의 Spring Page JSON을 그대로 보존해 다음 페이지를
+/// 중복 없이 이어 붙일 수 있도록 합니다.
+struct NotificationPreviewResult: Decodable, Identifiable, Sendable, Equatable {
+    let notificationId: Int
+    let title: String
+    let body: String
+    let notificationType: String
+    let isRead: Bool
+    let referenceId: Int?
+    let createdAt: String
+
+    var id: Int { notificationId }
+}
+
+struct NotificationPageResult: Decodable, Sendable {
+    let content: [NotificationPreviewResult]
+    let number: Int
+    let totalPages: Int
+    let last: Bool
+    let empty: Bool
+
+    var hasNext: Bool { !last && number + 1 < totalPages }
+
+    private enum CodingKeys: String, CodingKey {
+        case content, number, totalPages, last, empty
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        content = try c.decodeIfPresent([NotificationPreviewResult].self, forKey: .content) ?? []
+        number = try c.decodeIfPresent(Int.self, forKey: .number) ?? 0
+        totalPages = try c.decodeIfPresent(Int.self, forKey: .totalPages) ?? 1
+        last = try c.decodeIfPresent(Bool.self, forKey: .last) ?? (number + 1 >= totalPages)
+        empty = try c.decodeIfPresent(Bool.self, forKey: .empty) ?? content.isEmpty
+    }
+}
+
 /// 건의함 제출 요청. imageKey는 사진을 첨부한 경우에만 서버로 전달합니다.
 struct SuggestionCreateRequest: Encodable, Sendable {
     let content: String

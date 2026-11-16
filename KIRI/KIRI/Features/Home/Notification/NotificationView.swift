@@ -1,362 +1,206 @@
-//
-// MARK: - 파일 가이드
-// 파일: Features/Home/Notification/NotificationView.swift
-// 담당 영역: 기능별 SwiftUI 화면과 상태
-// 주요 책임: 이 파일의 View·상태·서비스 연결을 담당합니다.
-// UI 수정: 이 파일의 body와 private computed view의 frame, padding, spacing, font, color를 확인하세요.
-// 데이터 흐름: 상위 라우터/화면에서 상태를 받고 하위 컴포넌트에 전달합니다.
-// 주의: 공통 컴포넌트·네트워크·저장소 변경은 여러 화면에 영향을 줄 수 있습니다.
-//
-
 import SwiftUI
+
+enum NotificationDestination: Equatable {
+    case schedule(Int)
+    case question(Int)
+    case mission(Int)
+    case unavailable
+}
+
 struct NotificationView: View {
-    private enum NotificationFilter:
-        String,
-        CaseIterable,
-        Hashable {
+    private enum Filter: String, CaseIterable, Hashable {
         case inbox = "받은 메일함"
         case schedule = "일정 알림"
         case poke = "콕 알림"
         case record = "기록 알림"
         case mission = "미션 알림"
-    }
-    private enum NotificationKind {
-        case schedule
-        case poke
-        case record
-        case mission
-        var icon: String {
+        func matches(_ type: String) -> Bool {
             switch self {
-            case .schedule:
-                return "calendar"
-            case .poke:
-                return "hand.tap"
-            case .record:
-                return "book.closed"
-            case .mission:
-                return "flag"
-            }
-        }
-        var filter: NotificationFilter {
-            switch self {
-            case .schedule:
-                return .schedule
-            case .poke:
-                return .poke
-            case .record:
-                return .record
-            case .mission:
-                return .mission
+            case .inbox: return true
+            case .schedule: return type.hasPrefix("SCHEDULE")
+            case .poke: return type == "POKE"
+            case .record: return type == "RECORD" || type == "RECORD_CREATED" || type == "WEEKLY_MISSION_COMPLETED"
+            case .mission: return type.contains("MISSION") || type == "EXTERNAL_EVENT_CANCELLED"
             }
         }
     }
-    private struct NotificationItem:
-        Identifiable,
-        Equatable {
-        let id: Int
-        let kind: NotificationKind
-        let description: String
-        let time: String
-        let opensInvitation: Bool
-    }
+
     let onBack: () -> Void
-    let onSelectInvitation: () -> Void
-    @State private var selectedFilter:
-        NotificationFilter = .inbox
-    @State private var readNotificationIDs:
-        Set<Int> = []
-    // 최신 OpenAPI에는 알림함 목록/읽음 처리 endpoint가 없습니다.
-    // 서버 데이터가 없는 상태에서 샘플 알림을 실제 알림처럼 노출하지 않습니다.
-    private let notifications: [NotificationItem] = []
-    private var filteredNotifications:
-        [NotificationItem] {
-        guard selectedFilter != .inbox else {
-            return notifications
-        }
-        return notifications.filter {
-            $0.kind.filter == selectedFilter
-        }
+    let onSelect: (NotificationDestination) -> Void
+    @State private var selectedFilter: Filter = .inbox
+    @State private var notifications: [NotificationPreviewResult] = []
+    @State private var page = 0
+    @State private var hasNext = false
+    @State private var isLoading = false
+    @State private var isLoadingMore = false
+    @State private var errorMessage: String?
+    @State private var readInFlight: Set<Int> = []
+    @State private var toastMessage: String?
+
+    private var filtered: [NotificationPreviewResult] {
+        notifications.filter { selectedFilter.matches($0.notificationType) }
     }
-    private var unreadCount: Int {
-        notifications.filter {
-            !readNotificationIDs.contains($0.id)
-        }
-        .count
-    }
+    private var unreadCount: Int { notifications.filter { !$0.isRead }.count }
+
     var body: some View {
         ZStack {
-            KIRIColor.Background.base
-                .ignoresSafeArea()
+            KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
                 navigationBar
-                filterSection
-                    .padding(.top, 18)
-                notificationList
-                    .padding(.top, 24)
+                filterSection.padding(.top, 18)
+                list.padding(.top, 24)
+            }
+            if let toastMessage {
+                KIRIToast(message: toastMessage, isError: true)
+                    .padding(.horizontal, 18)
+                    .safeAreaPadding(.top, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
+        .task { await load(page: 0, replacing: true) }
     }
-    // MARK: - Navigation
+
     private var navigationBar: some View {
         ZStack {
             HStack(spacing: 6) {
-                Text("알림함")
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
-                    .foregroundStyle(
-                        KIRIColor.Text.strong
-                    )
-                if unreadCount > 0 {
-                    Text(
-                        unreadCount > 99
-                            ? "+99"
-                            : "+\(unreadCount)"
-                    )
-                    .font(KIRITypography.bodySmallMedium)
-                    .tracking(-0.56)
-                    .foregroundStyle(
-                        KIRIColor.Text.accent
-                    )
-                }
+                Text("알림함").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
+                if unreadCount > 0 { Text(unreadCount > 99 ? "+99" : "+\(unreadCount)").font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.accent) }
             }
-            HStack {
-                KIRIBackButton(
-                    action: onBack
-                )
-                Spacer()
-                Button {
-                    markAllAsRead()
-                } label: {
-                    Text("모두읽음")
-                        .font(KIRITypography.bodySmall)
-                        .tracking(-0.56)
-                        .foregroundStyle(
-                            KIRIColor.Text.secondary
-                        )
-                        .frame(
-                            minWidth: 60,
-                            minHeight: 44
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 6)
-        }
-        .frame(height: 62)
+            HStack { KIRIBackButton(action: onBack); Spacer() }.padding(.horizontal, 6)
+        }.frame(height: 62)
     }
-    // MARK: - Filter
+
     private var filterSection: some View {
-        ScrollView(
-            .horizontal,
-            showsIndicators: false
-        ) {
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(
-                    NotificationFilter.allCases,
-                    id: \.self
-                ) { filter in
-                    filterButton(filter)
+                ForEach(Filter.allCases, id: \.self) { filter in
+                    Button { selectedFilter = filter } label: {
+                        Text(filter.rawValue).font(KIRITypography.bodySmallMedium)
+                            .foregroundStyle(selectedFilter == filter ? KIRIColor.Text.onGreen : KIRIColor.Text.secondary)
+                            .padding(.horizontal, 14).frame(height: 36)
+                            .background(selectedFilter == filter ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
+                            .clipShape(Capsule())
+                    }.buttonStyle(.plain)
                 }
-            }
-            .padding(.horizontal, 18)
+            }.padding(.horizontal, 18)
         }
     }
-    private func filterButton(
-        _ filter: NotificationFilter
-    ) -> some View {
-        Button {
-            withAnimation(
-                .easeOut(duration: 0.15)
-            ) {
-                selectedFilter = filter
-            }
-        } label: {
-            Text(filter.rawValue)
-                .font(KIRITypography.bodySmallMedium)
-                .tracking(-0.56)
-                .foregroundStyle(
-                    selectedFilter == filter
-                        ? KIRIColor.Text.onGreen
-                        : KIRIColor.Text.secondary
-                )
-                .padding(.horizontal, 14)
-                .frame(height: 36)
-                .background(
-                    selectedFilter == filter
-                        ? KIRIColor.Primary.default
-                        : KIRIColor.Background.tertiary
-                )
-                .clipShape(
-                    Capsule()
-                )
-        }
-        .buttonStyle(.plain)
-    }
-    // MARK: - Notification List
-    private var notificationList: some View {
-        ScrollView(
-            .vertical,
-            showsIndicators: false
-        ) {
+
+    private var list: some View {
+        ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 0) {
-                ForEach(filteredNotifications) {
-                    notification in
-                    notificationRow(notification)
-                    Divider()
-                        .overlay(
-                            KIRIColor.Border.subtle
-                        )
-                        .padding(.leading, 78)
+                if isLoading && notifications.isEmpty {
+                    ProgressView().frame(maxWidth: .infinity, minHeight: 240)
+                } else if let errorMessage, notifications.isEmpty {
+                    VStack(spacing: 12) {
+                        Text(errorMessage).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await load(page: 0, replacing: true) } }
+                            .font(KIRITypography.captionMedium).foregroundStyle(KIRIColor.Text.accent)
+                    }.frame(maxWidth: .infinity, minHeight: 240)
+                } else if filtered.isEmpty {
+                    Text("새로운 알림이 없어요").font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.tertiary).frame(maxWidth: .infinity, minHeight: 240)
+                } else {
+                    ForEach(filtered) { notification in
+                        notificationRow(notification)
+                        Divider().overlay(KIRIColor.Border.subtle).padding(.leading, 78)
+                    }
+                    if hasNext, let last = filtered.last { Color.clear.frame(height: 1).onAppear { loadNextIfNeeded(last) } }
+                    if isLoadingMore { ProgressView().padding(.vertical, 14) }
                 }
-                if filteredNotifications.isEmpty {
-                    Text("새로운 알림이 없어요")
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.tertiary)
-                        .frame(maxWidth: .infinity, minHeight: 240)
-                }
-                Color.clear
-                    .frame(height: 120)
+                Color.clear.frame(height: 120)
             }
         }
     }
-    private func notificationRow(
-        _ notification: NotificationItem
-    ) -> some View {
-        Button {
-            handleNotificationTap(
-                notification
-            )
-        } label: {
-            HStack(
-                alignment: .top,
-                spacing: 14
-            ) {
-                notificationIcon(
-                    notification
-                )
-                VStack(
-                    alignment: .leading,
-                    spacing: 7
-                ) {
-                    HStack(
-                        alignment: .top,
-                        spacing: 8
-                    ) {
-                        VStack(
-                            alignment: .leading,
-                            spacing: 5
-                        ) {
-                            Text(
-                                notification.description
-                            )
-                            .font(
-                                KIRITypography.bodySmall
-                            )
-                            .tracking(-0.56)
-                            .foregroundStyle(
-                                isRead(notification)
-                                    ? KIRIColor.Text.secondary
-                                    : KIRIColor.Text.strong
-                            )
-                            .multilineTextAlignment(
-                                .leading
-                            )
-                            .fixedSize(
-                                horizontal: false,
-                                vertical: true
-                            )
+
+    private func notificationRow(_ item: NotificationPreviewResult) -> some View {
+        Button { Task { await handleTap(item) } } label: {
+            HStack(alignment: .top, spacing: 14) {
+                ZStack {
+                    Circle().fill(KIRIColor.Background.tertiary)
+                    Image(systemName: icon(for: item.notificationType)).font(.system(size: 19)).foregroundStyle(KIRIColor.Icon.primary)
+                }.frame(width: 46, height: 46)
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(item.title).font(KIRITypography.bodySmallMedium).foregroundStyle(item.isRead ? KIRIColor.Text.secondary : KIRIColor.Text.strong)
+                            Text(item.body).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
-                        if !isRead(notification) {
-                            Circle()
-                                .fill(
-                                    KIRIColor.Primary.default
-                                )
-                                .frame(
-                                    width: 7,
-                                    height: 7
-                                )
-                                .padding(.top, 6)
-                        }
+                        if !item.isRead { Circle().fill(KIRIColor.Primary.default).frame(width: 7, height: 7).padding(.top, 6) }
                     }
-                    Text(notification.time)
-                        .font(KIRITypography.caption)
-                        .tracking(-0.48)
-                        .foregroundStyle(
-                            KIRIColor.Text.tertiary
-                        )
+                    Text(formatDate(item.createdAt)).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
                 }
+            }.padding(.horizontal, 18).padding(.vertical, 18).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+        }.buttonStyle(.plain).disabled(readInFlight.contains(item.id))
+    }
+
+    private func load(page: Int, replacing: Bool) async {
+        if page == 0 && isLoading { return }
+        if page > 0 && isLoadingMore { return }
+        await MainActor.run { if page == 0 { isLoading = true; errorMessage = nil } else { isLoadingMore = true } }
+        do {
+            let result = try await AuthService.shared.notifications(page: page)
+            await MainActor.run {
+                let existing = replacing ? [] : notifications
+                let merged = existing + result.content.filter { item in
+                    !existing.contains(where: { $0.id == item.id })
+                }
+                notifications = merged; self.page = result.number; hasNext = result.hasNext
+                isLoading = false; isLoadingMore = false
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 18)
-            .frame(
-                maxWidth: .infinity,
-                alignment: .leading
-            )
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-    // MARK: - Icon
-    private func notificationIcon(
-        _ notification: NotificationItem
-    ) -> some View {
-        ZStack {
-            Circle()
-                .fill(
-                    KIRIColor.Background.tertiary
-                )
-            Image(
-                systemName: notification.kind.icon
-            )
-            .font(
-                .system(
-                    size: 19,
-                    weight: .regular
-                )
-            )
-            .foregroundStyle(
-                KIRIColor.Icon.primary
-            )
-        }
-        .frame(
-            width: 46,
-            height: 46
-        )
-    }
-    // MARK: - State
-    private func isRead(
-        _ notification: NotificationItem
-    ) -> Bool {
-        readNotificationIDs.contains(
-            notification.id
-        )
-    }
-    private func markAllAsRead() {
-        withAnimation(
-            .easeOut(duration: 0.15)
-        ) {
-            readNotificationIDs = Set(
-                notifications.map(\.id)
-            )
+        } catch {
+            await MainActor.run { isLoading = false; isLoadingMore = false; errorMessage = "알림을 불러오지 못했어요. 다시 시도해 주세요." }
         }
     }
-    private func handleNotificationTap(
-        _ notification: NotificationItem
-    ) {
-        readNotificationIDs.insert(
-            notification.id
-        )
-        guard notification.opensInvitation else {
-            return
+
+    private func loadNextIfNeeded(_ item: NotificationPreviewResult) {
+        guard item.id == filtered.last?.id, hasNext else { return }
+        Task { await load(page: page + 1, replacing: false) }
+    }
+
+    private func handleTap(_ item: NotificationPreviewResult) async {
+        guard !readInFlight.contains(item.id) else { return }
+        if !item.isRead {
+            await MainActor.run { readInFlight.insert(item.id) }
+            do {
+                try await AuthService.shared.markNotificationAsRead(notificationId: item.id)
+                await MainActor.run {
+                    if let index = notifications.firstIndex(where: { $0.id == item.id }) {
+                        let old = notifications[index]
+                        notifications[index] = NotificationPreviewResult(notificationId: old.notificationId, title: old.title, body: old.body, notificationType: old.notificationType, isRead: true, referenceId: old.referenceId, createdAt: old.createdAt)
+                    }
+                    readInFlight.remove(item.id)
+                }
+            } catch {
+                await MainActor.run { readInFlight.remove(item.id); toastMessage = "알림을 읽음 처리하지 못했어요. 다시 시도해 주세요." }
+                return
+            }
         }
-        onSelectInvitation()
+        await MainActor.run { onSelect(destination(for: item)) }
+    }
+
+    private func destination(for item: NotificationPreviewResult) -> NotificationDestination {
+        guard let id = item.referenceId else { return .unavailable }
+        if item.notificationType.hasPrefix("SCHEDULE") { return .schedule(id) }
+        if item.notificationType == "QUESTION_REMINDER" || item.notificationType == "QUESTION_COMPLETE" || item.notificationType == "POKE" { return .question(id) }
+        if item.notificationType.contains("MISSION") || item.notificationType == "EXTERNAL_EVENT_CANCELLED" { return .mission(id) }
+        return .unavailable
+    }
+
+    private func icon(for type: String) -> String {
+        if type.hasPrefix("SCHEDULE") { return "calendar" }
+        if type == "POKE" { return "hand.tap" }
+        if type.contains("MISSION") { return "flag" }
+        return "book.closed"
+    }
+
+    private func formatDate(_ value: String) -> String {
+        let input = ISO8601DateFormatter(); input.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = input.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+        guard let date else { return value }
+        let formatter = RelativeDateTimeFormatter(); formatter.locale = Locale(identifier: "ko_KR"); formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
-#Preview {
-    NotificationView(
-        onBack: {},
-        onSelectInvitation: {}
-    )
-}
+
+#Preview { NotificationView(onBack: {}, onSelect: { _ in }) }

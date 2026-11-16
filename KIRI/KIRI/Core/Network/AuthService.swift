@@ -606,6 +606,64 @@ final class AuthService {
         return result.items
     }
 
+    /// 현재 로그인 사용자의 알림을 최신순으로 조회합니다.
+    func notifications(page: Int = 0, size: Int = 20) async throws -> NotificationPageResult {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/notifications",
+            method: .GET,
+            queryItems: [
+                URLQueryItem(name: "page", value: String(page)),
+                URLQueryItem(name: "size", value: String(size))
+            ],
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<NotificationPageResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard let result = envelope.result else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+        #if DEBUG
+        print("[KIRI][Notification] GET page=\(page) count=\(result.content.count) hasNext=\(result.hasNext)")
+        #endif
+        return result
+    }
+
+    /// 알림을 읽음 처리합니다. 서버 성공 응답 이후에만 화면 상태를 갱신합니다.
+    func markNotificationAsRead(notificationId: Int) async throws {
+        let endpoint = APIEndpoint(
+            path: "/api/v1/notifications/\(notificationId)/read",
+            method: .PATCH,
+            requiresAuthentication: true
+        )
+        let tokens = try authenticatedTokens()
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+            endpoint: endpoint,
+            accessToken: tokens.accessToken
+        )
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
+    }
+
+    /// 홈의 알림 점은 페이지에 잘린 로컬 상태가 아니라 서버 목록을 기준으로
+    /// 계산합니다. 별도 unread-count 계약이 없는 현재 서버에서는 페이지를
+    /// 끝까지 읽어 전체 미읽음 수를 계산합니다.
+    func unreadNotificationsCount() async throws -> Int {
+        var page = 0
+        var count = 0
+        var hasNext = true
+        while hasNext {
+            let result = try await notifications(page: page)
+            count += result.content.filter { !$0.isRead }.count
+            hasNext = result.hasNext
+            page += 1
+        }
+        return count
+    }
+
     func saveMissionToBucket(missionId: Int) async throws -> BucketSaveResult {
         let endpoint = APIEndpoint(
             path: "/api/v1/missions/\(missionId)/bucket",
