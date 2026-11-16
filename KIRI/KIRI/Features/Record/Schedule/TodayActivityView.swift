@@ -19,6 +19,12 @@ struct TodayActivityView: View {
         let isRestPlace: Bool
         let price: Int?
         let crowdLevel: Int?
+        let imageURL: URL?
+    }
+    struct ParticipantStatus: Identifiable {
+        let id: Int
+        let nickname: String
+        let isAccepted: Bool
     }
     struct SuggestedItem: Identifiable {
         let id: String
@@ -28,9 +34,26 @@ struct TodayActivityView: View {
     struct Content {
         let isCurrentUserConfirmed: Bool
         let participantNames: [String]
+        let participantStatuses: [ParticipantStatus]
         let requiredActivities: [String]
         let requiredItems: [SuggestedItem]
         let nearbyRecommendations: [Recommendation]
+
+        init(
+            isCurrentUserConfirmed: Bool,
+            participantNames: [String],
+            participantStatuses: [ParticipantStatus] = [],
+            requiredActivities: [String],
+            requiredItems: [SuggestedItem],
+            nearbyRecommendations: [Recommendation]
+        ) {
+            self.isCurrentUserConfirmed = isCurrentUserConfirmed
+            self.participantNames = participantNames
+            self.participantStatuses = participantStatuses
+            self.requiredActivities = requiredActivities
+            self.requiredItems = requiredItems
+            self.nearbyRecommendations = nearbyRecommendations
+        }
     }
     let schedule: RecordCalendarView.ScheduleDetailData
     let content: Content
@@ -45,6 +68,7 @@ struct TodayActivityView: View {
         Set<ConditionAdjustmentSheet.Condition> = []
     @State private var conditionsLoadError: String?
     @State private var refreshedRecommendations: [Recommendation]?
+    @State private var isDescriptionExpanded = false
     var savedReview: ActivityReviewWriteView.Draft? = nil
     var onReviewSaved: ((ActivityReviewWriteView.Draft) -> Void)? = nil
     @State private var localReview: ActivityReviewWriteView.Draft?
@@ -92,23 +116,14 @@ struct TodayActivityView: View {
                         KIRIColor.Text.strong
                     )
                     .padding(.top, 12)
-                if let missionDescription, !missionDescription.isEmpty {
-                    Text(missionDescription)
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 8)
-                }
-                if let requestMessage, !requestMessage.isEmpty {
-                    Text("\"\(requestMessage)\"")
-                        .font(KIRITypography.bodySmall)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                        .padding(.top, 6)
-                }
                 participantSection
                     .padding(.top, 10)
                 activityDetail
                     .padding(.top, 30)
+                eventDescriptionSection
+                    .padding(.top, 18)
+                conditionButton
+                    .padding(.top, 18)
                 reviewButton
                     .padding(.top, 24)
                 contentSelector
@@ -155,7 +170,8 @@ struct TodayActivityView: View {
                                         distanceMeters: item.distance,
                                         isRestPlace: false,
                                         price: item.price,
-                                        crowdLevel: nil
+                                        crowdLevel: nil,
+                                        imageURL: item.imageUrl
                                     )
                                 }
                             }
@@ -234,18 +250,69 @@ struct TodayActivityView: View {
         ) {
             Text("참여상태")
             Text("|")
-            Text(
-                content.participantNames.isEmpty
-                    ? "참여자 정보 없음"
-                    : content.participantNames.joined(
-                        separator: ", "
-                    )
-            )
+            if content.participantStatuses.isEmpty {
+                Text(content.participantNames.isEmpty ? "참여자 정보 없음" : content.participantNames.joined(separator: ", "))
+            } else {
+                ForEach(Array(content.participantStatuses.enumerated()), id: \.element.id) { index, participant in
+                    if index > 0 { Text(" ") }
+                    HStack(spacing: 3) {
+                        Text(participant.nickname)
+                        if participant.isAccepted {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(KIRIColor.Primary.default)
+                        }
+                    }
+                }
+            }
         }
         .font(KIRITypography.body)
         .foregroundStyle(
             KIRIColor.Text.primary
         )
+    }
+    private var eventDescriptionSection: some View {
+        Group {
+            if let missionDescription, !missionDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("행사설명")
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                    Text(missionDescription)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .lineLimit(isDescriptionExpanded ? nil : 3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if missionDescription.count > 120 {
+                        Button(isDescriptionExpanded ? "접기" : "더 보기") {
+                            isDescriptionExpanded.toggle()
+                        }
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+    private var conditionButton: some View {
+        Button {
+            showingConditionScreen = true
+        } label: {
+            HStack {
+                Text("컨디션 조정하러가기")
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 52)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
     }
     private var activityDetail: some View {
         VStack(
@@ -385,11 +452,11 @@ struct TodayActivityView: View {
             spacing: 16
         ) {
             sectionTitle(
-                "오늘 끼리네 필수 활동"
+                    "추천 활동"
             )
             if content.requiredActivities.isEmpty {
                 emptyCard(
-                    "등록된 필수 활동이 없어요."
+                    "추천 활동이 아직 없어요."
                 )
             } else {
                 ForEach(
@@ -437,10 +504,10 @@ struct TodayActivityView: View {
             alignment: .leading,
             spacing: 16
         ) {
-            sectionTitle("오늘의 필수템")
+            sectionTitle("끼리 맞춤템")
             if content.requiredItems.isEmpty {
                 emptyCard(
-                    "확인된 준비물 정보가 없어요."
+                    "추천 준비물이 아직 없어요."
                 )
             } else {
                 LazyVGrid(
@@ -550,6 +617,12 @@ struct TodayActivityView: View {
                         alignment: .leading,
                         spacing: 9
                     ) {
+                        KIRIContentImage(imageURL: place.imageURL, mockAssetName: nil) {
+                            KIRIColor.Background.tertiary
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 144)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                         Text(place.title)
                             .font(
                                 KIRITypography.headingSmall

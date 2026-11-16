@@ -24,6 +24,7 @@ struct ScheduleDetailView: View {
     @State private var showingReviewEditor = false
     @State private var localEditedReview: ActivityReviewWriteView.Draft?
     @State private var serverDetail: ScheduleDetailResult?
+    @State private var missionDetail: MissionDetailResult?
     @State private var isLoadingServerDetail = true
     @State private var serverDetailError: String?
     @State private var isMutatingSchedule = false
@@ -144,8 +145,17 @@ struct ScheduleDetailView: View {
             participantNames: detail.participants
                 .filter { $0.status.uppercased() == "ACCEPTED" }
                 .map(\.nickname),
-            requiredActivities: [],
-            requiredItems: [],
+            participantStatuses: familyMembers.map { member in
+                TodayActivityView.ParticipantStatus(
+                    id: member.memberId,
+                    nickname: member.nickname,
+                    isAccepted: detail.participants.first(where: { $0.memberId == member.memberId })?.status.uppercased() == "ACCEPTED"
+                )
+            },
+            requiredActivities: missionDetail?.steps.map(\.title) ?? [],
+            requiredItems: missionDetail?.prepareItems.map {
+                TodayActivityView.SuggestedItem(id: $0.id, title: $0.title, reason: $0.description)
+            } ?? [],
             nearbyRecommendations: nearbyMissions.map { mission in
                 TodayActivityView.Recommendation(
                     id: mission.id,
@@ -155,7 +165,8 @@ struct ScheduleDetailView: View {
                     distanceMeters: mission.distance,
                     isRestPlace: false,
                     price: mission.price,
-                    crowdLevel: nil
+                    crowdLevel: nil,
+                    imageURL: mission.imageUrl
                 )
             }
         )
@@ -404,6 +415,7 @@ struct ScheduleDetailView: View {
         .task {
             await loadReviewIdentity()
             await loadServerDetail()
+            await loadMissionDetail()
             await loadNearbyMissions()
             await loadReviews()
         }
@@ -464,6 +476,11 @@ struct ScheduleDetailView: View {
         } catch {
             nearbyLoadError = "근처 놀거리 추천을 불러오지 못했어요."
         }
+    }
+
+    private func loadMissionDetail() async {
+        guard let missionId = serverDetail?.missionId else { return }
+        missionDetail = try? await AuthService.shared.missionDetail(missionId: missionId)
     }
 
     private func loadReviews() async {
