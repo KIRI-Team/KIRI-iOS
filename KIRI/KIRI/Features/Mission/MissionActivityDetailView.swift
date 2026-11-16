@@ -106,11 +106,12 @@ struct MissionActivityDetailView: View {
                 .zIndex(10)
             }
         }
-        .task {
-            await loadDetail()
-            await loadEssentials()
-            await loadNearbyMissions()
-        }
+        // 각 섹션은 서로 다른 API에 의존합니다. 미션 상세가 느리거나
+        // 실패해도 essentials 요청이 기다리지 않도록 독립적으로 시작하고,
+        // 같은 상세 뷰가 다른 missionId로 재사용될 때도 다시 조회합니다.
+        .task(id: missionId) { await loadDetail() }
+        .task(id: missionId) { await loadEssentials() }
+        .task(id: missionId) { await loadNearbyMissions() }
         .overlay(alignment: .top) {
             if isShowingBucketToast {
                 KIRIToast(message: bucketToastMessage)
