@@ -227,13 +227,10 @@ final class AuthService {
         // also lets us validate the exact object sent by the PATCH contract
         // (`{\"nickname\": string}`) without passing an existential Encodable
         // through the request pipeline.
-        // `String(nickname)` can preserve shared storage. Rebuild the value
-        // from copied UTF-8 bytes so JSONSerialization receives an immutable,
-        // independently owned String from the request boundary.
-        let nicknameValue = String(
-            decoding: Array(nickname.utf8),
-            as: UTF8.self
-        )
+        // The caller has already captured the edit value on MainActor. Make
+        // one immutable value for validation and JSON construction instead of
+        // reading SwiftUI state again after the async boundary.
+        let nicknameValue = String(nickname)
         #if DEBUG
         print(
             "[KIRI][AuthService] updateNickname "
@@ -346,9 +343,22 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        // SwiftUI 입력 State를 네트워크 비동기 경계 밖에서 확정하고,
+        // 가족명 PATCH 계약({"name": string})과 동일한 JSON 바이트를 전송합니다.
+        let nameValue = String(name)
+        guard !nameValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw APIError.serverError(code: "COMMON400_1", message: "가족명은 필수입니다.")
+        }
+        let bodyData = try JSONSerialization.data(
+            withJSONObject: ["name": nameValue],
+            options: []
+        )
+        #if DEBUG
+        print("[KIRI][API] PATCH /api/v1/families/\(familyId) bodyKeys=name bodyBytes=\(bodyData.count) nameLength=\(nameValue.count)")
+        #endif
         let envelope: APIEnvelope<FamilyNameUpdateResult> = try await client.requestEnvelope(
             endpoint: endpoint,
-            body: UpdateFamilyNameRequest(name: name),
+            bodyData: bodyData,
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }

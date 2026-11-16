@@ -117,32 +117,20 @@ struct NicknameEditView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             KIRIPrimaryButton(title: "저장하기", isEnabled: canSave) {
-                // 한글 조합이 끝난 뒤 MainActor에서 편집 상태를 스냅샷한다.
+                // 한글 조합이 끝난 뒤 탭 시점의 값을 한 번 확정합니다.
+                // 이후 비동기 요청에서는 SwiftUI State를 다시 읽지 않습니다.
                 guard !isSaving else { return }
                 isInputFocused = false
+                let nicknameToSave = String(trimmedNickname)
+                guard !nicknameToSave.isEmpty,
+                      isValidNickname(nicknameToSave),
+                      nicknameToSave != normalizedCurrentNickname else { return }
                 let save = onSave
+                isSaving = true
+                #if DEBUG
+                print("[KIRI][NicknameEdit] save tap normalizedLength=\(nicknameToSave.count)")
+                #endif
                 Task { @MainActor in
-                    await Task.yield()
-                    let nicknameToSave = String(
-                        decoding: Array(trimmedNickname.utf8),
-                        as: UTF8.self
-                    )
-                    #if DEBUG
-                    print(
-                        "[KIRI][NicknameEdit] save tap "
-                            + "editedLength=\(editedNickname.count) "
-                            + "normalizedLength=\(nicknameToSave.count)"
-                    )
-                    #endif
-                    // 버튼 상태와 별개로 액션 시점에도 동일한 검증을 수행한다.
-                    // 빠른 연속 탭이나 상태 갱신 사이의 요청 중복을 막는다.
-                    guard !isSaving,
-                          !nicknameToSave.isEmpty,
-                          isValidNickname(nicknameToSave),
-                          nicknameToSave != normalizedCurrentNickname else {
-                        return
-                    }
-                    isSaving = true
                     errorMessage = await save?(nicknameToSave)
                     if errorMessage == nil {
                         nickname = nicknameToSave
