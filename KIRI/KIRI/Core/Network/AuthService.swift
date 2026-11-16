@@ -1038,9 +1038,16 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        let normalizedAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedAnswer.isEmpty else {
+            throw APIError.serverError(code: "COMMON400_1", message: "답변을 입력해 주세요.")
+        }
+        #if DEBUG
+        print("[KIRI][Question] PUT questionId=\(questionId) answerLength=\(normalizedAnswer.count)")
+        #endif
         let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
             endpoint: endpoint,
-            body: WriteAnswerRequest(answer: answer),
+            body: WriteAnswerRequest(answer: normalizedAnswer),
             accessToken: tokens.accessToken
         )
     }

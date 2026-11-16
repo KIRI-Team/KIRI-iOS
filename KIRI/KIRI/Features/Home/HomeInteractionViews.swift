@@ -76,9 +76,6 @@ struct HomeQuestionAnswerView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("오늘의 질문")
-                .font(KIRITypography.caption)
-                .foregroundStyle(KIRIColor.Text.secondary)
             Text(question)
                 .font(KIRITypography.title)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -102,27 +99,31 @@ struct HomeQuestionAnswerView: View {
                     nicknameMenu
                 }
             case .writing:
-                Text("선택한 가족: \(selectedMember?.name ?? "")")
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.secondary)
                 if isCurrentMember {
-                    TextEditor(text: $answerText)
-                        .font(KIRITypography.body)
-                        .foregroundStyle(KIRIColor.Text.primary)
-                        .scrollContentBackground(.hidden)
-                        .padding(12)
-                        .frame(height: 150)
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $answerText)
+                            .font(KIRITypography.body)
+                            .foregroundStyle(KIRIColor.Text.primary)
+                            .scrollContentBackground(.hidden)
+                            .padding(12)
+                        if answerText.isEmpty {
+                            Text("답변을 입력해 주세요")
+                                .font(KIRITypography.body)
+                                .foregroundStyle(KIRIColor.Text.tertiary)
+                                .padding(.horizontal, 17)
+                                .padding(.vertical, 20)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                    .frame(height: 150)
                         .background(KIRIColor.Background.secondary)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     HStack {
-                        Text("공백 제외 \(answerText.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
                         Spacer()
+                        Text("공백 제외 \(answerText.trimmingCharacters(in: .whitespacesAndNewlines).count)/500")
                     }
                     .font(KIRITypography.caption)
                     .foregroundStyle(KIRIColor.Text.tertiary)
-                    Text("질문에 대한 답변을 작성해 주세요.")
-                        .font(KIRITypography.caption)
-                        .foregroundStyle(KIRIColor.Text.tertiary)
                 } else if selectedMember?.hasAnswered == true {
                     Text(selectedMember?.answer ?? "")
                         .font(KIRITypography.body)
@@ -158,10 +159,18 @@ struct HomeQuestionAnswerView: View {
                 Text("가족 구성원이 없어요")
             } else {
                 ForEach(familyMembers) { member in
-                    Button(member.name) {
+                    Button {
                         selectedMemberId = member.memberId
                         answerText = member.memberId == currentMemberId ? (member.answer ?? existingAnswer ?? "") : ""
                         saveError = nil
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(memberRoleAsset(member.role))
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 28, height: 28)
+                            Text(memberDisplayName(member))
+                        }
                     }
                 }
             }
@@ -223,6 +232,24 @@ struct HomeQuestionAnswerView: View {
 
     private var selectedMember: HomeMember? {
         familyMembers.first { $0.memberId == selectedMemberId }
+    }
+
+    private func memberDisplayName(_ member: HomeMember) -> String {
+        let role = localizedFamilyRole(member.role ?? "")
+        let suffix = member.isMe ? " (나)" : ""
+        return role.isEmpty
+            ? "\(member.name)\(suffix)"
+            : "\(member.name) · \(role)\(suffix)"
+    }
+
+    private func memberRoleAsset(_ role: String?) -> String {
+        switch role?.uppercased() {
+        case "MOTHER", "MOM": return "figma_family_member_active_mom"
+        case "FATHER", "DAD": return "figma_family_member_active"
+        case "SON": return "figma_family_member_active_son"
+        case "DAUGHTER": return "figma_family_member_active_daughter"
+        default: return "figma_family_member_default"
+        }
     }
 
     private var isCurrentMember: Bool {
