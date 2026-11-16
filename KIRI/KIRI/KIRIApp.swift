@@ -37,6 +37,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     // mutable-content payload가 필요하므로 서버·배포 타깃 설정을 별도로
     // 확인해야 합니다.
     UNUserNotificationCenter.current().delegate = self
+    UNUserNotificationCenter.current().requestAuthorization(
+      options: [.alert, .badge, .sound]
+    ) { _, _ in }
     application.registerForRemoteNotifications()
     if let appKey = Bundle.main.object(
         forInfoDictionaryKey: "KAKAO_NATIVE_APP_KEY"
