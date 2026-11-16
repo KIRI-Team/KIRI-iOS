@@ -227,7 +227,13 @@ final class AuthService {
         // also lets us validate the exact object sent by the PATCH contract
         // (`{\"nickname\": string}`) without passing an existential Encodable
         // through the request pipeline.
-        let nicknameValue = String(nickname)
+        // `String(nickname)` can preserve shared storage. Rebuild the value
+        // from copied UTF-8 bytes so JSONSerialization receives an immutable,
+        // independently owned String from the request boundary.
+        let nicknameValue = String(
+            decoding: Array(nickname.utf8),
+            as: UTF8.self
+        )
         let bodyData = try JSONSerialization.data(
             withJSONObject: ["nickname": nicknameValue],
             options: []

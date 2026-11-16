@@ -114,7 +114,14 @@ struct NicknameEditView: View {
             KIRIPrimaryButton(title: "다음", isEnabled: canSave) {
                 // Task가 시작된 뒤 SwiftUI View identity가 바뀌어도 요청 값과
                 // 저장 클로저가 화면의 임시 View 값에 의존하지 않도록 스냅샷을 만든다.
-                let nicknameToSave = trimmedNickname
+                // Force a new UTF-8-backed value before creating the Task.
+                // A plain `String(...)` may retain the TextField's shared
+                // storage, which is the value implicated by the previous
+                // JSONWriter EXC_BAD_ACCESS reports.
+                let nicknameToSave = String(
+                    decoding: Array(trimmedNickname.utf8),
+                    as: UTF8.self
+                )
                 let save = onSave
                 Task { @MainActor in
                     // 버튼 상태와 별개로 액션 시점에도 동일한 검증을 수행한다.
