@@ -1181,6 +1181,7 @@ struct FamilyHomeView: View {
                 InvitationRequestView.RequestData.Participant(
                     id: participant.memberId ?? -(index + 1),
                     nickname: participant.nickname,
+                    familyRole: participant.familyRole,
                     status: participant.status,
                     characterImageURL: participant.characterImageUrl
                 )

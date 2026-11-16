@@ -17,6 +17,7 @@ struct InvitationRequestView: View {
         struct Participant: Identifiable {
             let id: Int
             let nickname: String
+            let familyRole: String?
             let status: String
             let characterImageURL: URL?
         }
@@ -39,6 +40,7 @@ struct InvitationRequestView: View {
     var respondsDirectly: Bool = false
 
     @State private var isAddScheduleSheetVisible = false
+    @State private var isDescriptionExpanded = false
 
     var body: some View {
         ZStack {
@@ -48,11 +50,21 @@ struct InvitationRequestView: View {
             VStack(spacing: 0) {
                 navigationBar
 
+                acceptanceStatus
+
                 ScrollView(
                     .vertical,
                     showsIndicators: false
                 ) {
                     content
+                }
+                .scrollIndicators(.hidden)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    bottomButtons
+                        .padding(.horizontal, 18)
+                        .padding(.top, 10)
+                        .padding(.bottom, 8)
+                        .background(KIRIColor.Background.base)
                 }
             }
 
@@ -100,17 +112,38 @@ struct InvitationRequestView: View {
 
     // MARK: - Content
 
+    private var acceptanceStatus: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("초대 수락 현황")
+                .font(KIRITypography.bodyMedium)
+                .foregroundStyle(KIRIColor.Text.primary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(request.participantDetails) { participant in
+                        VStack(spacing: 5) {
+                            participantAvatar(participant)
+                                .frame(width: 42, height: 42)
+                                .background(KIRIColor.Background.tertiary)
+                                .clipShape(Circle())
+                            Text(participant.nickname)
+                                .font(KIRITypography.captionMedium)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                                .lineLimit(1)
+                                .frame(maxWidth: 60)
+                        }
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+    }
+
     private var content: some View {
         VStack(spacing: 0) {
-            Text("\(request.senderRole)이 저장한 미션이에요!")
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
-                .foregroundStyle(KIRIColor.Text.primary)
-                .frame(
-                    maxWidth: .infinity,
-                    alignment: .center
-                )
-
             activityCard
                 .padding(.horizontal, 35)
                 .padding(.top, 35)
@@ -119,22 +152,19 @@ struct InvitationRequestView: View {
                 .padding(.horizontal, 36)
                 .padding(.top, 16)
 
-            descriptionSection
-                .padding(.horizontal, 36)
-                .padding(.top, 26)
+            if !request.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                descriptionSection
+                    .padding(.horizontal, 36)
+                    .padding(.top, 26)
+            }
 
-            familyMessageSection
-                .padding(.horizontal, 35)
-                .padding(.top, 30)
+            if !request.familyMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                familyMessageSection
+                    .padding(.horizontal, 35)
+                    .padding(.top, 30)
+            }
 
-            Spacer()
-                .frame(height: 42)
-
-            bottomButtons
-                .padding(.horizontal, 18)
-
-            Color.clear
-                .frame(height: 34)
+            Color.clear.frame(height: 28)
         }
         .padding(.top, 8)
     }
@@ -151,20 +181,21 @@ struct InvitationRequestView: View {
 
             VStack(
                 alignment: .center,
-                spacing: 0
+                spacing: 6
             ) {
                 Text("활동명")
                 .font(KIRITypography.captionMedium)
                 .tracking(-0.48)
                 .foregroundStyle(KIRIColor.Text.tertiary)
 
-            Text(request.title)
+                Text(request.title)
                 .font(KIRITypography.headingLarge)
                 .tracking(-0.96)
                 .foregroundStyle(KIRIColor.Text.strong)
-                .padding(.top, 8)
-
-            Spacer(minLength: 16)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
 
             HStack(spacing: 4) {
                 Image(systemName: "clock.fill")
@@ -185,46 +216,12 @@ struct InvitationRequestView: View {
                     )
             }
 
-            HStack(spacing: 5) {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(
-                        KIRIColor.Icon.secondary
-                    )
-                    .frame(
-                        width: 18,
-                        height: 18
-                    )
-
-                Text(request.participants)
-                    .font(KIRITypography.bodySmall)
-                    .tracking(-0.56)
-                    .foregroundStyle(
-                        KIRIColor.Text.secondary
-                    )
-            }
-            .padding(.top, 6)
-
-                if !request.participantDetails.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(request.participantDetails) { participant in
-                            HStack(spacing: 5) {
-                                participantAvatar(participant)
-                                Text(participant.nickname)
-                                    .font(KIRITypography.captionMedium)
-                                    .foregroundStyle(KIRIColor.Text.secondary)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(KIRIColor.Background.base.opacity(0.65))
-                            .clipShape(Capsule())
-                        }
-                    }
-                }
-                .padding(.top, 12)
-                }
+            Text(request.participants)
+                .font(KIRITypography.bodySmall)
+                .tracking(-0.56)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
             }
         }
         .padding(.vertical, 20)
@@ -284,10 +281,22 @@ struct InvitationRequestView: View {
                 .foregroundStyle(
                     KIRIColor.Text.primary
                 )
+                .lineLimit(isDescriptionExpanded ? nil : 3)
                 .fixedSize(
                     horizontal: false,
                     vertical: true
                 )
+
+            if request.description.count > 120 {
+                Button(isDescriptionExpanded ? "접기" : "더 보기") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isDescriptionExpanded.toggle()
+                    }
+                }
+                .font(KIRITypography.captionMedium)
+                .foregroundStyle(KIRIColor.Text.accent)
+                .padding(.top, 4)
+            }
         }
         .frame(
             maxWidth: .infinity,
@@ -336,13 +345,11 @@ struct InvitationRequestView: View {
                 Text("취소")
                     .font(KIRITypography.button)
                     .tracking(-0.64)
-                    .foregroundStyle(
-                        KIRIColor.Text.onGreen
-                    )
+                    .foregroundStyle(KIRIColor.Text.primary)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
                     .background(
-                        KIRIColor.Primary.default
+                        KIRIColor.Background.tertiary
                     )
                     .clipShape(
                         Capsule()
@@ -360,9 +367,7 @@ struct InvitationRequestView: View {
                 Text("약속 확정하기")
                     .font(KIRITypography.button)
                     .tracking(-0.64)
-                    .foregroundStyle(
-                        KIRIColor.Text.onGreen
-                    )
+                    .foregroundStyle(KIRIColor.Text.onGreen)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
                     .background(
@@ -396,7 +401,11 @@ struct InvitationRequestView: View {
 
     @ViewBuilder
     private func participantAvatar(_ participant: RequestData.Participant) -> some View {
-        if let url = participant.characterImageURL {
+        if let asset = roleAssetName(for: participant) {
+            Image(asset)
+                .resizable()
+                .scaledToFit()
+        } else if let url = participant.characterImageURL {
             AsyncImage(url: url) { phase in
                 if case .success(let image) = phase {
                     image.resizable().scaledToFit()
@@ -411,6 +420,19 @@ struct InvitationRequestView: View {
                 .scaledToFit()
                 .frame(width: 22, height: 22)
         }
+    }
+
+    private func roleAssetName(for participant: RequestData.Participant) -> String? {
+        let base: String
+        switch participant.familyRole?.uppercased() {
+        case "MOTHER": base = "role_mom"
+        case "FATHER": base = "role_dad"
+        case "SON": base = "role_son"
+        case "DAUGHTER": base = "role_daughter"
+        default: return nil
+        }
+        let accepted = ["ACCEPTED", "CONFIRMED", "COMPLETED"].contains(participant.status.uppercased())
+        return accepted ? "\(base)_active" : base
     }
 }
 
