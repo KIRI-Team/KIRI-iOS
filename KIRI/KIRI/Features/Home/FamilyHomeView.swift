@@ -167,7 +167,12 @@ struct FamilyHomeView: View {
                         onBack: { route = .home },
                         missionTitle: detail.missionTitle,
                         missionDescription: detail.missionDescription,
-                        requestMessage: detail.requestMessage
+                        requestMessage: detail.requestMessage,
+                        onReviewSaved: { _ in
+                            // 당일 상세에서 서버 저장이 끝난 뒤 홈의 일정·기억 데이터를
+                            // 다시 읽어 캘린더/추억 진입 시에도 서버 상태를 사용합니다.
+                            Task { await loadTodayAppointment() }
+                        }
                     )
                 }
 

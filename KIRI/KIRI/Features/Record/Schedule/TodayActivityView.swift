@@ -211,6 +211,32 @@ struct TodayActivityView: View {
                     showingReviewEditor = false
                     selectedTab = 1
                 },
+                onSubmitToServer: schedule.scheduleId.map { scheduleId in
+                    { draft in
+                        // 당일 화면은 서버 리뷰를 별도로 주입받지 않을 수 있으므로
+                        // 저장 직전에 최신 목록에서 내 리뷰 ID를 확인합니다.
+                        let existingReviewId: Int?
+                        if let reviews = try? await AuthService.shared.scheduleReviews(scheduleId: scheduleId) {
+                            existingReviewId = reviews.reviews.first(where: { $0.isMine })?.reviewId
+                        } else {
+                            existingReviewId = nil
+                        }
+                        let imageData = try draft.images.map { image in
+                            guard let data = image.jpegData(compressionQuality: 0.85) else {
+                                throw APIError.decodingFailed
+                            }
+                            return data
+                        }
+                        _ = try await AuthService.shared.saveReview(
+                            scheduleId: scheduleId,
+                            rating: draft.rating,
+                            images: imageData,
+                            comment: draft.comment,
+                            wantsToRepeat: draft.wantsToRepeat,
+                            existingReviewId: existingReviewId
+                        )
+                    }
+                },
                 initialDraft: submittedReview
             )
         }
