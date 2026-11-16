@@ -480,6 +480,12 @@ struct FamilyHomeView: View {
                 .compactMap { $0 }
                 .first { $0.type.uppercased() == "TODAY" && $0.myStatus.uppercased() == "ACCEPTED" }
             guard let candidate else {
+                let isViewingToday = await MainActor.run {
+                    route == .todayActivity && todayScheduleDetail != nil
+                }
+                // 리뷰 저장 직후 완료된 일정이 upcoming 목록에서 빠질 수 있습니다.
+                // 당일 상세를 보고 있는 동안에는 목록 갱신이 현재 라우트를 지우지 않습니다.
+                if isViewingToday { return }
                 await MainActor.run {
                     todayScheduleDetail = nil
                     todayScheduleData = nil
@@ -491,6 +497,10 @@ struct FamilyHomeView: View {
             let detail = try await AuthService.shared.scheduleDetail(scheduleId: candidate.scheduleId)
             guard ["TODAY", "SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
                   detail.myStatus?.uppercased() == "ACCEPTED" else {
+                let isViewingToday = await MainActor.run {
+                    route == .todayActivity && todayScheduleDetail != nil
+                }
+                if isViewingToday { return }
                 await MainActor.run {
                     todayScheduleDetail = nil
                     todayScheduleData = nil

@@ -167,7 +167,8 @@ struct RecordView: View {
                     onReviewSaved: nil,
 
                     onScheduleChanged: {
-                        selectedSchedule = nil
+                        // 리뷰 저장 후에는 열려 있는 일정 상세를 유지합니다.
+                        // 목록만 갱신해 대표사진·완료 상태를 반영합니다.
                         scheduleRefreshID = UUID()
                     }
 
