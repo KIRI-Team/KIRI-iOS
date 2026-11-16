@@ -24,7 +24,7 @@ struct ScheduleDetailView: View {
     @State private var showingReviewEditor = false
     @State private var localEditedReview: ActivityReviewWriteView.Draft?
     @State private var serverDetail: ScheduleDetailResult?
-    @State private var isLoadingServerDetail = false
+    @State private var isLoadingServerDetail = true
     @State private var serverDetailError: String?
     @State private var isMutatingSchedule = false
     @State private var scheduleMutationError: String?
@@ -135,6 +135,31 @@ struct ScheduleDetailView: View {
         return value
     }
     private var isReconfirmationRequired: Bool { serverDetail?.myStatus == "RECONFIRM_REQUIRED" }
+    private var serverTodayContent: TodayActivityView.Content? {
+        guard let detail = serverDetail,
+              ["TODAY", "CONFIRMED", "SCHEDULED"].contains(detail.status?.uppercased() ?? ""),
+              detail.myStatus?.uppercased() == "ACCEPTED" else { return nil }
+        return TodayActivityView.Content(
+            isCurrentUserConfirmed: true,
+            participantNames: detail.participants
+                .filter { $0.status.uppercased() == "ACCEPTED" }
+                .map(\.nickname),
+            requiredActivities: [],
+            requiredItems: [],
+            nearbyRecommendations: nearbyMissions.map { mission in
+                TodayActivityView.Recommendation(
+                    id: mission.id,
+                    title: mission.placeName,
+                    location: mission.region,
+                    description: mission.description,
+                    distanceMeters: mission.distance,
+                    isRestPlace: false,
+                    price: mission.price,
+                    crowdLevel: nil
+                )
+            }
+        )
+    }
     private func hasChanged(_ field: String) -> Bool { serverDetail?.changedFields.contains(field) == true }
     private func changedBadge(_ field: String) -> some View {
         Group {
@@ -171,33 +196,56 @@ struct ScheduleDetailView: View {
                     .padding(.horizontal, 18)
                 }
             } else {
-                if isAppointmentPast {
+                if isLoadingServerDetail && serverDetail == nil {
+                    VStack(spacing: 16) {
+                        navigationBar
+                        ProgressView("일정 최신 정보를 확인하고 있어요")
+                            .frame(maxWidth: .infinity, minHeight: 220)
+                    }
+                    .padding(.horizontal, 18)
+                } else if let serverDetailError, serverDetail == nil {
+                    VStack(spacing: 16) {
+                        navigationBar
+                        Text(serverDetailError)
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") {
+                            Task {
+                                await loadServerDetail()
+                                await loadNearbyMissions()
+                            }
+                        }
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 220)
+                    .padding(.horizontal, 18)
+                } else if dateState == .today,
+                          let content = todayContent ?? serverTodayContent {
+                    TodayActivityView(
+                        schedule: schedule,
+                        content: content,
+                        onBack: onBack,
+                        missionTitle: displayTitle,
+                        missionDescription: displayDescription,
+                        requestMessage: serverDetail?.requestMessage,
+                        savedReview: currentReview,
+                        onReviewSaved: { draft in
+                            localEditedReview = draft
+                            onReviewSaved?(draft)
+                        }
+                    )
+                } else if dateState == .today {
+                    statusView(
+                        title: "약속 당일 화면을 확인할 수 없어요",
+                        message: "확정된 일정의 최종 참여자만 이용할 수 있어요."
+                    )
+                } else if isAppointmentPast {
                     pastContent
                 } else {
                 switch dateState {
                 case .today:
-                    if schedule.status == .confirmedSchedule,
-                       let todayContent,
-                       todayContent.isCurrentUserConfirmed {
-                        TodayActivityView(
-                            schedule: schedule,
-                            content: todayContent,
-                            onBack: onBack,
-                            missionTitle: displayTitle,
-                            missionDescription: displayDescription,
-                            requestMessage: serverDetail?.requestMessage,
-                            savedReview: currentReview,
-                            onReviewSaved: { draft in
-                                localEditedReview = draft
-                                onReviewSaved?(draft)
-                            }
-                        )
-                    } else {
-                        statusView(
-                            title: "약속 당일 화면을 확인할 수 없어요",
-                            message: "확정된 일정의 최종 참여자만 이용할 수 있어요."
-                        )
-                    }
+                    statusView(title: "약속 당일 화면을 확인할 수 없어요", message: "확정된 일정의 최종 참여자만 이용할 수 있어요.")
                 case .upcoming:
                     upcomingContent
                 case .past:

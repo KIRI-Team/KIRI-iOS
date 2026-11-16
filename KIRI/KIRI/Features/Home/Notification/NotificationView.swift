@@ -260,6 +260,10 @@ struct NotificationView: View {
                 title = String(title[...exclamation])
             }
         }
+        // 서버가 정상적으로 내려주는 초대장 이모지도 제목에서 제거합니다.
+        while title.last == "💌" || title.last?.isWhitespace == true {
+            title.removeLast()
+        }
         return title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
