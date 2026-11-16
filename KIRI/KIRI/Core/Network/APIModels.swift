@@ -15,6 +15,20 @@ struct APIEnvelope<Result: Decodable>: Decodable {
     let code: String
     let message: String
     let result: Result?
+
+    private enum CodingKeys: String, CodingKey {
+        case isSuccess, code, message, result
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isSuccess = try container.decode(Bool.self, forKey: .isSuccess)
+        code = try container.decode(String.self, forKey: .code)
+        message = try container.decode(String.self, forKey: .message)
+        // ApiResponse<Void> may omit result entirely or return it as null.
+        // Both are successful responses and must not fail answer submission.
+        result = try container.decodeIfPresent(Result.self, forKey: .result)
+    }
 }
 
 struct EmptyAPIResult: Decodable {}
