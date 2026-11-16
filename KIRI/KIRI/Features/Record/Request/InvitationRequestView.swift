@@ -142,11 +142,18 @@ struct InvitationRequestView: View {
     // MARK: - Activity Card
 
     private var activityCard: some View {
-        VStack(
-            alignment: .center,
-            spacing: 0
-        ) {
-            Text("활동명")
+        ZStack {
+            Image("figma_invitation_envelope")
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, minHeight: 189)
+                .clipped()
+
+            VStack(
+                alignment: .center,
+                spacing: 0
+            ) {
+                Text("활동명")
                 .font(KIRITypography.captionMedium)
                 .tracking(-0.48)
                 .foregroundStyle(KIRIColor.Text.tertiary)
@@ -198,7 +205,7 @@ struct InvitationRequestView: View {
             }
             .padding(.top, 6)
 
-            if !request.participantDetails.isEmpty {
+                if !request.participantDetails.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(request.participantDetails) { participant in
@@ -217,15 +224,15 @@ struct InvitationRequestView: View {
                     }
                 }
                 .padding(.top, 12)
+                }
             }
         }
         .padding(.vertical, 20)
         .padding(.horizontal, 20)
         .frame(
             maxWidth: .infinity,
-            minHeight: 167
+            minHeight: 189
         )
-        .background(KIRIColor.Background.secondary)
         .clipShape(
             RoundedRectangle(
                 cornerRadius: 16
