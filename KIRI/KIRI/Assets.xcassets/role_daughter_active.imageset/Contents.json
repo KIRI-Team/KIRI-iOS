@@ -1,17 +1,9 @@
 {
   "images": [
     {
-      "filename": "role_daughter_active.png",
+      "filename": "딸 1.png",
       "idiom": "universal",
       "scale": "1x"
-    },
-    {
-      "idiom": "universal",
-      "scale": "2x"
-    },
-    {
-      "idiom": "universal",
-      "scale": "3x"
     }
   ],
   "info": {
