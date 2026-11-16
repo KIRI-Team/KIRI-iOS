@@ -36,11 +36,14 @@ struct NotificationView: View {
     @State private var errorMessage: String?
     @State private var readInFlight: Set<Int> = []
     @State private var toastMessage: String?
+    @State private var toastIsError = false
+    @State private var isMarkingAllRead = false
+    @State private var serverUnreadCount: Int?
 
     private var filtered: [NotificationPreviewResult] {
         notifications.filter { selectedFilter.matches($0.notificationType) }
     }
-    private var unreadCount: Int { notifications.filter { !$0.isRead }.count }
+    private var unreadCount: Int { serverUnreadCount ?? notifications.filter { !$0.isRead }.count }
 
     var body: some View {
         ZStack {
@@ -51,23 +54,40 @@ struct NotificationView: View {
                 list.padding(.top, 24)
             }
             if let toastMessage {
-                KIRIToast(message: toastMessage, isError: true)
+                KIRIToast(message: toastMessage, isError: toastIsError)
                     .padding(.horizontal, 18)
                     .safeAreaPadding(.top, 8)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
-        .task { await load(page: 0, replacing: true) }
+        .task {
+            await load(page: 0, replacing: true)
+        }
+        .task {
+            await refreshUnreadCount()
+        }
     }
 
     private var navigationBar: some View {
         ZStack {
             HStack(spacing: 6) {
+                KIRIBackButton(action: onBack)
                 Text("알림함").font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
-                if unreadCount > 0 { Text(unreadCount > 99 ? "+99" : "+\(unreadCount)").font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.accent) }
+                if unreadCount > 0 {
+                    Text(unreadCount > 99 ? "+99" : "+\(unreadCount)")
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                }
+                Spacer()
+                Button("모두읽음") {
+                    Task { await markAllAsRead() }
+                }
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(unreadCount > 0 && !isMarkingAllRead ? KIRIColor.Text.accent : KIRIColor.Text.tertiary)
+                .disabled(unreadCount == 0 || isMarkingAllRead)
             }
-            HStack { KIRIBackButton(action: onBack); Spacer() }.padding(.horizontal, 6)
-        }.frame(height: 62)
+            .padding(.horizontal, 18)
+        }.frame(height: 52)
     }
 
     private var filterSection: some View {
@@ -117,13 +137,17 @@ struct NotificationView: View {
             HStack(alignment: .top, spacing: 14) {
                 ZStack {
                     Circle().fill(KIRIColor.Background.tertiary)
-                    Image(systemName: icon(for: item.notificationType)).font(.system(size: 19)).foregroundStyle(KIRIColor.Icon.primary)
-                }.frame(width: 46, height: 46)
+                    Image(icon(for: item.notificationType))
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                        .opacity(item.isRead ? 0.42 : 1)
+                }.frame(width: 40, height: 40)
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 5) {
                             Text(item.title).font(KIRITypography.bodySmallMedium).foregroundStyle(item.isRead ? KIRIColor.Text.secondary : KIRIColor.Text.strong)
-                            Text(item.body).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary).fixedSize(horizontal: false, vertical: true)
+                            Text(item.body).font(KIRITypography.bodySmall).foregroundStyle(KIRIColor.Text.secondary).lineLimit(1)
                         }
                         Spacer(minLength: 8)
                         if !item.isRead { Circle().fill(KIRIColor.Primary.default).frame(width: 7, height: 7).padding(.top, 6) }
@@ -169,10 +193,11 @@ struct NotificationView: View {
                         let old = notifications[index]
                         notifications[index] = NotificationPreviewResult(notificationId: old.notificationId, title: old.title, body: old.body, notificationType: old.notificationType, isRead: true, referenceId: old.referenceId, createdAt: old.createdAt)
                     }
+                    serverUnreadCount = max(0, (serverUnreadCount ?? 1) - 1)
                     readInFlight.remove(item.id)
                 }
             } catch {
-                await MainActor.run { readInFlight.remove(item.id); toastMessage = "알림을 읽음 처리하지 못했어요. 다시 시도해 주세요." }
+                await MainActor.run { readInFlight.remove(item.id); toastIsError = true; toastMessage = "알림을 읽음 처리하지 못했어요. 다시 시도해 주세요." }
                 return
             }
         }
@@ -197,10 +222,49 @@ struct NotificationView: View {
     }
 
     private func icon(for type: String) -> String {
-        if type.hasPrefix("SCHEDULE") { return "calendar" }
-        if type == "POKE" { return "hand.tap" }
-        if type.contains("MISSION") { return "flag" }
-        return "book.closed"
+        if type.hasPrefix("SCHEDULE") { return "figma_calendar_active" }
+        if type == "POKE" { return "figma_gesture_tap" }
+        if type == "INVITE" || type.contains("INVIT") { return "figma_invitation_envelope" }
+        if type == "RECORD" || type == "RECORD_CREATED" || type == "WEEKLY_MISSION_COMPLETED" { return "figma_calendar_puzzle_answered" }
+        if type.contains("MISSION") || type == "EXTERNAL_EVENT_CANCELLED" { return "figma_place_active" }
+        return "figma_notification"
+    }
+
+    private func markAllAsRead() async {
+        guard !isMarkingAllRead else { return }
+        let unread = notifications.filter { !$0.isRead }
+        guard !unread.isEmpty else { return }
+        await MainActor.run { isMarkingAllRead = true; toastMessage = nil }
+        do {
+            // 서버에 별도 전체 읽음 계약이 없는 현재 환경에서는 확인된
+            // 개별 읽음 endpoint를 각 알림 ID에 대해 호출합니다.
+            for item in unread {
+                try await AuthService.shared.markNotificationAsRead(notificationId: item.id)
+            }
+            await load(page: 0, replacing: true)
+            await refreshUnreadCount()
+            await MainActor.run {
+                isMarkingAllRead = false
+                toastIsError = false
+                toastMessage = "알림을 모두 읽었어요"
+            }
+        } catch {
+            await MainActor.run {
+                isMarkingAllRead = false
+                toastIsError = true
+                toastMessage = "알림을 읽음 처리하지 못했어요. 다시 시도해 주세요."
+            }
+        }
+    }
+
+    private func refreshUnreadCount() async {
+        do {
+            let count = try await AuthService.shared.unreadNotificationsCount()
+            await MainActor.run { serverUnreadCount = count }
+        } catch {
+            // 목록 조회가 성공한 경우에는 현재 페이지의 실제 상태를
+            // fallback으로 사용하고, 임의의 미읽음 수를 만들지 않습니다.
+        }
     }
 
     private func formatDate(_ value: String) -> String {
