@@ -13,13 +13,16 @@ struct RecordView: View {
     // 둘러보기와 상태 확인 실패를 서버 빈 목록으로 오인하지 않도록 라우터 상태를 받습니다.
     let userMode: AppRouter.UserMode
     let familyState: AppRouter.FamilyState
+    let initialScheduleId: Int?
 
     init(
         userMode: AppRouter.UserMode = .family,
-        familyState: AppRouter.FamilyState = .hasFamily
+        familyState: AppRouter.FamilyState = .hasFamily,
+        initialScheduleId: Int? = nil
     ) {
         self.userMode = userMode
         self.familyState = familyState
+        self.initialScheduleId = initialScheduleId
     }
 
     enum RecordTab: Hashable {
@@ -206,6 +209,9 @@ struct RecordView: View {
         }
         .onAppear {
             tabBarVisibility.wrappedValue = !isDetailPresented
+            if let initialScheduleId, selectedSchedule == nil {
+                Task { await openInitialSchedule(initialScheduleId) }
+            }
         }
         .onChange(of: isDetailPresented) { _, presented in
             tabBarVisibility.wrappedValue = !presented
@@ -216,6 +222,39 @@ struct RecordView: View {
     }
 
     // MARK: - Record Content
+
+    private func openInitialSchedule(_ scheduleId: Int) async {
+        do {
+            let detail = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
+            let parts = detail.date.split(separator: "-").compactMap { Int($0) }
+            let day = parts.last ?? 1
+            let month = parts.dropLast().last ?? 1
+            let state: RecordCalendarView.ActivityState = {
+                switch detail.status?.uppercased() {
+                case "COMPLETED": return .completed
+                case "SCHEDULED", "CONFIRMED": return .confirmedSchedule
+                default: return .pendingSchedule
+                }
+            }()
+            await MainActor.run {
+                selectedSchedule = .init(
+                    scheduleId: scheduleId,
+                    day: day,
+                    month: month,
+                    status: state,
+                    title: detail.missionTitle ?? "일정",
+                    date: detail.date,
+                    startTime: detail.time ?? "",
+                    location: "",
+                    expectedSteps: "",
+                    duration: ""
+                )
+            }
+        } catch {
+            // 상세 조회 실패 시 기록 루트에 남겨 사용자가 재시도할 수 있게 합니다.
+            await MainActor.run { selectedTab = .calendar }
+        }
+    }
 
     @ViewBuilder
     private var recordContent: some View {

@@ -30,6 +30,7 @@ struct FamilyHomeView: View {
     var tutorialStep: Int? = nil
     var loadsServerQuestion: Bool = true
     var onExploreMission: () -> Void = {}
+    var onSelectNotification: (NotificationDestination) -> Void = { _ in }
 
     @State private var isInvitePresented = false
     @State private var isInviteUnavailableAlertPresented = false
@@ -55,11 +56,14 @@ struct FamilyHomeView: View {
     @State private var recommendedMissions: [MissionFeedItem] = []
     @State private var isLoadingRecommendations = false
     @State private var missionFeedError: String?
+    @State private var notificationMission: MissionDetailResult?
+    @State private var unreadNotificationCount = 0
 
 
     private enum HomeRoute {
         case home
         case notification
+        case notificationMission
         case placeDetail
         case taste
         case questionAnswer
@@ -83,10 +87,46 @@ struct FamilyHomeView: View {
                     onBack: {
                         route = .home
                     },
-                    onSelectInvitation: {
-                        // 알림 목록 API가 제공되기 전에는 샘플 요청서를 열지 않습니다.
+                    onSelect: { destination in
+                        switch destination {
+                        case .mission(let missionId):
+                            Task { await openNotificationMission(missionId) }
+                        case .question(let questionId):
+                            Task {
+                                await loadFamilyAnswers(questionId: questionId)
+                                await MainActor.run {
+                                    serverQuestion = TodayQuestionResult(
+                                        hasFamily: true,
+                                        questionId: questionId,
+                                        question: familyAnswersQuestion,
+                                        isAnswered: false,
+                                        answer: nil
+                                    )
+                                    route = .questionAnswer
+                                }
+                            }
+                        default:
+                            onSelectNotification(destination)
+                        }
                     }
                 )
+
+            case .notificationMission:
+                if let notificationMission {
+                    MissionActivityDetailView(
+                        missionId: notificationMission.missionId,
+                        title: notificationMission.title,
+                        placeName: notificationMission.place?.name ?? "",
+                        district: notificationMission.district,
+                        rating: notificationMission.averageRating,
+                        tags: notificationMission.tags,
+                        isRecommended: false,
+                        mockAssetName: nil,
+                        imageURL: notificationMission.imageUrl,
+                        isBookmarked: .constant(notificationMission.bucketSaved),
+                        onBack: { route = .notification }
+                    )
+                }
 
 
             case .placeDetail:
@@ -263,6 +303,9 @@ struct FamilyHomeView: View {
         }
         .onChange(of: route) { _, newRoute in
             tabBarVisibility.wrappedValue = newRoute == .home
+            if newRoute == .home {
+                Task { await refreshUnreadNotifications() }
+            }
         }
         .onDisappear {
             tabBarVisibility.wrappedValue = true
@@ -281,6 +324,9 @@ struct FamilyHomeView: View {
         .task {
             await loadRecommendations()
         }
+        .task {
+            await refreshUnreadNotifications()
+        }
     }
 
     private func showPokeToast(_ message: String, isError: Bool) {
@@ -292,6 +338,18 @@ struct FamilyHomeView: View {
             withAnimation(.easeOut(duration: 0.2)) {
                 pokeToastMessage = nil
             }
+        }
+    }
+
+    private func refreshUnreadNotifications() async {
+        guard familyId != nil else { return }
+        do {
+            let count = try await AuthService.shared.unreadNotificationsCount()
+            await MainActor.run { unreadNotificationCount = count }
+        } catch {
+            // 알림 조회 실패는 홈 전체를 오류 상태로 만들지 않습니다. 서버
+            // unread-count 계약이 없는 동안에는 점을 보수적으로 숨깁니다.
+            await MainActor.run { unreadNotificationCount = 0 }
         }
     }
 
@@ -410,16 +468,12 @@ struct FamilyHomeView: View {
                                 height: 24
                             )
 
-                        Circle()
-                            .fill(KIRIColor.Primary.default)
-                            .frame(
-                                width: 6,
-                                height: 6
-                            )
-                            .offset(
-                                x: 1,
-                                y: -1
-                            )
+                        if unreadNotificationCount > 0 {
+                            Circle()
+                                .fill(KIRIColor.Primary.default)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 1, y: -1)
+                        }
                     }
                     .frame(
                         width: 52,
@@ -825,6 +879,21 @@ struct FamilyHomeView: View {
             #if DEBUG
             print("[KIRI][Question] family answers load failed: \(error.localizedDescription)")
             #endif
+        }
+    }
+
+    private func openNotificationMission(_ missionId: Int) async {
+        do {
+            let result = try await AuthService.shared.missionDetail(missionId: missionId)
+            await MainActor.run {
+                notificationMission = result
+                route = .notificationMission
+            }
+        } catch {
+            await MainActor.run {
+                route = .home
+                showPokeToast("미션을 불러오지 못했어요. 다시 시도해 주세요.", isError: true)
+            }
         }
     }
 
