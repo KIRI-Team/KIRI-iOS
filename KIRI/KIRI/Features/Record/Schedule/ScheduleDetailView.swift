@@ -79,6 +79,44 @@ struct ScheduleDetailView: View {
         formatter.isLenient = false
         return formatter.date(from: effectiveDate)
     }
+    private var parsedScheduleDateTime: Date? {
+        let dateValue = effectiveDate.replacingOccurrences(of: ".", with: "-")
+        let timeValue = effectiveStartTime.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !dateValue.isEmpty, !timeValue.isEmpty else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.isLenient = false
+        for format in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm"] {
+            formatter.dateFormat = format
+            if let value = formatter.date(from: "\(dateValue) \(timeValue)") { return value }
+        }
+        return nil
+    }
+    private var isAppointmentPast: Bool {
+        guard let scheduledAt = parsedScheduleDateTime else {
+            return parsedScheduleDate.map { $0 < Calendar.current.startOfDay(for: Date()) } ?? false
+        }
+        return scheduledAt <= Date()
+    }
+    private var canWriteReview: Bool {
+        guard let detail = serverDetail else { return false }
+        let status = detail.status?.uppercased() ?? ""
+        let isConfirmedStatus = ["CONFIRMED", "COMPLETED", "TODAY"].contains(status)
+        return isConfirmedStatus && detail.myStatus?.uppercased() == "ACCEPTED" && isAppointmentPast
+    }
+    private var reviewEligibilityMessage: String {
+        guard let detail = serverDetail else { return "일정 정보를 확인한 뒤 리뷰를 작성할 수 있어요." }
+        let status = detail.status?.uppercased() ?? ""
+        if status == "SCHEDULED" || status == "PENDING" {
+            return "아직 확정되지 않은 약속은 리뷰를 작성할 수 없어요."
+        }
+        if detail.myStatus?.uppercased() != "ACCEPTED" {
+            return "참여가 확정된 가족만 리뷰를 작성할 수 있어요."
+        }
+        if !isAppointmentPast { return "약속 시간이 지난 뒤 리뷰를 작성할 수 있어요." }
+        return "현재 일정 상태에서는 리뷰를 작성할 수 없어요."
+    }
     private var effectiveDate: String {
         serverDetail?.date ?? schedule.date
     }
@@ -133,6 +171,9 @@ struct ScheduleDetailView: View {
                     .padding(.horizontal, 18)
                 }
             } else {
+                if isAppointmentPast {
+                    pastContent
+                } else {
                 switch dateState {
                 case .today:
                     if schedule.status == .confirmedSchedule,
@@ -166,6 +207,7 @@ struct ScheduleDetailView: View {
                         title: "일정 날짜를 확인할 수 없어요",
                         message: "일정 정보를 다시 확인해 주세요."
                     )
+                }
                 }
             }
         }
@@ -346,6 +388,12 @@ struct ScheduleDetailView: View {
         serverDetailError = nil
         do {
             serverDetail = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
+#if DEBUG
+            if let detail = serverDetail {
+                let acceptedCount = detail.participants.filter { $0.status.uppercased() == "ACCEPTED" }.count
+                print("[KIRI][Review] eligibility scheduleId=\(scheduleId) status=\(detail.status ?? "nil") myStatus=\(detail.myStatus ?? "nil") acceptedParticipants=\(acceptedCount) date=\(detail.date) time=\(detail.time ?? "nil")")
+            }
+#endif
         } catch {
             serverDetailError = "일정 최신 정보를 불러오지 못했어요."
             #if DEBUG
@@ -441,7 +489,29 @@ struct ScheduleDetailView: View {
 
     @ViewBuilder
     private var pastContent: some View {
-        if isLoadingReviews {
+        if isLoadingServerDetail {
+            VStack(spacing: 16) {
+                navigationBar
+                ProgressView("일정 상태를 확인하고 있어요")
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            }
+            .padding(.horizontal, 18)
+        } else if let serverDetailError {
+            VStack(spacing: 16) {
+                navigationBar
+                Text(serverDetailError)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                Button("다시 시도") {
+                    Task {
+                        await loadServerDetail()
+                        await loadReviews()
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 220)
+            .padding(.horizontal, 18)
+        } else if isLoadingReviews {
             VStack(spacing: 16) {
                 navigationBar
                 ProgressView("리뷰 기록을 확인하고 있어요")
@@ -466,7 +536,7 @@ struct ScheduleDetailView: View {
                 onEdit: { showingReviewEditor = true },
                 onDelete: { reviewToDelete = review }
             )
-        } else {
+        } else if canWriteReview {
             VStack(alignment: .leading, spacing: 18) {
                 navigationBar
                 Text("지난 약속이에요")
@@ -486,6 +556,26 @@ struct ScheduleDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 12)
+        } else {
+            VStack(alignment: .leading, spacing: 18) {
+                navigationBar
+                Text("지난 약속이에요")
+                    .font(KIRITypography.title)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                Text(reviewEligibilityMessage)
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                Button("일정 상태 다시 확인") {
+                    Task {
+                        await loadServerDetail()
+                        await loadReviews()
+                    }
+                }
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)

@@ -191,7 +191,13 @@ struct ActivityReviewWriteView: View {
 #endif
                 await MainActor.run {
                     isSubmitting = false
-                    submitError = "리뷰를 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요."
+                    if case let APIError.serverError(code, _) = error, code == "REVIEW409_2" {
+                        submitError = "이 약속은 리뷰를 작성할 수 없는 상태예요. 일정 정보를 다시 확인해 주세요."
+                    } else if case let APIError.serverError(code, _) = error, code == "REVIEW409_1" {
+                        submitError = "이미 이 약속에 리뷰를 작성했어요."
+                    } else {
+                        submitError = "리뷰를 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요."
+                    }
                 }
             }
         }
