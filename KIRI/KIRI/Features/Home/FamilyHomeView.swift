@@ -185,7 +185,7 @@ struct FamilyHomeView: View {
                     question: serverQuestion?.question ?? "오늘의 질문",
                     existingAnswer: serverQuestion?.answer,
                     familyMembers: displayedMembers,
-                    currentMemberId: try? AuthService.shared.currentMemberId(),
+                    currentMemberId: currentAuthenticatedMemberId,
                     familyMembersError: familyAnswersError,
                     onRetryFamilyMembers: {
                         if let questionId = serverQuestion?.questionId {
@@ -195,10 +195,21 @@ struct FamilyHomeView: View {
                     onBack: { route = .home }
                 ) { selectedMemberId, savedAnswer in
                     guard let questionId = serverQuestion?.questionId,
-                          let currentMemberId = try? AuthService.shared.currentMemberId(),
-                          selectedMemberId == currentMemberId else { return false }
+                          let selected = displayedMembers.first(where: { $0.memberId == selectedMemberId }),
+                          selected.isMe else {
+                        #if DEBUG
+                        print("[KIRI][Question] save blocked: selected member is not authenticated member")
+                        #endif
+                        return false
+                    }
+                    #if DEBUG
+                    print("[KIRI][Question] save start questionId=\(questionId) answerLength=\(savedAnswer.count)")
+                    #endif
                     do {
                         try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
+                        #if DEBUG
+                        print("[KIRI][Question] save success questionId=\(questionId)")
+                        #endif
                         await loadTodayQuestion()
                         return true
                     } catch {
@@ -789,7 +800,10 @@ struct FamilyHomeView: View {
         if !familyAnswers.isEmpty {
             let currentMemberId = try? AuthService.shared.currentMemberId()
             return familyAnswers.map { member in
-                let isMe = member.memberId == currentMemberId
+                // 서버의 isMe는 인증된 memberId를 기준으로 계산된 값입니다.
+                // JWT subject를 읽지 못하는 환경에서도 서버가 식별한 본인을
+                // 잃지 않도록 두 ID 경로를 함께 사용합니다.
+                let isMe = member.isMe || member.memberId == currentMemberId
                 return HomeMember(
                     id: String(member.memberId),
                     memberId: member.memberId,
@@ -801,7 +815,6 @@ struct FamilyHomeView: View {
                 )
             }
         }
-
         // The server response identifies the authenticated user through the
         // question payload even when the family answer list is empty. Do not
         // invent other family members, but keep the authenticated member
@@ -816,6 +829,13 @@ struct FamilyHomeView: View {
             answer: serverQuestion?.answer,
             isMe: true
         )]
+    }
+
+    private var currentAuthenticatedMemberId: Int? {
+        if let memberId = try? AuthService.shared.currentMemberId() {
+            return memberId
+        }
+        return familyAnswers.first(where: { $0.isMe })?.memberId
     }
 
     private func isCurrentMember(_ member: HomeMember) -> Bool {
