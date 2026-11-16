@@ -256,6 +256,9 @@ struct ScheduleDetailView: View {
                         onReviewSaved: { draft in
                             localEditedReview = draft
                             onReviewSaved?(draft)
+                            // 약속 당일 화면에서 저장한 리뷰도 캘린더가 대표사진·완료 상태를
+                            // 서버에서 다시 읽도록 상위 기록 화면에 갱신을 알립니다.
+                            onScheduleChanged?()
                         }
                     )
                 } else if dateState == .today {
