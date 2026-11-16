@@ -15,12 +15,14 @@ struct FamilyMemberItem: View {
     let role: String?
     let isMe: Bool
     let hasAnswered: Bool
+    let answerStatusKnown: Bool
 
-    init(name: String, role: String? = nil, isMe: Bool, hasAnswered: Bool) {
+    init(name: String, role: String? = nil, isMe: Bool, hasAnswered: Bool, answerStatusKnown: Bool = true) {
         self.name = name
         self.role = role
         self.isMe = isMe
         self.hasAnswered = hasAnswered
+        self.answerStatusKnown = answerStatusKnown
     }
 
     private var normalizedRole: String? {
@@ -37,6 +39,15 @@ struct FamilyMemberItem: View {
         // Figma KIRI/Member Avatar Group(8413:5880)의 역할별 원본을
         // 답변 상태에 따라 명시적으로 선택합니다. 역할별 Asset을 먼저
         // 고르므로 한 캐릭터를 다른 가족 역할에 재사용하지 않습니다.
+        if !answerStatusKnown {
+            switch normalizedRole {
+            case "MOTHER": return "role_mom"
+            case "FATHER": return "role_dad"
+            case "SON": return "role_son"
+            case "DAUGHTER": return "role_daughter"
+            default: return "figma_family_member_default"
+            }
+        }
         if hasAnswered {
             switch normalizedRole {
             case "MOTHER": return "role_mom_active"
@@ -74,7 +85,7 @@ struct FamilyMemberItem: View {
                     .grayscale(usesFallbackStateTreatment ? 1 : 0)
                     .colorMultiply(normalizedRole == "FATHER" && hasAnswered ? KIRIColor.Primitive.green500 : .white)
 
-                Image(hasAnswered ? "figma_family_avatar_ring_active" : "figma_family_avatar_ring")
+                Image(hasAnswered && answerStatusKnown ? "figma_family_avatar_ring_active" : "figma_family_avatar_ring")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 44, height: 44)

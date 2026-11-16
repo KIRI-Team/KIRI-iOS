@@ -124,6 +124,14 @@ struct HomeQuestionAnswerView: View {
                     }
                     .font(KIRITypography.caption)
                     .foregroundStyle(KIRIColor.Text.tertiary)
+                } else if selectedMember?.answerStatusKnown == false {
+                    Text("답변 상태를 확인할 수 없어요. 다시 시도해 주세요.")
+                        .font(KIRITypography.body)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(KIRIColor.Background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else if selectedMember?.hasAnswered == true {
                     Text(selectedMember?.answer ?? "")
                         .font(KIRITypography.body)
@@ -429,7 +437,7 @@ struct HomeMemberQuestionView: View {
                     .font(KIRITypography.body)
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요")
+                Text(!member.answerStatusKnown ? "답변 상태를 확인할 수 없어요" : (member.hasAnswered ? (member.answer ?? "답변을 확인해보세요") : "아직 답변하지 않았어요"))
                     .font(KIRITypography.headingSmall)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .fixedSize(horizontal: false, vertical: true)
