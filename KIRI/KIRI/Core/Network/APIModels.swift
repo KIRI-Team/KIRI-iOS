@@ -465,15 +465,17 @@ struct ScheduleProposerResult: Decodable, Sendable {
 struct ScheduleParticipantResult: Decodable, Sendable {
     let nickname: String
     let memberId: Int?
+    let familyRole: String?
     let status: String
     let characterImageUrl: URL?
 
-    private enum CodingKeys: String, CodingKey { case memberId, nickname, status, characterImageUrl }
+    private enum CodingKeys: String, CodingKey { case memberId, nickname, familyRole, status, characterImageUrl }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         memberId = try container.decodeIfPresent(Int.self, forKey: .memberId)
         nickname = try container.decodeIfPresent(String.self, forKey: .nickname) ?? "가족 구성원"
+        familyRole = try container.decodeIfPresent(String.self, forKey: .familyRole)
         status = try container.decodeIfPresent(String.self, forKey: .status) ?? "PENDING"
         characterImageUrl = try container.decodeIfPresent(URL.self, forKey: .characterImageUrl)
     }
