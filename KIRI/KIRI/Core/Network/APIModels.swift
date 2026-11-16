@@ -851,3 +851,16 @@ struct Term: Decodable, Identifiable, Sendable {
 
     var id: Int { termId }
 }
+
+/// 서버의 가족 역할 코드를 화면 표시용 한국어로 변환합니다.
+/// 서버 값은 저장·요청에 그대로 사용하고, 이 함수는 표시 문자열에만 적용합니다.
+func localizedFamilyRole(_ role: String?) -> String {
+    guard let role, !role.isEmpty else { return "" }
+    switch role.uppercased() {
+    case "MOTHER", "MOM": return "엄마"
+    case "FATHER", "DAD": return "아빠"
+    case "DAUGHTER": return "딸"
+    case "SON": return "아들"
+    default: return role
+    }
+}

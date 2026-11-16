@@ -23,6 +23,7 @@ struct NicknameEditView: View {
     @State private var editedNickname = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @FocusState private var isInputFocused: Bool
 
     private var trimmedNickname: String {
         editedNickname
@@ -66,15 +67,11 @@ struct NicknameEditView: View {
                             .foregroundStyle(KIRIColor.textSecondary)
                             .padding(.top, 12)
 
-                        KIRITextField(
-                            placeholder: "이름을 입력하세요.",
-                            text: $editedNickname,
-                            state: editedNickname.isEmpty || isValid ? .normal : .error
-                        )
-                        .padding(.top, 40)
+                        nicknameInput
+                            .padding(.top, 40)
                     }
-                    .padding(.horizontal, KIRISpacing.horizontal)
-                    .padding(.top, 10)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 44)
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     saveArea
@@ -111,7 +108,7 @@ struct NicknameEditView: View {
                     .foregroundStyle(KIRIColor.Status.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            KIRIPrimaryButton(title: "다음", isEnabled: canSave) {
+            KIRIPrimaryButton(title: "저장하기", isEnabled: canSave) {
                 // Task가 시작된 뒤 SwiftUI View identity가 바뀌어도 요청 값과
                 // 저장 클로저가 화면의 임시 View 값에 의존하지 않도록 스냅샷을 만든다.
                 // Force a new UTF-8-backed value before creating the Task.
@@ -144,15 +141,61 @@ struct NicknameEditView: View {
     }
 
     private var header: some View {
-        HStack {
-            KIRIBackButton {
-                dismiss()
-            }
+        ZStack {
+            Text("기본 정보")
+                .font(KIRITypography.headingSmall)
+                .foregroundStyle(KIRIColor.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .center)
 
-            Spacer()
+            HStack {
+                KIRIBackButton {
+                    dismiss()
+                }
+                Spacer()
+            }
         }
         .padding(.horizontal, 4)
-        .frame(height: 70)
+        .frame(height: 62)
+    }
+
+    private var nicknameInput: some View {
+        HStack(spacing: 4) {
+            Text("지금닉네임:")
+                .font(KIRITypography.bodyMedium)
+                .tracking(-0.64)
+                .foregroundStyle(KIRIColor.Input.contentFilled)
+                .fixedSize()
+
+            TextField("", text: $editedNickname)
+                .font(KIRITypography.bodyMedium)
+                .tracking(-0.64)
+                .foregroundStyle(KIRIColor.Input.contentFilled)
+                .tint(KIRIColor.Primary.default)
+                .focused($isInputFocused)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .onSubmit { isInputFocused = false }
+
+            if !editedNickname.isEmpty {
+                Button {
+                    editedNickname = ""
+                    isInputFocused = true
+                } label: {
+                    Image("figma_input_clear")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("닉네임 지우기")
+            }
+        }
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity)
+        .frame(height: 54)
+        .background(KIRIColor.Input.backgroundFilled)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private func containsOnlyAllowedCharacters(

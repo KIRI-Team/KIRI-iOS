@@ -202,7 +202,7 @@ struct FamilySettingsView: View {
             }.frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 0) {
                 Text(member.nickname).font(.system(size: 16, weight: .regular)).foregroundStyle(KIRIColor.Text.strong)
-                Text(localizedRole(member.familyRole ?? "" )).font(.system(size: 12, weight: .medium)).foregroundStyle(KIRIColor.Text.primary)
+                Text(localizedFamilyRole(member.familyRole).isEmpty ? "미설정" : localizedFamilyRole(member.familyRole)).font(.system(size: 12, weight: .medium)).foregroundStyle(KIRIColor.Text.primary)
             }
             Spacer()
             if isCurrentMember(member) {
@@ -238,15 +238,6 @@ struct FamilySettingsView: View {
         isLoadingMembers = false
     }
 
-    private func localizedRole(_ role: String) -> String {
-        switch role.uppercased() {
-        case "MOTHER": return "엄마"
-        case "FATHER": return "아빠"
-        case "SON": return "아들"
-        case "DAUGHTER": return "딸"
-        default: return role.isEmpty ? "미설정" : role
-        }
-    }
 
 }
 

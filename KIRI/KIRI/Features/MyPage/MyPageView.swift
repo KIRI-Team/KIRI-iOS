@@ -99,7 +99,7 @@ struct MyPageView: View {
 
     private var profileSubtitle: String {
         guard let familyName else { return "가족공간 미가입" }
-        if let familyRole, !familyRole.isEmpty { return "\(familyName) I \(familyRole)" }
+        if let familyRole, !familyRole.isEmpty { return "\(familyName) I \(localizedFamilyRole(familyRole))" }
         return familyName
     }
 
