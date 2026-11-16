@@ -138,7 +138,7 @@ struct ScheduleDetailView: View {
     private var isReconfirmationRequired: Bool { serverDetail?.myStatus == "RECONFIRM_REQUIRED" }
     private var serverTodayContent: TodayActivityView.Content? {
         guard let detail = serverDetail,
-              ["TODAY", "CONFIRMED", "SCHEDULED"].contains(detail.status?.uppercased() ?? ""),
+              ["TODAY", "CONFIRMED", "SCHEDULED", "COMPLETED"].contains(detail.status?.uppercased() ?? ""),
               detail.myStatus?.uppercased() == "ACCEPTED" else { return nil }
         return TodayActivityView.Content(
             isCurrentUserConfirmed: true,
