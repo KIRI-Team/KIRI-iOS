@@ -685,8 +685,7 @@ struct PushNotificationView: View {
                                     .foregroundStyle(KIRIColor.Text.accent)
                             }
                             Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 14, weight: .semibold))
+                            MyPageChevron()
                                 .foregroundStyle(KIRIColor.Text.accent)
                         }
                         .padding(.horizontal, 16)
@@ -746,9 +745,9 @@ struct PushNotificationView: View {
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 12)
                     Button { isTimeModalPresented = false } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(KIRIColor.Text.secondary)
+                        Image("figma_input_clear")
+                            .resizable()
+                            .scaledToFit()
                             .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.plain)
