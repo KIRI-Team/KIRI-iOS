@@ -52,6 +52,8 @@ struct InvitationRequestView: View {
 
                 acceptanceStatus
 
+                invitationSentence
+
                 ScrollView(
                     .vertical,
                     showsIndicators: false
@@ -140,6 +142,24 @@ struct InvitationRequestView: View {
         .padding(.horizontal, 18)
         .padding(.top, 4)
         .padding(.bottom, 8)
+    }
+
+    private var invitationSentence: some View {
+        HStack(spacing: 5) {
+            Text("\(request.senderRole)이 저장한 미션이에요!")
+                .font(KIRITypography.bodyMedium)
+                .tracking(-0.64)
+                .foregroundStyle(KIRIColor.Text.primary)
+
+            Image("invite_behind")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 12)
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 2)
     }
 
     private var content: some View {
