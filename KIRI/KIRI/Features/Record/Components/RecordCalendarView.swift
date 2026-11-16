@@ -455,8 +455,18 @@ struct RecordCalendarView: View {
                 if let result = try? await AuthService.shared.scheduleReviews(scheduleId: scheduleID),
                    !result.reviews.isEmpty {
                     reviewed.insert(scheduleID)
-                    if let representativeID = result.representativePhotoId,
-                       let photo = result.reviews.flatMap(\.photos).first(where: { $0.reviewPhotoId == representativeID }) {
+                    // 서버 대표사진이 유효하면 우선 사용하고, 대표 ID가
+                    // 비어 있거나 삭제된 경우에는 작성순으로 사진이 있는
+                    // 리뷰의 첫 사진을 사용합니다(CAL-03).
+                    let representative = result.representativePhotoId.flatMap { id in
+                        result.reviews
+                            .flatMap(\.photos)
+                            .first(where: { $0.reviewPhotoId == id })
+                    }
+                    let fallback = result.reviews
+                        .sorted { $0.createdAt < $1.createdAt }
+                        .first(where: { !$0.photos.isEmpty })?.photos.first
+                    if let photo = representative ?? fallback {
                         photoURLs[scheduleID] = photo.imageUrl
                     }
                 }

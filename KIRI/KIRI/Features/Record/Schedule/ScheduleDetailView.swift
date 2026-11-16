@@ -256,6 +256,9 @@ struct ScheduleDetailView: View {
                         onReviewSaved: { draft in
                             localEditedReview = draft
                             onReviewSaved?(draft)
+                            // 서버 저장 직후 리뷰 목록을 다시 읽어야 당일
+                            // 상세를 나갔다 돌아와도 내 리뷰가 복원됩니다.
+                            Task { @MainActor in await loadReviews() }
                             // 약속 당일 화면에서 저장한 리뷰도 캘린더가 대표사진·완료 상태를
                             // 서버에서 다시 읽도록 상위 기록 화면에 갱신을 알립니다.
                             onScheduleChanged?()
@@ -291,6 +294,7 @@ struct ScheduleDetailView: View {
                 onSubmit: { draft in
                     localEditedReview = draft
                     onReviewSaved?(draft)
+                    Task { @MainActor in await loadReviews() }
                     onScheduleChanged?()
                     showingReviewEditor = false
                 },
