@@ -346,6 +346,19 @@ final class APIClient {
                 "application/json",
                 forHTTPHeaderField: "Content-Type"
             )
+
+            #if DEBUG
+            if endpoint.path == "/api/v1/members/nickname" {
+                let object = (try? JSONSerialization.jsonObject(with: bodyData)) as? [String: Any]
+                let nickname = object?["nickname"] as? String
+                print(
+                    "[KIRI][APIClient] nickname URLRequest "
+                        + "keyPresent=\(nickname != nil) "
+                        + "nicknameLength=\(nickname?.count ?? 0) "
+                        + "bodyBytes=\(bodyData.count)"
+                )
+            }
+            #endif
         }
 
         return request

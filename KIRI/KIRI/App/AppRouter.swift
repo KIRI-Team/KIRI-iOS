@@ -342,6 +342,9 @@ final class AppRouter {
     }
 
     func updateNickname(_ value: String) async -> String? {
+        #if DEBUG
+        print("[KIRI][AppRouter] updateNickname inputLength=\(value.count)")
+        #endif
         do {
             let result = try await AuthService.shared.updateNickname(value)
             sessionStore.saveNickname(result.nickname)
