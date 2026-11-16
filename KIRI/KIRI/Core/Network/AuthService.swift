@@ -986,6 +986,61 @@ final class AuthService {
         return result
     }
 
+    /// 사진 업로드부터 리뷰 생성·수정, 대표사진 보정까지 모든 리뷰 작성 진입점이
+    /// 동일하게 사용하는 서버 저장 경로입니다.
+    func saveReview(
+        scheduleId: Int,
+        rating: Int,
+        images: [Data],
+        comment: String,
+        wantsToRepeat: Bool,
+        existingReviewId: Int? = nil
+    ) async throws -> ScheduleReviewsResult {
+        var imageKeys: [String] = []
+        for data in images {
+            let contentType = "image/jpeg"
+            let presigned = try await issuePresignedURL(
+                contentType: contentType,
+                contentLength: Int64(data.count)
+            )
+            try await uploadImage(
+                data: data,
+                to: presigned.presignedUrl,
+                contentType: contentType
+            )
+            imageKeys.append(presigned.imageKey)
+        }
+
+        let request = ReviewCreateRequest(
+            starRating: rating,
+            imageKeys: imageKeys,
+            content: comment,
+            isRejoinIntended: wantsToRepeat
+        )
+        if let existingReviewId {
+            _ = try await updateReview(
+                scheduleId: scheduleId,
+                reviewId: existingReviewId,
+                request: request
+            )
+        } else {
+            _ = try await createReview(scheduleId: scheduleId, request: request)
+        }
+
+        let latest = try await scheduleReviews(scheduleId: scheduleId)
+        let mineReviews = latest.reviews
+            .filter { $0.isMine }
+            .sorted { $0.createdAt < $1.createdAt }
+        let firstPhoto = mineReviews.first.flatMap { $0.photos.first }
+        if latest.representativePhotoId == nil, let firstPhoto {
+            _ = try? await changeRepresentativePhoto(
+                scheduleId: scheduleId,
+                reviewPhotoId: firstPhoto.reviewPhotoId
+            )
+        }
+        return latest
+    }
+
     func scheduleReviews(scheduleId: Int) async throws -> ScheduleReviewsResult {
         let endpoint = APIEndpoint(path: "/api/v1/schedules/\(scheduleId)/reviews", requiresAuthentication: true)
         let tokens = try authenticatedTokens()

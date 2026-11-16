@@ -300,66 +300,20 @@ struct ScheduleDetailView: View {
                 },
                 onSubmitToServer: schedule.scheduleId.map { scheduleId in
                     { draft in
-                        var imageKeys: [String] = []
-                        for image in draft.images {
+                        let imageData = try draft.images.map { image in
                             guard let data = image.jpegData(compressionQuality: 0.85) else {
                                 throw APIError.decodingFailed
                             }
-#if DEBUG
-                            print("[KIRI][Review] image presign start bytes=\(data.count)")
-#endif
-                            let contentType = "image/jpeg"
-                            let presigned = try await AuthService.shared.issuePresignedURL(
-                                contentType: contentType,
-                                contentLength: Int64(data.count)
-                            )
-                            try await AuthService.shared.uploadImage(data: data, to: presigned.presignedUrl, contentType: contentType)
-                            imageKeys.append(presigned.imageKey)
-#if DEBUG
-                            print("[KIRI][Review] image upload completed")
-#endif
+                            return data
                         }
-                        let request = ReviewCreateRequest(
-                            starRating: draft.rating,
-                            imageKeys: imageKeys,
-                            content: draft.comment,
-                            isRejoinIntended: draft.wantsToRepeat
+                        _ = try await AuthService.shared.saveReview(
+                            scheduleId: scheduleId,
+                            rating: draft.rating,
+                            images: imageData,
+                            comment: draft.comment,
+                            wantsToRepeat: draft.wantsToRepeat,
+                            existingReviewId: serverReviews.first(where: { $0.isMine })?.reviewId
                         )
-                        if let mine = serverReviews.first(where: { $0.isMine }) {
-#if DEBUG
-                            print("[KIRI][Review] request stage=update scheduleId=\(scheduleId) reviewId=\(mine.reviewId) images=\(imageKeys.count) rating=\(draft.rating)")
-#endif
-                            _ = try await AuthService.shared.updateReview(
-                                scheduleId: scheduleId,
-                                reviewId: mine.reviewId,
-                                request: request
-                            )
-                        } else {
-#if DEBUG
-                            print("[KIRI][Review] request stage=create scheduleId=\(scheduleId) images=\(imageKeys.count) rating=\(draft.rating)")
-#endif
-                            _ = try await AuthService.shared.createReview(
-                                scheduleId: scheduleId,
-                                request: request
-                            )
-                        }
-#if DEBUG
-                        print("[KIRI][Review] request completed scheduleId=\(scheduleId)")
-#endif
-                        // 리뷰 생성만으로 대표사진이 자동 지정되지 않는 서버 계약을
-                        // 보완합니다. 실패해도 리뷰 저장 성공을 실패로 바꾸지 않습니다.
-                        if !imageKeys.isEmpty,
-                           let latest = try? await AuthService.shared.scheduleReviews(scheduleId: scheduleId),
-                           latest.representativePhotoId == nil,
-                           let firstPhoto = latest.reviews.first(where: { $0.isMine })?.photos.first {
-                            _ = try? await AuthService.shared.changeRepresentativePhoto(
-                                scheduleId: scheduleId,
-                                reviewPhotoId: firstPhoto.reviewPhotoId
-                            )
-                        }
-#if DEBUG
-                        print("[KIRI][Review] refresh completed scheduleId=\(scheduleId)")
-#endif
                     }
                 },
                 initialDraft: currentReview,
