@@ -12,13 +12,13 @@ import SwiftUI
 
 /// Figma 8213:3062. API 연결 전에는 화면 로컬 상태를 사용한다.
 struct MyPageView: View {
+    @Environment(AppRouter.self) private var router
     let onLogout: () -> Void
     let onDeleteAccount: () async -> String?
     let nickname: String?
     let familyName: String?
     let familyId: Int?
     let familyRole: String?
-    let onUpdateNickname: (String) async -> String?
     let onUpdateFamilyName: (String) async -> String?
     @State private var editedNickname = ""
     @State private var savedFamilyAddress: FamilyAddressUpdateResult?
@@ -46,8 +46,7 @@ struct MyPageView: View {
                                     familyName: familyName,
                                     nickname: nickname,
                                     familyRole: familyRole,
-                                    onUpdateFamilyName: onUpdateFamilyName,
-                                    onUpdateNickname: onUpdateNickname
+                                    onUpdateFamilyName: onUpdateFamilyName
                                 )
                             } label: { menuRow("가족 기본 설정") }
                             NavigationLink {
@@ -89,13 +88,7 @@ struct MyPageView: View {
             NavigationLink {
                 NicknameEditView(
                     nickname: Binding(get: { nickname ?? "" }, set: { editedNickname = $0 }),
-                    onSave: { value in
-                        let snapshot = String(decoding: Array(value.utf8), as: UTF8.self)
-                        #if DEBUG
-                        print("[KIRI][MyPage] nickname callback trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(snapshot.count)")
-                        #endif
-                        return await onUpdateNickname(snapshot)
-                    }
+                    onSave: { value in await router.updateNickname(value) }
                 )
             } label: {
                 // Figma 9901:25894 / KIRI/Icon/Action/Edit 원본 벡터.
@@ -133,4 +126,4 @@ struct MyPageView: View {
     }
 }
 
-#Preview { MyPageView(onLogout: {}, onDeleteAccount: { nil }, nickname: "쥬123", familyName: "끼리네 가족", familyId: 1, familyRole: "딸", onUpdateNickname: { _ in nil }, onUpdateFamilyName: { _ in nil }) }
+#Preview { MyPageView(onLogout: {}, onDeleteAccount: { nil }, nickname: "쥬123", familyName: "끼리네 가족", familyId: 1, familyRole: "딸", onUpdateFamilyName: { _ in nil }).environment(AppRouter()) }
