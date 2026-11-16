@@ -102,18 +102,25 @@ struct FamilyNameEditView: View {
 
     private var saveArea: some View {
         KIRIPrimaryButton(title: "다음", isEnabled: isValid && !isSaving) {
+            // IME 조합 중이거나 화면이 닫히는 동안 State를 다시 읽지 않도록
+            // 탭 시점의 정규화된 값을 한 번만 확정해 요청과 검증에 함께 사용합니다.
+            guard !isSaving else { return }
+            let familyNameToSave = String(trimmedFamilyName)
+            guard familyNameToSave.count >= 2,
+                  familyNameToSave.count <= 15,
+                  containsOnlyAllowedCharacters(familyNameToSave) else { return }
+
             isSaving = true
-            Task {
-                let error = await onSave?(trimmedFamilyName)
-                await MainActor.run {
-                    isSaving = false
-                    if let error {
-                        errorMessage = error
-                    } else {
-                        familyName = trimmedFamilyName
-                        dismiss()
-                    }
+            let save = onSave
+            Task { @MainActor in
+                let error = await save?(familyNameToSave)
+                if let error {
+                    errorMessage = error
+                } else {
+                    familyName = familyNameToSave
+                    dismiss()
                 }
+                isSaving = false
             }
         }
     }

@@ -342,11 +342,12 @@ final class AppRouter {
     }
 
     func updateNickname(_ value: String) async -> String? {
+        let nicknameToSave = String(value)
         #if DEBUG
-        print("[KIRI][AppRouter] updateNickname inputLength=\(value.count)")
+        print("[KIRI][AppRouter] updateNickname inputLength=\(nicknameToSave.count)")
         #endif
         do {
-            let result = try await AuthService.shared.updateNickname(value)
+            let result = try await AuthService.shared.updateNickname(nicknameToSave)
             sessionStore.saveNickname(result.nickname)
             nickname = result.nickname
             saveAccountSnapshot()
@@ -367,15 +368,24 @@ final class AppRouter {
 
     func updateFamilyName(_ value: String) async -> String? {
         guard let familyId else { return "가족공간 정보를 확인할 수 없습니다." }
+        let familyNameToSave = String(value)
+        guard !familyNameToSave.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return "가족명을 입력해 주세요."
+        }
+        #if DEBUG
+        print("[KIRI][AppRouter] updateFamilyName inputLength=\(familyNameToSave.count)")
+        #endif
         do {
-            let result = try await AuthService.shared.updateFamilyName(familyId: familyId, name: value)
+            let result = try await AuthService.shared.updateFamilyName(familyId: familyId, name: familyNameToSave)
             sessionStore.saveFamily(name: result.name, inviteCode: sessionStore.familyInviteCode ?? "", familyId: result.familyId)
             familyName = result.name
             self.familyId = result.familyId
             saveAccountSnapshot(hasFamily: true)
             return nil
+        } catch let APIError.serverError(_, message) {
+            return message.isEmpty ? "가족명을 저장하지 못했어요. 다시 시도해 주세요." : message
         } catch {
-            return error.localizedDescription
+            return "가족명을 저장하지 못했어요. 다시 시도해 주세요."
         }
     }
 
