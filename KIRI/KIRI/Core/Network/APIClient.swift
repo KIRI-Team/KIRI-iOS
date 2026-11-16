@@ -52,6 +52,24 @@ final class APIClient {
         )
     }
 
+    /// 이미 검증된 JSON 바이트를 전송해야 하는 요청용 경로입니다.
+    ///
+    /// 일반 요청은 `Encodable` 경로를 사용하지만, 닉네임처럼 SwiftUI 입력
+    /// 문자열이 비동기 경계를 통과하는 요청은 Foundation의 JSONEncoder가
+    /// 문자열 저장소를 읽는 시점과 화면 상태 변경 시점이 겹치지 않도록
+    /// 호출부에서 값과 JSON 바이트를 모두 확정한 뒤 이 경로를 사용합니다.
+    func request<Response: Decodable>(
+        endpoint: APIEndpoint,
+        bodyData: Data,
+        accessToken: String? = nil
+    ) async throws -> Response {
+        try await requestImpl(
+            endpoint: endpoint,
+            bodyData: bodyData,
+            accessToken: accessToken
+        )
+    }
+
     private func requestImpl<Response: Decodable>(
         endpoint: APIEndpoint,
         bodyData: Data?,
@@ -230,6 +248,18 @@ final class APIClient {
         try await request(
             endpoint: endpoint,
             body: body,
+            accessToken: accessToken
+        )
+    }
+
+    func requestEnvelope<Response: Decodable>(
+        endpoint: APIEndpoint,
+        bodyData: Data,
+        accessToken: String? = nil
+    ) async throws -> APIEnvelope<Response> {
+        try await request(
+            endpoint: endpoint,
+            bodyData: bodyData,
             accessToken: accessToken
         )
     }
