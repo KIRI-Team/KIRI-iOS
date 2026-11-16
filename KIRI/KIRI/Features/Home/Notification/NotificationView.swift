@@ -251,10 +251,13 @@ struct NotificationView: View {
     private func displayTitle(for item: NotificationPreviewResult) -> String {
         guard isInvitationNotification(item.notificationType) else { return item.title }
         var title = item.title
-        // 일부 서버 알림 제목에 남아 있는 깨진 끝 기호만 초대장 행에서 제거합니다.
-        for suffix in ["□?", "�?", "□", "�"] {
-            while title.hasSuffix(suffix) {
-                title.removeLast(suffix.count)
+        // 초대장 제목의 느낌표 뒤에 서버의 깨진 대체문자가 붙어 오는 경우,
+        // 안내 문장 자체는 보존하고 그 뒤의 기호만 제거합니다.
+        if let exclamation = title.lastIndex(of: "!") {
+            let trailing = title[title.index(after: exclamation)...]
+            let brokenCharacters = CharacterSet(charactersIn: "□?��")
+            if trailing.allSatisfy({ $0.isWhitespace || $0.unicodeScalars.allSatisfy { brokenCharacters.contains($0) } }) {
+                title = String(title[...exclamation])
             }
         }
         return title.trimmingCharacters(in: .whitespacesAndNewlines)
