@@ -650,36 +650,205 @@ private struct MyPageDialogButtonStyle: ButtonStyle {
 }
 
 struct PushNotificationView: View {
-    @State private var allEnabled = true
-    @State private var missionEnabled = true
-    @State private var permissionText = "알림 권한 확인 중"
+    // 알림 설정 API 계약은 현재 배포 Swagger에서 확인할 수 없어,
+    // 서버가 제공하는 설정 엔드포인트가 연결되기 전까지는 사용자 기기에
+    // 저장된 값을 화면의 단일 상태로 사용합니다. OS 권한 진단 문구는
+    // 설정 화면에 노출하지 않습니다.
+    @AppStorage("kiri.push.allEnabled") private var allEnabled = true
+    @AppStorage("kiri.push.reminderEnabled") private var reminderEnabled = true
+    @AppStorage("kiri.push.reminderHour") private var reminderHour = 9
+    @AppStorage("kiri.push.reminderMinute") private var reminderMinute = 0
+    @State private var isTimeModalPresented = false
+    @State private var draftHour = 9
+    @State private var draftMinute = 0
+
     var body: some View {
-        ZStack { KIRIColor.Background.base.ignoresSafeArea()
+        ZStack {
+            KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "알림 설정") {
-                VStack(spacing: 12) {
-                    toggleRow("전체 알림 설정", isOn: $allEnabled)
-                    toggleRow("미션 알림", isOn: $missionEnabled)
-                    Text("알림 설정은 현재 기기 로컬 상태로만 동작합니다.")
-                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(permissionText)
-                        .font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }.padding(18)
+                VStack(alignment: .leading, spacing: 0) {
+                    notificationToggleRow("전체 알림 설정", isOn: $allEnabled)
+                    notificationToggleRow("정기 알림 시간 설정", isOn: $reminderEnabled)
+
+                    Button {
+                        draftHour = reminderHour
+                        draftMinute = reminderMinute
+                        isTimeModalPresented = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("현재 알림 발송 시각")
+                                    .font(KIRITypography.bodySmall)
+                                    .foregroundStyle(KIRIColor.Text.secondary)
+                                Text(alarmTimeText(hour: reminderHour, minute: reminderMinute))
+                                    .font(KIRITypography.bodyMedium)
+                                    .foregroundStyle(KIRIColor.Text.accent)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(KIRIColor.Text.accent)
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, minHeight: 70, alignment: .leading)
+                        .background(KIRIColor.Background.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!reminderEnabled)
+                    .opacity(reminderEnabled ? 1 : 0.48)
+                    .padding(.top, 16)
+
+                    Text("푸시 알림을 꺼도 앱 안의 알림함에서 소식을 확인할 수 있어요.")
+                        .font(KIRITypography.caption)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 18)
+                }
+                .padding(.horizontal, 18)
+                .padding(.top, 24)
                 Spacer()
             }
-        }.toolbar(.hidden, for: .navigationBar)
-            .task {
-                let settings = await UNUserNotificationCenter.current().notificationSettings()
-                permissionText = settings.authorizationStatus == .denied
-                    ? "iOS 알림 권한이 꺼져 있어 푸시를 받을 수 없습니다. 설정에서 권한을 켜주세요."
-                    : "iOS 알림 권한: 허용됨 또는 아직 결정되지 않음"
+            if isTimeModalPresented {
+                timeSettingModal
             }
+        }
     }
-    private func toggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
-        HStack { Text(title).font(KIRITypography.headingSmall).foregroundStyle(KIRIColor.Text.strong)
-            Spacer(); Toggle("", isOn: isOn).labelsHidden().tint(KIRIColor.Primary.default)
-        }.padding(.horizontal, 12).frame(height: 56)
+
+    private func notificationToggleRow(_ title: String, isOn: Binding<Bool>) -> some View {
+        HStack {
+            Text(title)
+                .font(KIRITypography.bodyMedium)
+                .foregroundStyle(KIRIColor.Text.strong)
+            Spacer(minLength: 0)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(KIRIPushToggleStyle())
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, minHeight: 58)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.bottom, 10)
+    }
+
+    private var timeSettingModal: some View {
+        ZStack {
+            Color.black.opacity(0.62)
+                .ignoresSafeArea()
+                .onTapGesture { isTimeModalPresented = false }
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top) {
+                    Text("설정한 시간에 알림을 보내드려요!")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 12)
+                    Button { isTimeModalPresented = false } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(alarmTimeText(hour: draftHour, minute: draftMinute))
+                    .font(KIRITypography.headingMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+                    .padding(.top, 20)
+
+                Text("설정 시간")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .padding(.top, 28)
+
+                HStack(spacing: 12) {
+                    timePicker(selection: $draftHour, range: 0..<24, suffix: "시")
+                    timePicker(selection: $draftMinute, range: 0..<60, suffix: "분")
+                }
+                .padding(.top, 8)
+
+                HStack(spacing: 10) {
+                    Button("취소") { isTimeModalPresented = false }
+                        .buttonStyle(NotificationModalButtonStyle(isPrimary: false))
+                    Button("저장") {
+                        reminderHour = draftHour
+                        reminderMinute = draftMinute
+                        isTimeModalPresented = false
+                    }
+                    .buttonStyle(NotificationModalButtonStyle(isPrimary: true))
+                }
+                .padding(.top, 24)
+            }
+            .padding(22)
+            .frame(maxWidth: 342)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.25), radius: 22, y: 8)
+        }
+        .zIndex(10)
+    }
+
+    private func timePicker(selection: Binding<Int>, range: Range<Int>, suffix: String) -> some View {
+        HStack(spacing: 4) {
+            Picker("", selection: selection) {
+                ForEach(range, id: \.self) { value in
+                    Text(String(format: "%02d", value))
+                        .tag(value)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(maxWidth: .infinity)
+            .frame(height: 100)
+            Text(suffix)
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .background(KIRIColor.Background.tertiary.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func alarmTimeText(hour: Int, minute: Int) -> String {
+        let period = hour < 12 ? "오전" : "오후"
+        let displayHour = hour % 12 == 0 ? 12 : hour % 12
+        if minute == 0 { return "\(period) \(displayHour)시" }
+        return "\(period) \(displayHour)시 \(String(format: "%02d", minute))분"
+    }
+}
+
+private struct KIRIPushToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            Capsule(style: .continuous)
+                .fill(configuration.isOn ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
+                .frame(width: 52, height: 32)
+                .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                    Circle()
+                        .fill(configuration.isOn ? Color.black.opacity(0.78) : KIRIColor.Text.secondary)
+                        .frame(width: 26, height: 26)
+                        .padding(3)
+                }
+                .animation(.easeOut(duration: 0.16), value: configuration.isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(configuration.isOn ? "켜짐" : "꺼짐")
+    }
+}
+
+private struct NotificationModalButtonStyle: ButtonStyle {
+    let isPrimary: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(KIRITypography.bodyMedium)
+            .foregroundStyle(isPrimary ? KIRIColor.Text.inverse : KIRIColor.Text.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(isPrimary ? KIRIColor.Primary.default : KIRIColor.Background.tertiary)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .opacity(configuration.isPressed ? 0.74 : 1)
     }
 }
 
