@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 import FirebaseCore // firebase 연결
 import FirebaseAppCheck
 import KakaoSDKCommon
@@ -16,7 +17,7 @@ import KakaoSDKAuth
 import GoogleSignIn
 
 // AppDelegate 추가
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
   func application(_ application: UIApplication,
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
     #if DEBUG
@@ -30,6 +31,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
     #endif
     FirebaseApp.configure()
+    // iOS 시스템 알림 아이콘은 앱의 AppIcon 설정을 그대로 사용합니다.
+    // 알림이 앱 전경에서 표시될 때만 KIRI 전용 콘텐츠 이미지를 첨부합니다.
+    // 백그라운드/잠금화면 원격 푸시는 Notification Service Extension과
+    // mutable-content payload가 필요하므로 서버·배포 타깃 설정을 별도로
+    // 확인해야 합니다.
+    UNUserNotificationCenter.current().delegate = self
+    application.registerForRemoteNotifications()
     if let appKey = Bundle.main.object(
         forInfoDictionaryKey: "KAKAO_NATIVE_APP_KEY"
     ) as? String,
@@ -54,6 +62,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     return GIDSignIn.sharedInstance.handle(url)
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .list, .sound, .badge])
   }
 }
 // 여기까지 AppDelegate
