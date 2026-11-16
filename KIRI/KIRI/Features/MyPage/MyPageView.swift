@@ -74,7 +74,7 @@ struct MyPageView: View {
                 Circle()
                     .fill(KIRIColor.Background.tertiary)
                     .frame(width: 44, height: 44)
-                Image("family-me")
+                Image(profileAvatarAsset)
                     .resizable()
                     .scaledToFit()
                     .frame(width: 29.28, height: 29.28)
@@ -100,6 +100,16 @@ struct MyPageView: View {
                     .frame(width: 36, height: 36)
             }.buttonStyle(.plain)
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var profileAvatarAsset: String {
+        switch familyRole?.uppercased() {
+        case "MOTHER", "MOM", "엄마": return "role_mom_active"
+        case "FATHER", "DAD", "아빠": return "role_dad_active"
+        case "SON", "아들": return "role_son_active"
+        case "DAUGHTER", "딸": return "role_daughter_active"
+        default: return "figma_family_member_default"
+        }
     }
 
     private var profileSubtitle: String {

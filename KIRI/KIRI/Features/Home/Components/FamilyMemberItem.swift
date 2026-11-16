@@ -39,10 +39,10 @@ struct FamilyMemberItem: View {
         // 고르므로 한 캐릭터를 다른 가족 역할에 재사용하지 않습니다.
         if hasAnswered {
             switch normalizedRole {
-            case "MOTHER": return "figma_family_member_active_mom"
-            case "FATHER": return "role_dad" // Figma 활성 아빠 원본은 미제공
-            case "SON": return "figma_family_member_active_son"
-            case "DAUGHTER": return "figma_family_member_active_daughter"
+            case "MOTHER": return "role_mom_active"
+            case "FATHER": return "role_dad_active"
+            case "SON": return "role_son_active"
+            case "DAUGHTER": return "role_daughter_active"
             default: return isMe ? "figma_family_member_active" : "figma_family_member_default"
             }
         }
@@ -56,11 +56,7 @@ struct FamilyMemberItem: View {
         }
     }
 
-    private var usesFallbackStateTreatment: Bool {
-        // Figma에서 활성 아빠/비활성 딸 원본이 제공되지 않아 해당
-        // 역할의 고유 원본을 보존한 채 상태만 보정합니다.
-        normalizedRole == "FATHER" && hasAnswered || normalizedRole == "DAUGHTER" && !hasAnswered
-    }
+    private var usesFallbackStateTreatment: Bool { false }
 
     var body: some View {
         // Figma KIRI/Member Avatar Item(8413:5804): 46pt 폭, 아바타 44pt,

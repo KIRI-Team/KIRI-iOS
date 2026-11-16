@@ -632,10 +632,10 @@ struct ScheduleCreationSheet: View {
         let normalizedRole = role?.uppercased()
         if selected {
             switch normalizedRole {
-            case "FATHER": return "figma_family_member_active"
-            case "MOTHER": return "figma_family_member_active_mom"
-            case "SON": return "figma_family_member_active_son"
-            case "DAUGHTER": return "figma_family_member_active_daughter"
+            case "FATHER": return "role_dad_active"
+            case "MOTHER": return "role_mom_active"
+            case "SON": return "role_son_active"
+            case "DAUGHTER": return "role_daughter_active"
             default: return "figma_family_member_active"
             }
         }
