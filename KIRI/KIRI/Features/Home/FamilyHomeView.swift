@@ -63,6 +63,9 @@ struct FamilyHomeView: View {
     @State private var isLoadingRecommendations = false
     @State private var missionFeedError: String?
     @State private var notificationMission: MissionDetailResult?
+    @State private var notificationScheduleDetail: ScheduleDetailResult?
+    @State private var notificationScheduleID: Int?
+    @State private var isRespondingToNotification = false
     @State private var unreadNotificationCount = 0
     @State private var todayScheduleDetail: ScheduleDetailResult?
     @State private var todayScheduleData: RecordCalendarView.ScheduleDetailData?
@@ -72,6 +75,7 @@ struct FamilyHomeView: View {
         case home
         case notification
         case notificationMission
+        case notificationInvitation
         case todayActivity
         case placeDetail
         case taste
@@ -136,6 +140,20 @@ struct FamilyHomeView: View {
                         imageURL: notificationMission.imageUrl,
                         isBookmarked: .constant(notificationMission.bucketSaved),
                         onBack: { route = .notification }
+                    )
+                }
+
+            case .notificationInvitation:
+                if let detail = notificationScheduleDetail {
+                    InvitationRequestView(
+                        request: invitationRequestData(from: detail),
+                        onBack: { route = .notification },
+                        onCancel: { respondToNotificationSchedule(detail, action: "DECLINED") },
+                        onConfirmSchedule: { respondToNotificationSchedule(detail, action: "ACCEPTED") },
+                        onMissionDetail: detail.missionId.map { missionID in
+                            { Task { await openNotificationMission(missionID) } }
+                        },
+                        respondsDirectly: true
                     )
                 }
 
@@ -1109,6 +1127,15 @@ struct FamilyHomeView: View {
     private func openNotificationSchedule(_ scheduleId: Int) async {
         do {
             let detail = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
+            let myStatus = detail.myStatus?.uppercased()
+            if detail.canRespond && myStatus == "PENDING" {
+                await MainActor.run {
+                    notificationScheduleDetail = detail
+                    notificationScheduleID = scheduleId
+                    route = .notificationInvitation
+                }
+                return
+            }
             let values = detail.date.split(separator: "-").compactMap { Int($0) }
             let today = Calendar.current.dateComponents([.year, .month, .day], from: Date())
             let isToday = values.count >= 3
@@ -1142,6 +1169,52 @@ struct FamilyHomeView: View {
             await MainActor.run { showPokeToast("일정 정보를 불러오지 못했어요. 다시 시도해 주세요.", isError: true) }
         }
     }
+
+    private func invitationRequestData(from detail: ScheduleDetailResult) -> InvitationRequestView.RequestData {
+        let participantNames = detail.participants.map(\.nickname).joined(separator: ", ")
+        return InvitationRequestView.RequestData(
+            senderRole: localizedFamilyRole(detail.proposer?.familyRole).isEmpty ? "가족" : localizedFamilyRole(detail.proposer?.familyRole),
+            title: detail.missionTitle ?? "가족 활동",
+            date: [detail.date, detail.time].compactMap { $0 }.joined(separator: " "),
+            participants: participantNames.isEmpty ? "가족 구성원" : participantNames,
+            participantDetails: detail.participants.enumerated().map { index, participant in
+                InvitationRequestView.RequestData.Participant(
+                    id: participant.memberId ?? -(index + 1),
+                    nickname: participant.nickname,
+                    status: participant.status,
+                    characterImageURL: participant.characterImageUrl
+                )
+            },
+            description: detail.missionDescription ?? "",
+            familyMessage: detail.requestMessage ?? ""
+        )
+    }
+
+    private func respondToNotificationSchedule(_ detail: ScheduleDetailResult, action: String) {
+        guard detail.canRespond, let scheduleId = notificationScheduleID, !isRespondingToNotification else { return }
+        isRespondingToNotification = true
+        Task {
+            do {
+                _ = try await AuthService.shared.respondToSchedule(
+                    scheduleId: scheduleId,
+                    action: action
+                )
+                let refreshed = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
+                await MainActor.run {
+                    notificationScheduleDetail = refreshed
+                    isRespondingToNotification = false
+                    route = .home
+                    showPokeToast(action == "ACCEPTED" ? "약속을 확정했어요." : "초대를 거절했어요.", isError: false)
+                }
+            } catch {
+                await MainActor.run {
+                    isRespondingToNotification = false
+                    showPokeToast("일정 응답을 저장하지 못했어요. 다시 시도해 주세요.", isError: true)
+                }
+            }
+        }
+    }
+
 
     private func loadRecommendations() async {
         await MainActor.run {

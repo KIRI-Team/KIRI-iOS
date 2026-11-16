@@ -14,10 +14,18 @@ import SwiftUI
 struct InvitationRequestView: View {
 
     struct RequestData {
+        struct Participant: Identifiable {
+            let id: Int
+            let nickname: String
+            let status: String
+            let characterImageURL: URL?
+        }
+
         let senderRole: String
         let title: String
         let date: String
         let participants: String
+        let participantDetails: [Participant]
         let description: String
         let familyMessage: String
     }
@@ -27,6 +35,8 @@ struct InvitationRequestView: View {
     let onBack: () -> Void
     let onCancel: () -> Void
     let onConfirmSchedule: () -> Void
+    var onMissionDetail: (() -> Void)? = nil
+    var respondsDirectly: Bool = false
 
     @State private var isAddScheduleSheetVisible = false
 
@@ -187,6 +197,27 @@ struct InvitationRequestView: View {
                     )
             }
             .padding(.top, 6)
+
+            if !request.participantDetails.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(request.participantDetails) { participant in
+                            HStack(spacing: 5) {
+                                participantAvatar(participant)
+                                Text(participant.nickname)
+                                    .font(KIRITypography.captionMedium)
+                                    .foregroundStyle(KIRIColor.Text.secondary)
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(KIRIColor.Background.base.opacity(0.65))
+                            .clipShape(Capsule())
+                        }
+                    }
+                }
+                .padding(.top, 12)
+            }
         }
         .padding(.vertical, 20)
         .padding(.horizontal, 20)
@@ -206,7 +237,7 @@ struct InvitationRequestView: View {
 
     private var detailButton: some View {
         Button {
-            // TODO: 미션 상세 화면 연결
+            onMissionDetail?()
         } label: {
             Text("자세히 보러가기")
                 .font(KIRITypography.bodyMedium)
@@ -313,7 +344,11 @@ struct InvitationRequestView: View {
             .buttonStyle(.plain)
 
             Button {
-                openAddScheduleSheet()
+                if respondsDirectly {
+                    onConfirmSchedule()
+                } else {
+                    openAddScheduleSheet()
+                }
             } label: {
                 Text("약속 확정하기")
                     .font(KIRITypography.button)
@@ -351,6 +386,25 @@ struct InvitationRequestView: View {
             isAddScheduleSheetVisible = false
         }
     }
+
+    @ViewBuilder
+    private func participantAvatar(_ participant: RequestData.Participant) -> some View {
+        if let url = participant.characterImageURL {
+            AsyncImage(url: url) { phase in
+                if case .success(let image) = phase {
+                    image.resizable().scaledToFit()
+                } else {
+                    Image("figma_family_member_default").resizable().scaledToFit()
+                }
+            }
+            .frame(width: 22, height: 22)
+        } else {
+            Image("figma_family_member_default")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 22, height: 22)
+        }
+    }
 }
 
 #Preview {
@@ -360,6 +414,7 @@ struct InvitationRequestView: View {
             title: "한강 뚜벅뚜벅 축제",
             date: "26.06.23",
             participants: "엄마, 아빠, 나",
+            participantDetails: [],
             description: """
             2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
             """,
