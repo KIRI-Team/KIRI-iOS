@@ -88,6 +88,11 @@ struct PlaceCard: View {
             KIRIContentImage(imageURL: imageURL, mockAssetName: imageName) {
                 Rectangle().fill(KIRIColor.Background.tertiary)
             }
+            // The image must occupy the complete card width before the fixed
+            // height is applied. Without an explicit width proposal,
+            // AsyncImage can keep its intrinsic aspect ratio and leave an
+            // empty strip above or below portrait/landscape photos.
+            .frame(maxWidth: .infinity)
         }
         .frame(height: 144)
         .clipped()
