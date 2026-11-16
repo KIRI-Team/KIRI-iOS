@@ -121,6 +121,7 @@ struct NicknameEditView: View {
                 guard !isSaving else { return }
                 isInputFocused = false
                 let save = onSave
+                let traceID = String(UUID().uuidString.prefix(8))
                 Task { @MainActor in
                     await Task.yield()
                     let nicknameToSave = String(
@@ -130,6 +131,7 @@ struct NicknameEditView: View {
                     #if DEBUG
                     print(
                         "[KIRI][NicknameEdit] save tap "
+                            + "trace=\(traceID) "
                             + "editedLength=\(editedNickname.count) "
                             + "normalizedLength=\(nicknameToSave.count)"
                     )
@@ -143,7 +145,9 @@ struct NicknameEditView: View {
                         return
                     }
                     isSaving = true
-                    errorMessage = await save?(nicknameToSave)
+                    errorMessage = await NicknameSaveTrace.$id.withValue(traceID) {
+                        await save?(nicknameToSave)
+                    }
                     if errorMessage == nil {
                         nickname = nicknameToSave
                         dismiss()

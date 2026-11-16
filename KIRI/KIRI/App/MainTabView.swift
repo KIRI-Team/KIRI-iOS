@@ -159,7 +159,13 @@ struct MainTabView: View {
                 familyName: familyName,
                 familyId: familyId,
                 familyRole: familyRole,
-                onUpdateNickname: onUpdateNickname,
+                onUpdateNickname: { value in
+                    let snapshot = String(decoding: Array(value.utf8), as: UTF8.self)
+                    #if DEBUG
+                    print("[KIRI][MainTab] nickname callback trace=\(NicknameSaveTrace.id ?? "-") inputLength=\(snapshot.count)")
+                    #endif
+                    return await onUpdateNickname(snapshot)
+                },
                 onUpdateFamilyName: onUpdateFamilyName
             )
         }
