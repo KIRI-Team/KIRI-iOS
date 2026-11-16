@@ -190,6 +190,18 @@ final class APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if endpoint.path == "/api/v1/members/nickname",
+               let validation = try? responseDecoder.decode(
+                   APIEnvelope<NicknameValidationErrorResult>.self,
+                   from: data
+               ),
+               let detail = validation.result?.nickname,
+               !detail.isEmpty {
+                #if DEBUG
+                print("[KIRI][API] error: path=\(endpoint.path), status=\(httpResponse.statusCode), code=\(validation.code)")
+                #endif
+                throw APIError.serverError(code: validation.code, message: detail)
+            }
             if let envelope = try? responseDecoder.decode(
                 APIEnvelope<EmptyAPIResult>.self,
                 from: data
@@ -200,10 +212,12 @@ final class APIClient {
                     || endpoint.path.contains("/api/v1/questions")
                     || endpoint.path.contains("/api/v1/missions")
                     || endpoint.path.contains("/api/v1/schedules")
-                    || endpoint.path.contains("/api/v1/images") {
+                    || endpoint.path.contains("/api/v1/images")
+                    || endpoint.path == "/api/v1/members/nickname" {
                     print(
-                        "[KIRI][API] auth failure: "
-                            + "code=\(envelope.code), message=\(envelope.message)"
+                        "[KIRI][API] error: "
+                            + "path=\(endpoint.path), status=\(httpResponse.statusCode), "
+                            + "code=\(envelope.code)"
                     )
                 }
                 #endif

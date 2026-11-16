@@ -115,6 +115,12 @@ struct NicknameUpdateResult: Decodable, Sendable {
     let nickname: String
 }
 
+/// 닉네임 검증 실패 시 서버가 COMMON400_1의 result.nickname으로
+/// 전달하는 필드입니다. 요청 실패 원인을 사용자에게 안내할 때만 사용합니다.
+struct NicknameValidationErrorResult: Decodable, Sendable {
+    let nickname: String?
+}
+
 struct FamilyRoleUpdateRequest: Encodable, Sendable {
     let familyRole: String
 }

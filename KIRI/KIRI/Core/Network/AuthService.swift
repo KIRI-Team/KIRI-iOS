@@ -234,10 +234,15 @@ final class AuthService {
             decoding: Array(nickname.utf8),
             as: UTF8.self
         )
+        let bodyObject: [String: String] = ["nickname": nicknameValue]
         let bodyData = try JSONSerialization.data(
-            withJSONObject: ["nickname": nicknameValue],
+            withJSONObject: bodyObject,
             options: []
         )
+        #if DEBUG
+        // 원문은 기록하지 않고 계약 검증에 필요한 키·바이트 수·길이만 남깁니다.
+        print("[KIRI][API] PATCH /api/v1/members/nickname bodyKeys=nickname bodyBytes=\(bodyData.count) nicknameLength=\(nicknameValue.count)")
+        #endif
         let envelope: APIEnvelope<NicknameUpdateResult> = try await client.requestEnvelope(
             endpoint: endpoint,
             bodyData: bodyData,
