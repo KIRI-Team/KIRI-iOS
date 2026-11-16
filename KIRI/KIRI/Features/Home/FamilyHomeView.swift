@@ -482,6 +482,11 @@ struct FamilyHomeView: View {
             guard ["TODAY", "SCHEDULED", "CONFIRMED"].contains((detail.status ?? "").uppercased()),
                   detail.myStatus?.uppercased() == "ACCEPTED",
                   detail.participants.contains(where: { $0.memberId == (try? AuthService.shared.currentMemberId()) && $0.status.uppercased() == "ACCEPTED" }) else {
+                await MainActor.run {
+                    todayScheduleDetail = nil
+                    todayScheduleData = nil
+                    todayNearbyMissions = []
+                }
                 return
             }
             let nearby = (try? await AuthService.shared.nearbyMissions(scheduleId: candidate.scheduleId)) ?? []
