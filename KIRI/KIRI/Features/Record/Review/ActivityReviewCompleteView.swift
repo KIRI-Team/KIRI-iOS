@@ -46,9 +46,7 @@ struct ActivityReviewCompleteView: View {
     private var reviewCard: some View {
         VStack(alignment: .leading, spacing: 19) {
             HStack(spacing: 14) {
-                Image(systemName: "person.crop.circle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(KIRIColor.Text.secondary)
+                reviewAvatar
 
                 Text([userName, familyRole].filter { !$0.isEmpty }.joined(separator: " | "))
                     .font(KIRITypography.body)
@@ -168,9 +166,10 @@ struct ActivityReviewCompleteView: View {
                 .foregroundStyle(KIRIColor.Text.strong)
 
             VStack(spacing: 12) {
-                Image(systemName: "person.2")
-                    .font(.system(size: 28))
-                    .foregroundStyle(KIRIColor.Text.tertiary)
+                Image("kiri_app_icon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 48, height: 48)
 
                 Text("아직 다른 가족이 남긴 기록이 없어요.")
                     .font(KIRITypography.bodySmall)
@@ -181,5 +180,20 @@ struct ActivityReviewCompleteView: View {
             .background(KIRIColor.Background.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
+    }
+
+    private var reviewAvatar: some View {
+        let assetName: String
+        switch familyRole.uppercased() {
+        case "MOTHER": assetName = "role_mom_active"
+        case "FATHER": assetName = "role_dad_active"
+        case "DAUGHTER": assetName = "role_daughter_active"
+        case "SON": assetName = "role_son_active"
+        default: assetName = "kiri_character"
+        }
+        return Image(assetName)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 36, height: 36)
     }
 }

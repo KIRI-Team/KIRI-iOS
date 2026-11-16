@@ -31,6 +31,14 @@ struct TodayActivityView: View {
         let title: String
         let reason: String
     }
+    struct ReviewMemory: Identifiable {
+        let id: Int
+        let authorName: String
+        let familyRole: String?
+        let content: String
+        let imageURL: URL?
+        let isMine: Bool
+    }
     struct Content {
         let isCurrentUserConfirmed: Bool
         let participantNames: [String]
@@ -38,6 +46,9 @@ struct TodayActivityView: View {
         let requiredActivities: [String]
         let requiredItems: [SuggestedItem]
         let nearbyRecommendations: [Recommendation]
+        let reviewMemories: [ReviewMemory]
+        let currentUserNickname: String
+        let currentUserRole: String
 
         init(
             isCurrentUserConfirmed: Bool,
@@ -45,7 +56,10 @@ struct TodayActivityView: View {
             participantStatuses: [ParticipantStatus] = [],
             requiredActivities: [String],
             requiredItems: [SuggestedItem],
-            nearbyRecommendations: [Recommendation]
+            nearbyRecommendations: [Recommendation],
+            reviewMemories: [ReviewMemory] = [],
+            currentUserNickname: String = "",
+            currentUserRole: String = ""
         ) {
             self.isCurrentUserConfirmed = isCurrentUserConfirmed
             self.participantNames = participantNames
@@ -53,6 +67,9 @@ struct TodayActivityView: View {
             self.requiredActivities = requiredActivities
             self.requiredItems = requiredItems
             self.nearbyRecommendations = nearbyRecommendations
+            self.reviewMemories = reviewMemories
+            self.currentUserNickname = currentUserNickname
+            self.currentUserRole = currentUserRole
         }
     }
     let schedule: RecordCalendarView.ScheduleDetailData
@@ -122,10 +139,8 @@ struct TodayActivityView: View {
                     .padding(.top, 30)
                 eventDescriptionSection
                     .padding(.top, 18)
-                conditionButton
+                actionButtons
                     .padding(.top, 18)
-                reviewButton
-                    .padding(.top, 24)
                 contentSelector
                     .padding(.top, 46)
                 if selectedTab == 0 {
@@ -295,22 +310,41 @@ struct TodayActivityView: View {
             }
         }
     }
-    private var conditionButton: some View {
-        Button {
-            showingConditionScreen = true
-        } label: {
-            HStack {
-                Text("컨디션 조정하러가기")
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.strong)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundStyle(KIRIColor.Text.secondary)
+    private var actionButtons: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                conditionActionButton
+                reviewActionButton
             }
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .background(KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            VStack(spacing: 10) {
+                conditionActionButton
+                reviewActionButton
+            }
+        }
+    }
+
+    private var conditionActionButton: some View {
+        Button { showingConditionScreen = true } label: {
+            Text("컨디션 조정")
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Primary.default)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(KIRIColor.Background.green)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var reviewActionButton: some View {
+        Button { showingReviewEditor = true } label: {
+            Text(submittedReview == nil ? "추억 기록" : "추억 기록 수정")
+                .font(KIRITypography.bodySmallMedium)
+                .foregroundStyle(KIRIColor.Text.onGreen)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(KIRIColor.Primary.default)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }
@@ -664,28 +698,101 @@ struct TodayActivityView: View {
     }
     // MARK: - Family Memory
     private var familyMemoryContent: some View {
-        VStack(
-            alignment: .leading,
-            spacing: 16
-        ) {
-            sectionTitle("가족 추억")
+        VStack(alignment: .leading, spacing: 16) {
+            sectionTitle("나의 한 줄")
             if let submittedReview {
-                ActivityReviewCompleteView(
-                    schedule: schedule,
-                    review: submittedReview,
-                    onBack: {
-                        selectedTab = 0
-                    },
-                    onEdit: {
-                        showingReviewEditor = true
-                    }
+                reviewMemoryCard(
+                    ReviewMemory(
+                        id: -1,
+                        authorName: content.currentUserNickname.isEmpty ? "나" : content.currentUserNickname,
+                        familyRole: content.currentUserRole,
+                        content: submittedReview.comment,
+                        imageURL: nil,
+                        isMine: true
+                    ),
+                    localDraft: submittedReview
                 )
+            } else if let serverReview = content.reviewMemories.first(where: { $0.isMine }) {
+                reviewMemoryCard(serverReview)
             } else {
-                emptyCard(
-                    "아직 등록된 가족 추억이 없어요."
-                )
+                emptyMemoryCard("아직 나의 기록이 없어요.")
+            }
+
+            sectionTitle("다른 가족의 기록")
+            let otherReviews = content.reviewMemories.filter { !$0.isMine }
+            if otherReviews.isEmpty {
+                emptyMemoryCard("아직 다른 가족이 남긴 기록이 없어요.")
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(otherReviews) { review in
+                        reviewMemoryCard(review)
+                    }
+                }
             }
         }
+    }
+
+    private func reviewMemoryCard(
+        _ review: ReviewMemory,
+        localDraft: ActivityReviewWriteView.Draft? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                avatar(for: review.familyRole)
+                Text(review.authorName)
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.primary)
+                if review.isMine {
+                    Text("나")
+                        .font(KIRITypography.captionMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                }
+                Spacer()
+                if review.isMine {
+                    Button("수정하기") { showingReviewEditor = true }
+                        .font(KIRITypography.captionMedium)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                        .buttonStyle(.plain)
+                }
+            }
+            if let localDraft, let firstImage = localDraft.images.first {
+                Image(uiImage: firstImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else if let imageURL = review.imageURL {
+                KIRIContentImage(imageURL: imageURL, mockAssetName: nil) { KIRIColor.Background.tertiary }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            Text(review.content)
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.primary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func avatar(for role: String?) -> some View {
+        let assetName: String
+        switch role?.uppercased() {
+        case "MOTHER": assetName = "role_mom_active"
+        case "FATHER": assetName = "role_dad_active"
+        case "DAUGHTER": assetName = "role_daughter_active"
+        case "SON": assetName = "role_son_active"
+        default: assetName = "kiri_character"
+        }
+        return Image(assetName)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 36, height: 36)
     }
     // MARK: - Shared Components
     private func sectionTitle(
@@ -697,23 +804,28 @@ struct TodayActivityView: View {
                 KIRIColor.Text.strong
             )
     }
-    private func emptyCard(
-        _ message: String
-    ) -> some View {
+    private func emptyMemoryCard(_ message: String) -> some View {
+        VStack(spacing: 10) {
+            Image("kiri_app_icon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 48, height: 48)
+            Text(message)
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, minHeight: 150)
+        .background(KIRIColor.Background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func emptyCard(_ message: String) -> some View {
         Text(message)
             .font(KIRITypography.bodySmall)
-            .foregroundStyle(
-                KIRIColor.Text.secondary
-            )
-            .frame(
-                maxWidth: .infinity,
-                minHeight: 100
-            )
-            .background(
-                KIRIColor.Background.secondary
-            )
-            .clipShape(
-                RoundedRectangle(cornerRadius: 8)
-            )
+            .foregroundStyle(KIRIColor.Text.secondary)
+            .frame(maxWidth: .infinity, minHeight: 100)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
