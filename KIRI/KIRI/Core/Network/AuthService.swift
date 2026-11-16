@@ -234,6 +234,18 @@ final class AuthService {
             decoding: Array(nickname.utf8),
             as: UTF8.self
         )
+        #if DEBUG
+        print(
+            "[KIRI][AuthService] updateNickname "
+                + "inputLength=\(nickname.count) utf8Length=\(nicknameValue.utf8.count)"
+        )
+        #endif
+        guard !nicknameValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw APIError.serverError(
+                code: "COMMON400_1",
+                message: "닉네임은 필수입니다."
+            )
+        }
         let bodyObject: [String: String] = ["nickname": nicknameValue]
         let bodyData = try JSONSerialization.data(
             withJSONObject: bodyObject,

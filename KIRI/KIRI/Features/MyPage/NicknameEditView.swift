@@ -25,6 +25,15 @@ struct NicknameEditView: View {
     @State private var errorMessage: String?
     @FocusState private var isInputFocused: Bool
 
+    init(
+        nickname: Binding<String>,
+        onSave: ((String) async -> String?)? = nil
+    ) {
+        self._nickname = nickname
+        self.onSave = onSave
+        self._editedNickname = State(initialValue: nickname.wrappedValue)
+    }
+
     private var trimmedNickname: String {
         editedNickname
             .trimmingCharacters(
@@ -89,7 +98,6 @@ struct NicknameEditView: View {
                 tabBarSubscreenCount.wrappedValue += 1
                 didRegisterSubscreen = true
             }
-            editedNickname = nickname
         }
         .onDisappear {
             if didRegisterSubscreen {
@@ -109,21 +117,27 @@ struct NicknameEditView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             KIRIPrimaryButton(title: "저장하기", isEnabled: canSave) {
-                // Task가 시작된 뒤 SwiftUI View identity가 바뀌어도 요청 값과
-                // 저장 클로저가 화면의 임시 View 값에 의존하지 않도록 스냅샷을 만든다.
-                // Force a new UTF-8-backed value before creating the Task.
-                // A plain `String(...)` may retain the TextField's shared
-                // storage, which is the value implicated by the previous
-                // JSONWriter EXC_BAD_ACCESS reports.
-                let nicknameToSave = String(
-                    decoding: Array(trimmedNickname.utf8),
-                    as: UTF8.self
-                )
+                // 한글 조합이 끝난 뒤 MainActor에서 편집 상태를 스냅샷한다.
+                guard !isSaving else { return }
+                isInputFocused = false
                 let save = onSave
                 Task { @MainActor in
+                    await Task.yield()
+                    let nicknameToSave = String(
+                        decoding: Array(trimmedNickname.utf8),
+                        as: UTF8.self
+                    )
+                    #if DEBUG
+                    print(
+                        "[KIRI][NicknameEdit] save tap "
+                            + "editedLength=\(editedNickname.count) "
+                            + "normalizedLength=\(nicknameToSave.count)"
+                    )
+                    #endif
                     // 버튼 상태와 별개로 액션 시점에도 동일한 검증을 수행한다.
                     // 빠른 연속 탭이나 상태 갱신 사이의 요청 중복을 막는다.
                     guard !isSaving,
+                          !nicknameToSave.isEmpty,
                           isValidNickname(nicknameToSave),
                           nicknameToSave != normalizedCurrentNickname else {
                         return
