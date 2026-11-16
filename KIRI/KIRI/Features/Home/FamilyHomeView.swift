@@ -70,6 +70,7 @@ struct FamilyHomeView: View {
     @State private var todayScheduleDetail: ScheduleDetailResult?
     @State private var todayScheduleData: RecordCalendarView.ScheduleDetailData?
     @State private var todayNearbyMissions: [NearbyMissionResult] = []
+    @State private var todayMissionDetail: MissionDetailResult?
 
 
     private enum HomeRoute {
@@ -440,8 +441,17 @@ struct FamilyHomeView: View {
         TodayActivityView.Content(
             isCurrentUserConfirmed: detail.myStatus?.uppercased() == "ACCEPTED",
             participantNames: detail.participants.filter { $0.status.uppercased() == "ACCEPTED" }.map(\.nickname),
-            requiredActivities: [],
-            requiredItems: [],
+            participantStatuses: familyMembers.map { member in
+                TodayActivityView.ParticipantStatus(
+                    id: member.memberId,
+                    nickname: member.nickname,
+                    isAccepted: detail.participants.first(where: { $0.memberId == member.memberId })?.status.uppercased() == "ACCEPTED"
+                )
+            },
+            requiredActivities: todayMissionDetail?.steps.map(\.title) ?? [],
+            requiredItems: todayMissionDetail?.prepareItems.map {
+                TodayActivityView.SuggestedItem(id: $0.id, title: $0.title, reason: $0.description)
+            } ?? [],
             nearbyRecommendations: todayNearbyMissions.map { item in
                 TodayActivityView.Recommendation(
                     id: item.id,
@@ -451,7 +461,8 @@ struct FamilyHomeView: View {
                     distanceMeters: item.distance,
                     isRestPlace: false,
                     price: item.price,
-                    crowdLevel: nil
+                    crowdLevel: nil,
+                    imageURL: item.imageUrl
                 )
             }
         )
@@ -468,6 +479,7 @@ struct FamilyHomeView: View {
                     todayScheduleDetail = nil
                     todayScheduleData = nil
                     todayNearbyMissions = []
+                    todayMissionDetail = nil
                 }
                 return
             }
@@ -478,6 +490,7 @@ struct FamilyHomeView: View {
                     todayScheduleDetail = nil
                     todayScheduleData = nil
                     todayNearbyMissions = []
+                    todayMissionDetail = nil
                 }
                 return
             }
@@ -498,6 +511,7 @@ struct FamilyHomeView: View {
                 todayScheduleDetail = detail
                 todayScheduleData = schedule
                 todayNearbyMissions = []
+                todayMissionDetail = nil
             }
 
             // 배너와 당일 상세는 일정 상세 응답만으로 즉시 열고, 부가 데이터는
@@ -511,6 +525,7 @@ struct FamilyHomeView: View {
             }
             await MainActor.run {
                 todayNearbyMissions = nearby
+                todayMissionDetail = mission
                 if let mission {
                     let steps = if let min = mission.estimatedStepsMin {
                         if let max = mission.estimatedStepsMax, max != min { "\(min)~\(max)보" } else { "\(min)보" }
@@ -537,6 +552,7 @@ struct FamilyHomeView: View {
                 todayScheduleDetail = nil
                 todayScheduleData = nil
                 todayNearbyMissions = []
+                todayMissionDetail = nil
             }
         }
     }

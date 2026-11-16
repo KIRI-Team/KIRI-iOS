@@ -86,7 +86,8 @@ struct ScheduleScreenPreview: View {
                     distanceMeters: 850,
                     isRestPlace: true,
                     price: 0,
-                    crowdLevel: nil
+                    crowdLevel: nil,
+                    imageURL: nil
                 ),
                 .init(
                     id: "bridge",
@@ -96,7 +97,8 @@ struct ScheduleScreenPreview: View {
                     distanceMeters: 1200,
                     isRestPlace: false,
                     price: 0,
-                    crowdLevel: nil
+                    crowdLevel: nil,
+                    imageURL: nil
                 )
             ]
         )
