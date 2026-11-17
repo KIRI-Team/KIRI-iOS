@@ -46,7 +46,8 @@ struct NicknameEditView: View {
     }
 
     private var normalizedCurrentNickname: String {
-        nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        nickname.precomposedStringWithCanonicalMapping
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var hasChanges: Bool {
