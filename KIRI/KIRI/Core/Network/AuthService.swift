@@ -671,15 +671,24 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        #if DEBUG
+        print("[KIRI][Mission] essentials request missionId=\(missionId) tokenPresent=\(!tokens.accessToken.isEmpty)")
+        #endif
         let envelope: APIEnvelope<MissionEssentialsResult> = try await client.requestEnvelope(
             endpoint: endpoint,
             accessToken: tokens.accessToken
         )
+        guard envelope.isSuccess else {
+            #if DEBUG
+            print("[KIRI][Mission] essentials response missionId=\(missionId) success=false code=\(envelope.code)")
+            #endif
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
         guard let result = envelope.result else {
             throw APIError.serverError(code: envelope.code, message: envelope.message)
         }
         #if DEBUG
-        print("[KIRI][Mission] essentials decoded count=\(result.items.count)")
+        print("[KIRI][Mission] essentials response missionId=\(missionId) success=true code=\(envelope.code) resultCount=\(result.items.count)")
         #endif
         return result.items
     }

@@ -163,7 +163,9 @@ struct MissionActivityDetailView: View {
             // 맞춤템은 일정과 무관하게 별도 essentials 요청으로 조회합니다.
             // 미션 본문이 일시적으로 404/디코딩 실패해도 essentials 응답이
             // 도착했다면 서버가 준 이름·설명을 숨기지 않습니다.
-            if detailError == nil || detail != nil || isLoadingEssentials || !essentials.isEmpty || essentialsError != nil {
+            // 맞춤템은 미션 상세와 독립된 /essentials 응답으로 표시합니다.
+            // 상세가 실패해도 빈 상태·오류·재시도 영역을 숨기지 않습니다.
+            if missionId != nil || detail != nil {
                 VStack(alignment: .leading, spacing: 0) {
                     if isRecommended {
                         Text("끼리추천")
@@ -339,10 +341,23 @@ struct MissionActivityDetailView: View {
             essentials = try await AuthService.shared.missionEssentials(missionId: missionId)
         } catch {
             essentials = []
-            essentialsError = "맞춤템을 불러오지 못했어요."
+            essentialsError = essentialsErrorMessage(for: error)
             #if DEBUG
-            print("[KIRI][Mission] essentials load failed")
+            print("[KIRI][Mission] essentials load failed missionId=\(missionId) error=\(String(describing: error))")
             #endif
+        }
+    }
+
+    private func essentialsErrorMessage(for error: Error) -> String {
+        switch error {
+        case APIError.unauthorized:
+            return "로그인이 필요해요."
+        case APIError.decodingFailed:
+            return "맞춤템 응답을 확인하지 못했어요."
+        case APIError.networkError(_):
+            return "맞춤템을 불러오지 못했어요. 네트워크를 확인해 주세요."
+        default:
+            return "맞춤템을 불러오지 못했어요. 다시 시도해 주세요."
         }
     }
 
