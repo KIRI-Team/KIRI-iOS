@@ -10,6 +10,8 @@
 
 import SwiftUI
 import UIKit
+import ImageIO
+import UniformTypeIdentifiers
 
 private actor KIRIImagePipeline {
     static let shared = KIRIImagePipeline()
@@ -18,17 +20,45 @@ private actor KIRIImagePipeline {
     private var inFlight: [URL: Task<Data?, Never>] = [:]
 
     func data(for url: URL) async -> Data? {
-        if let cached = cache[url] { return cached }
+        let startedAt = Date()
+        if let cached = cache[url] {
+            #if DEBUG
+            print("[KIRI][ImagePerf] cache hit elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+            #endif
+            return cached
+        }
         if let task = inFlight[url] { return await task.value }
 
         let task = Task<Data?, Never> {
-            try? await URLSession.shared.data(from: url).0
+            guard let raw = try? await URLSession.shared.data(from: url).0 else { return nil }
+            return Self.downsample(raw, maxPixelSize: 1200)
         }
         inFlight[url] = task
         let result = await task.value
         inFlight[url] = nil
         if let result { cache[url] = result }
+        #if DEBUG
+        print("[KIRI][ImagePerf] fetch complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) success=\(result != nil)")
+        #endif
         return result
+    }
+
+    private static func downsample(_ data: Data, maxPixelSize: Int) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return data }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceCreateThumbnailWithTransform: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return data
+        }
+        let output = NSMutableData()
+        let type = CGImageSourceGetType(source) ?? UTType.jpeg.identifier as CFString
+        guard let destination = CGImageDestinationCreateWithData(output, type, 1, nil) else { return data }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { return data }
+        return output as Data
     }
 }
 

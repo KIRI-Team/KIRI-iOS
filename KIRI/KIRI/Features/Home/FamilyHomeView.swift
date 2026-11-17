@@ -42,6 +42,7 @@ struct FamilyHomeView: View {
     @State private var isFamilyMissionSchedulePresented = false
     @State private var showsMissionFace = false
     @State private var didLoadTodayQuestion = false
+    @State private var isLoadingTodayQuestion = false
     @State private var todayQuestionError: String?
     @State private var todayQuestionUnavailable = false
     @State private var questionLoadedDay: Date?
@@ -401,25 +402,25 @@ struct FamilyHomeView: View {
         .onPreferenceChange(FamilyMemberFramePreferenceKey.self) { frames in
             memberFrames = frames
         }
-        .task {
-            guard loadsServerQuestion else {
-                didLoadTodayQuestion = true
-                return
-            }
-            await loadTodayQuestion()
-        }
-        .task {
-            await loadFamilyMembers()
-        }
-        .task {
-            await loadRecommendations()
-        }
-        .task {
-            await refreshUnreadNotifications()
-        }
-        .task {
-            await loadTodayAppointment()
-        }
+        .task { await loadInitialHomeData() }
+    }
+
+    /// 독립적인 홈 섹션은 각 응답이 도착하는 즉시 화면을 갱신합니다.
+    private func loadInitialHomeData() async {
+        let startedAt = Date()
+        async let question: Void = loadsServerQuestion ? loadTodayQuestion() : markQuestionUnavailable()
+        async let members: Void = loadFamilyMembers()
+        async let recommendations: Void = loadRecommendations()
+        async let notifications: Void = refreshUnreadNotifications()
+        async let appointment: Void = loadTodayAppointment()
+        _ = await (question, members, recommendations, notifications, appointment)
+        #if DEBUG
+        print("[KIRI][HomePerf] initial complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+        #endif
+    }
+
+    private func markQuestionUnavailable() async {
+        await MainActor.run { didLoadTodayQuestion = true }
     }
 
     private var todayAppointmentCard: some View {
@@ -849,8 +850,7 @@ struct FamilyHomeView: View {
             }
 
             if (isLoadingFamilyMembers || isLoadingFamilyAnswers) && displayedMembers.isEmpty {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                homeSkeletonMemberRow
             } else if let familyMembersError, displayedMembers.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("가족 구성원을 불러오지 못했어요")
@@ -949,8 +949,7 @@ struct FamilyHomeView: View {
             }
 
             if !didLoadTodayQuestion {
-                ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 136)
+                homeSkeletonCard
             } else if let serverQuestion, let questionId = serverQuestion.questionId,
                       !(serverQuestion.question ?? "").isEmpty {
                 QuestionMissionFlipCard(
@@ -1136,7 +1135,7 @@ struct FamilyHomeView: View {
     @ViewBuilder
     private var recommendationCards: some View {
         if isLoadingRecommendations {
-            ProgressView().frame(maxWidth: .infinity, minHeight: 144)
+            homeSkeletonCard
         } else if missionFeedError != nil {
             VStack(spacing: 8) {
                 Text("미션을 불러오지 못했어요")
@@ -1157,6 +1156,34 @@ struct FamilyHomeView: View {
         }
     }
 
+    private var homeSkeletonCard: some View {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(KIRIColor.Background.secondary)
+            .frame(maxWidth: .infinity, minHeight: 136)
+            .overlay(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: 12) {
+                    RoundedRectangle(cornerRadius: 4).fill(KIRIColor.Background.tertiary).frame(width: 92, height: 14)
+                    RoundedRectangle(cornerRadius: 4).fill(KIRIColor.Background.tertiary).frame(width: 210, height: 18)
+                    RoundedRectangle(cornerRadius: 4).fill(KIRIColor.Background.tertiary).frame(width: 150, height: 14)
+                }
+                .padding(20)
+            }
+            .accessibilityLabel("홈 콘텐츠를 불러오는 중")
+    }
+
+    private var homeSkeletonMemberRow: some View {
+        HStack(spacing: 12) {
+            ForEach(0..<4, id: \.self) { _ in
+                VStack(spacing: 8) {
+                    Circle().fill(KIRIColor.Background.secondary).frame(width: 58, height: 58)
+                    RoundedRectangle(cornerRadius: 4).fill(KIRIColor.Background.tertiary).frame(width: 44, height: 12)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel("가족 구성원을 불러오는 중")
+    }
+
     private var allPublicMissions: [MissionFeedItem] {
         recommendedMissions
     }
@@ -1172,7 +1199,7 @@ struct FamilyHomeView: View {
             EmptyView()
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 16) {
+                LazyHStack(spacing: 16) {
                     ForEach(missions) { mission in
                         Button {
                             selectedMission = mission
@@ -1194,6 +1221,10 @@ struct FamilyHomeView: View {
 
 
     private func loadTodayQuestion() async {
+        guard !isLoadingTodayQuestion else { return }
+        isLoadingTodayQuestion = true
+        defer { isLoadingTodayQuestion = false }
+        let startedAt = Date()
         #if DEBUG
         print("[KIRI][Question] request started")
         #endif
@@ -1210,7 +1241,7 @@ struct FamilyHomeView: View {
                 todayQuestionError = nil
             }
             #if DEBUG
-            print("[KIRI][Question] response hasFamily=\(result.hasFamily) questionIdPresent=\(result.questionId != nil) questionPresent=\(result.question?.isEmpty == false) isAnswered=\(result.isAnswered)")
+            print("[KIRI][Question] response elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) hasFamily=\(result.hasFamily) questionIdPresent=\(result.questionId != nil) questionPresent=\(result.question?.isEmpty == false) isAnswered=\(result.isAnswered)")
             #endif
             if let questionId = result.questionId {
                 await loadFamilyAnswers(questionId: questionId)
@@ -1235,7 +1266,7 @@ struct FamilyHomeView: View {
                 didLoadTodayQuestion = true
             }
             #if DEBUG
-            print("[KIRI][Question] no question assigned")
+            print("[KIRI][Question] no question assigned elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
             #endif
         } catch {
             await MainActor.run {
@@ -1248,7 +1279,7 @@ struct FamilyHomeView: View {
                 didLoadTodayQuestion = true
             }
             #if DEBUG
-            print("[KIRI][Question] load failed: \(error.localizedDescription)")
+            print("[KIRI][Question] load failed elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) error=\(error.localizedDescription)")
             #endif
         }
     }
@@ -1282,6 +1313,8 @@ struct FamilyHomeView: View {
 
     private func loadFamilyMembers() async {
         guard let familyId else { return }
+        guard !isLoadingFamilyMembers else { return }
+        let startedAt = Date()
         await MainActor.run {
             isLoadingFamilyMembers = true
             familyMembersError = nil
@@ -1292,11 +1325,17 @@ struct FamilyHomeView: View {
                 familyMembers = result.members
                 isLoadingFamilyMembers = false
             }
+            #if DEBUG
+            print("[KIRI][HomePerf] family members elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) count=\(result.members.count)")
+            #endif
         } catch {
             await MainActor.run {
                 familyMembersError = error.localizedDescription
                 isLoadingFamilyMembers = false
             }
+            #if DEBUG
+            print("[KIRI][HomePerf] family members failed elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+            #endif
         }
     }
 
@@ -1446,6 +1485,8 @@ struct FamilyHomeView: View {
 
 
     private func loadRecommendations() async {
+        guard !isLoadingRecommendations else { return }
+        let startedAt = Date()
         await MainActor.run {
             isLoadingRecommendations = true
             missionFeedError = nil
@@ -1457,25 +1498,41 @@ struct FamilyHomeView: View {
         do {
             var cursor: Int?
             var allMissions: [MissionFeedItem] = []
-            repeat {
-                let page = try await AuthService.shared.missionFeed(cursor: cursor)
-                allMissions.append(contentsOf: page.missions)
-                guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
-                cursor = nextCursor
-            } while true
-
             var seen = Set<Int>()
-            let uniqueMissions = allMissions.filter { seen.insert($0.missionId).inserted }
+            var page = try await AuthService.shared.missionFeed(cursor: cursor)
+            let firstPage = page.missions.filter { seen.insert($0.missionId).inserted }
+            allMissions.append(contentsOf: firstPage)
             await MainActor.run {
-                recommendedMissions = uniqueMissions
+                recommendedMissions = allMissions
                 isLoadingRecommendations = false
             }
+            #if DEBUG
+            print("[KIRI][HomePerf] missions first page elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) count=\(firstPage.count)")
+            #endif
+
+            // 이후 페이지는 첫 페이지 표시를 막지 않고 도착할 때마다 추가합니다.
+            while page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor {
+                cursor = nextCursor
+                page = try await AuthService.shared.missionFeed(cursor: cursor)
+                let nextPage = page.missions.filter { seen.insert($0.missionId).inserted }
+                allMissions.append(contentsOf: nextPage)
+                await MainActor.run { recommendedMissions = allMissions }
+            }
+            #if DEBUG
+            print("[KIRI][HomePerf] missions complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) count=\(allMissions.count)")
+            #endif
         } catch {
             await MainActor.run {
-                recommendedMissions = []
-                missionFeedError = "mission-feed"
+                // 첫 페이지가 이미 표시된 뒤 다음 페이지가 실패해도
+                // 기존 콘텐츠를 비우지 않고 현재 목록을 유지합니다.
+                if recommendedMissions.isEmpty {
+                    missionFeedError = "mission-feed"
+                }
                 isLoadingRecommendations = false
             }
+            #if DEBUG
+            print("[KIRI][HomePerf] missions failed elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+            #endif
         }
     }
 
