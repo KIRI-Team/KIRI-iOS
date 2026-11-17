@@ -35,7 +35,7 @@ struct NicknameEditView: View {
     }
 
     private var trimmedNickname: String {
-        editedNickname
+        editedNickname.precomposedStringWithCanonicalMapping
             .trimmingCharacters(
                 in: .whitespacesAndNewlines
             )

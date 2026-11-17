@@ -25,9 +25,9 @@ struct FamilyNameEditView: View {
     @State private var errorMessage: String?
 
     private var trimmedFamilyName: String {
-        editedFamilyName
+        editedFamilyName.precomposedStringWithCanonicalMapping
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" })
+            .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
     }
 

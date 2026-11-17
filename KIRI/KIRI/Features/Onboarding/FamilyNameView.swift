@@ -18,14 +18,15 @@ struct FamilyNameView: View {
     let onNext: () -> Void
 
     private var trimmedFamilyName: String {
-        familyName.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
+        familyName.precomposedStringWithCanonicalMapping
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
     }
 
     private var isValid: Bool {
         trimmedFamilyName.count >= 2 &&
-        trimmedFamilyName.count <= 10 &&
+        trimmedFamilyName.count <= 15 &&
         containsOnlyAllowedCharacters(trimmedFamilyName)
     }
 
@@ -57,9 +58,6 @@ struct FamilyNameView: View {
                     text: $familyName
                 )
                 .padding(.top, 50)
-                .onChange(of: familyName) { _, newValue in
-                    familyName = sanitize(newValue)
-                }
 
                 KIRIValidationGuidance(state: validationState)
                     .padding(.leading, 24)
@@ -70,7 +68,12 @@ struct FamilyNameView: View {
                 KIRIPrimaryButton(
                     title: "다음",
                     isEnabled: isValid,
-                    action: onNext
+                    action: {
+                        // 한글 조합 중에는 입력값을 수정하지 않고, 다음을 누를 때만
+                        // NFC 정규화·공백 정리를 확정합니다.
+                        familyName = trimmedFamilyName
+                        onNext()
+                    }
                 )
             }
             .padding(
@@ -101,7 +104,7 @@ struct FamilyNameView: View {
     private func containsOnlyAllowedCharacters(
         _ value: String
     ) -> Bool {
-        let pattern = "^[가-힣A-Za-z0-9]+$"
+        let pattern = "^[가-힣A-Za-z0-9 ]+$"
 
         return value.range(
             of: pattern,
@@ -109,18 +112,6 @@ struct FamilyNameView: View {
         ) != nil
     }
 
-    private func sanitize(
-        _ value: String
-    ) -> String {
-        let filtered = value.filter { character in
-            String(character).range(
-                of: "[가-힣A-Za-z0-9]",
-                options: .regularExpression
-            ) != nil
-        }
-
-        return String(filtered.prefix(20))
-    }
 }
 
 // MARK: - Preview

@@ -35,6 +35,30 @@ final class AuthService {
         self.tokenStore = tokenStore
     }
 
+    // 입력 화면과 네트워크 요청이 서로 다른 문자열을 보지 않도록
+    // 비동기 경계를 넘기기 전에 한 번만 NFC/공백 정규화를 수행합니다.
+    private func normalizedNickname(_ value: String) -> String {
+        value.precomposedStringWithCanonicalMapping
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func normalizedFamilyName(_ value: String) -> String {
+        value.precomposedStringWithCanonicalMapping
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+    }
+
+    private func isValidNickname(_ value: String) -> Bool {
+        value.count >= 2 && value.count <= 12
+            && value.range(of: "^[가-힣A-Za-z0-9]+$", options: .regularExpression) != nil
+    }
+
+    private func isValidFamilyName(_ value: String) -> Bool {
+        value.count >= 2 && value.count <= 15
+            && value.range(of: "^[가-힣A-Za-z0-9 ]+$", options: .regularExpression) != nil
+    }
+
     func login(
         provider: SocialProvider,
         token: String,
@@ -230,17 +254,17 @@ final class AuthService {
         // The caller has already captured the edit value on MainActor. Make
         // one immutable value for validation and JSON construction instead of
         // reading SwiftUI state again after the async boundary.
-        let nicknameValue = String(nickname)
+        let nicknameValue = normalizedNickname(String(nickname))
         #if DEBUG
         print(
             "[KIRI][AuthService] updateNickname "
                 + "inputLength=\(nickname.count) utf8Length=\(nicknameValue.utf8.count)"
         )
         #endif
-        guard !nicknameValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard isValidNickname(nicknameValue) else {
             throw APIError.serverError(
                 code: "COMMON400_1",
-                message: "닉네임은 필수입니다."
+                message: "닉네임은 한글·영문·숫자 2~12자로 입력해 주세요."
             )
         }
         let bodyObject: [String: String] = ["nickname": nicknameValue]
@@ -327,9 +351,16 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        let nameValue = normalizedFamilyName(String(name))
+        guard isValidFamilyName(nameValue) else {
+            throw APIError.serverError(
+                code: "COMMON400_1",
+                message: "가족명은 한글·영문·숫자·띄어쓰기 2~15자로 입력해 주세요."
+            )
+        }
         let envelope: APIEnvelope<CreateFamilyResult> = try await client.requestEnvelope(
             endpoint: endpoint,
-            body: CreateFamilyRequest(name: name),
+            body: CreateFamilyRequest(name: nameValue),
             accessToken: tokens.accessToken
         )
         guard let result = envelope.result else { throw APIError.decodingFailed }
@@ -345,9 +376,12 @@ final class AuthService {
         let tokens = try authenticatedTokens()
         // SwiftUI 입력 State를 네트워크 비동기 경계 밖에서 확정하고,
         // 가족명 PATCH 계약({"name": string})과 동일한 JSON 바이트를 전송합니다.
-        let nameValue = String(name)
-        guard !nameValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw APIError.serverError(code: "COMMON400_1", message: "가족명은 필수입니다.")
+        let nameValue = normalizedFamilyName(String(name))
+        guard isValidFamilyName(nameValue) else {
+            throw APIError.serverError(
+                code: "COMMON400_1",
+                message: "가족명은 한글·영문·숫자·띄어쓰기 2~15자로 입력해 주세요."
+            )
         }
         let bodyData = try JSONSerialization.data(
             withJSONObject: ["name": nameValue],

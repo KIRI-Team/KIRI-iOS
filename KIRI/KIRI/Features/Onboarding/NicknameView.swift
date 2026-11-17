@@ -25,7 +25,7 @@ struct NicknameView: View {
     let onNext: () -> Void
 
     private var trimmedNickname: String {
-        nickname.trimmingCharacters(
+        nickname.precomposedStringWithCanonicalMapping.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
     }
@@ -64,9 +64,6 @@ struct NicknameView: View {
                     text: $nickname
                 )
                 .padding(.top, 50)
-                .onChange(of: nickname) { _, newValue in
-                    nickname = sanitize(newValue)
-                }
 
                 KIRIValidationGuidance(state: validationState)
                     .padding(.leading, 24)
@@ -77,7 +74,12 @@ struct NicknameView: View {
                 KIRIPrimaryButton(
                     title: "다음",
                     isEnabled: isValid,
-                    action: onNext
+                    action: {
+                        // IME 조합 중에는 Binding을 절대 덮어쓰지 않고,
+                        // 탭한 순간 확정한 NFC 문자열만 다음 단계로 전달합니다.
+                        nickname = trimmedNickname
+                        onNext()
+                    }
                 )
             }
             .padding(
@@ -117,18 +119,6 @@ struct NicknameView: View {
         ) != nil
     }
 
-    private func sanitize(
-        _ value: String
-    ) -> String {
-        let filtered = value.filter { character in
-            String(character).range(
-                of: "[가-힣A-Za-z0-9]",
-                options: .regularExpression
-            ) != nil
-        }
-
-        return String(filtered.prefix(12))
-    }
 }
 
 // MARK: - Preview
