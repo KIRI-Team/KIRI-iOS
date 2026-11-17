@@ -550,8 +550,13 @@ struct MissionActivityDetailView: View {
             HStack(spacing: 10) {
                 if onSchedule == nil {
                     Image(saved ? "mission_bookmark_active" : "mission_bookmark_disabled")
+                        .renderingMode(saved ? .original : .template)
                         .resizable()
                         .scaledToFit()
+                        // 저장 전 CTA는 연두 배경 위에 어두운 아이콘을
+                        // 사용하고, 저장 완료 상태는 Figma 원본 색을 그대로
+                        // 유지합니다.
+                        .foregroundStyle(KIRIColor.Button.FilledAccent.contentDefault)
                         .frame(width: 24, height: 24)
                 }
                 Text(onSchedule == nil ? (saved ? "버킷에 저장됨" : "버킷에 저장") : "일정 잡기")
@@ -560,7 +565,7 @@ struct MissionActivityDetailView: View {
             .foregroundStyle(onSchedule == nil && saved ? KIRIColor.Text.accent : KIRIColor.Button.FilledAccent.contentDefault)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(onSchedule == nil && !saved ? KIRIColor.Background.secondary : KIRIColor.Button.FilledAccent.backgroundDefault)
+            .background(onSchedule == nil && saved ? KIRIColor.Primary.container : KIRIColor.Button.FilledAccent.backgroundDefault)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
