@@ -988,7 +988,7 @@ struct FamilyHomeView: View {
     }
 
     private var displayedMembers: [HomeMember] {
-        let currentMemberId = try? AuthService.shared.currentMemberId()
+        let currentMemberId = currentAuthenticatedMemberId
         let answersByMemberId = Dictionary(uniqueKeysWithValues: familyAnswers.map { ($0.memberId, $0) })
         if !familyMembers.isEmpty {
             var members = familyMembers.map { member in
