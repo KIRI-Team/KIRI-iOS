@@ -46,11 +46,6 @@ struct MissionView: View {
     @State private var rows: [MissionRow] = []
     // 필터 결과가 비어도 서버가 반환한 오늘의 끼리픽은 유지합니다.
     @State private var kiriPickRows: [MissionRow] = []
-    @State private var kiriPickAnchorDate = Date()
-    @State private var kiriPickAnchorOffset: CGFloat = 0
-    @State private var kiriPickIsDragging = false
-    @State private var kiriPickDragStart: CGFloat = 0
-    @State private var kiriPickDragPosition: CGFloat = 0
     @State private var selectedMission: MissionRow?
     @State private var searchText = ""
     @State private var selectedCategory: Category = .all
@@ -220,60 +215,23 @@ struct MissionView: View {
                     .padding(.horizontal, 18)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                GeometryReader { geometry in
-                    let cycleWidth = kiriPickCycleWidth
-                    TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { context in
-                        let offset = kiriPickIsDragging
-                            ? kiriPickDragPosition
-                            : normalizedKiriPickOffset(kiriPickAutoOffset(at: context.date), cycleWidth: cycleWidth)
-                        HStack(spacing: 12) {
-                            ForEach(0..<(kiriPickRows.count * 3), id: \.self) { index in
-                                let row = kiriPickRows[index % kiriPickRows.count]
-                                Button { selectedMission = row } label: { featuredCard(row) }
-                                    .buttonStyle(.plain)
-                            }
+                // 자동 재생 없이 사용자의 한 번의 스와이프를 한 카드 단위로
+                // 정렬합니다. 양옆 카드는 18pt 여백 밖으로 일부가 보입니다.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(kiriPickRows) { row in
+                            Button { selectedMission = row } label: { featuredCard(row) }
+                                .buttonStyle(.plain)
+                                .id(row.id)
                         }
-                        .offset(x: offset)
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(
-                            DragGesture(minimumDistance: 8)
-                                .onChanged { value in
-                                    if !kiriPickIsDragging {
-                                        kiriPickIsDragging = true
-                                        kiriPickDragStart = normalizedKiriPickOffset(kiriPickAutoOffset(at: Date()), cycleWidth: cycleWidth)
-                                    }
-                                    kiriPickDragPosition = normalizedKiriPickOffset(kiriPickDragStart + value.translation.width, cycleWidth: cycleWidth)
-                                }
-                                .onEnded { _ in
-                                    kiriPickAnchorOffset = kiriPickDragPosition
-                                    kiriPickAnchorDate = Date()
-                                    kiriPickIsDragging = false
-                                }
-                        )
-                        .frame(width: geometry.size.width, alignment: .leading)
-                        .clipped()
                     }
-                    .frame(width: geometry.size.width, height: 120)
+                    .scrollTargetLayout()
+                    .padding(.horizontal, 18)
                 }
+                .scrollTargetBehavior(.viewAligned)
                 .frame(height: 120)
             }
         }
-    }
-
-    private var kiriPickCycleWidth: CGFloat {
-        CGFloat(kiriPickRows.count) * (354 + 12)
-    }
-
-    private func kiriPickAutoOffset(at date: Date) -> CGFloat {
-        kiriPickAnchorOffset - CGFloat(max(0, date.timeIntervalSince(kiriPickAnchorDate))) * 18
-    }
-
-    private func normalizedKiriPickOffset(_ rawOffset: CGFloat, cycleWidth: CGFloat) -> CGFloat {
-        guard cycleWidth > 0 else { return rawOffset }
-        var offset = rawOffset
-        while offset <= -cycleWidth * 2 { offset += cycleWidth }
-        while offset > -cycleWidth { offset -= cycleWidth }
-        return offset
     }
 
     private var missionListHeader: some View {
@@ -313,12 +271,7 @@ struct MissionView: View {
             }
             .frame(width: 354, height: 120)
             .clipped()
-
-            LinearGradient(
-                colors: [.clear, Color.black.opacity(0.72)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
+            KIRIColor.Primitive.neutral950.opacity(0.48)
             VStack(alignment: .leading, spacing: 3) {
                 Text(row.mission.title)
                     .font(.custom("Pretendard-Medium", fixedSize: 18))
@@ -429,11 +382,8 @@ struct MissionView: View {
             if reset {
                 rows = newRows
                 if category == nil, filter == .empty, !newRows.isEmpty {
-                    // 기존 끼리픽 영역의 최대 3장 구성을 유지하면서,
-                    // 해당 카드 전체를 반복 배치해 연속 이동시킵니다.
+                    // 끼리픽은 목록과 분리된 스냅 카드 행으로 유지합니다.
                     kiriPickRows = Array(newRows.prefix(3))
-                    kiriPickAnchorOffset = -CGFloat(min(newRows.count, 3)) * (354 + 12)
-                    kiriPickAnchorDate = Date()
                 }
             } else { rows.append(contentsOf: newRows) }
             nextCursor = result.nextCursor; hasNext = result.hasNext; errorMessage = nil
