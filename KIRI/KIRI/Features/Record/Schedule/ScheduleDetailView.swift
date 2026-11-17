@@ -45,6 +45,8 @@ struct ScheduleDetailView: View {
     @State private var reviewMutationError: String?
     @State private var reviewToDelete: ReviewItemResult?
     @State private var isDeletingReview = false
+    @State private var showingConditionSheet = false
+    @State private var selectedConditions: Set<ConditionAdjustmentSheet.Condition> = []
     @State private var currentUserNickname = ""
     @State private var currentUserRole = ""
     @State private var familyMembers: [FamilyMemberInfoResult] = []
@@ -199,93 +201,29 @@ struct ScheduleDetailView: View {
     }
     var body: some View {
         Group {
-            if let review = currentReview {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        navigationBar
-                        Text(displayTitle)
-                            .font(KIRITypography.title)
-                            .foregroundStyle(KIRIColor.Text.strong)
-                        activityDetail
-                        ActivityReviewCompleteView(
-                            schedule: schedule,
-                            review: review,
-                            onBack: onBack,
-                            onEdit: { showingReviewEditor = true },
-                            userName: currentUserNickname,
-                            familyRole: currentUserRole
-                        )
-                    }
-                    .padding(.horizontal, 18)
+            if isLoadingServerDetail && serverDetail == nil {
+                VStack(spacing: 16) {
+                    navigationBar
+                    ProgressView("일정 최신 정보를 확인하고 있어요")
+                        .frame(maxWidth: .infinity, minHeight: 220)
                 }
+                .padding(.horizontal, 18)
+            } else if let serverDetailError, serverDetail == nil {
+                VStack(spacing: 16) {
+                    navigationBar
+                    Text(serverDetailError)
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Button("다시 시도") {
+                        Task { await loadServerDetail(); await loadMissionDetail(); await loadNearbyMissions(); await loadReviews() }
+                    }
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
+                }
+                .frame(maxWidth: .infinity, minHeight: 220)
+                .padding(.horizontal, 18)
             } else {
-                if isLoadingServerDetail && serverDetail == nil {
-                    VStack(spacing: 16) {
-                        navigationBar
-                        ProgressView("일정 최신 정보를 확인하고 있어요")
-                            .frame(maxWidth: .infinity, minHeight: 220)
-                    }
-                    .padding(.horizontal, 18)
-                } else if let serverDetailError, serverDetail == nil {
-                    VStack(spacing: 16) {
-                        navigationBar
-                        Text(serverDetailError)
-                            .font(KIRITypography.bodySmall)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                        Button("다시 시도") {
-                            Task {
-                                await loadServerDetail()
-                                await loadNearbyMissions()
-                            }
-                        }
-                        .font(KIRITypography.bodySmallMedium)
-                        .foregroundStyle(KIRIColor.Text.accent)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 220)
-                    .padding(.horizontal, 18)
-                } else if dateState == .today,
-                          let content = todayContent ?? serverTodayContent {
-                    TodayActivityView(
-                        schedule: schedule,
-                        content: content,
-                        onBack: onBack,
-                        missionTitle: displayTitle,
-                        missionDescription: displayDescription,
-                        requestMessage: serverDetail?.requestMessage,
-                        savedReview: currentReview,
-                        onReviewSaved: { draft in
-                            localEditedReview = draft
-                            onReviewSaved?(draft)
-                            // 서버 저장 직후 리뷰 목록을 다시 읽어야 당일
-                            // 상세를 나갔다 돌아와도 내 리뷰가 복원됩니다.
-                            Task { @MainActor in await loadReviews() }
-                            // 약속 당일 화면에서 저장한 리뷰도 캘린더가 대표사진·완료 상태를
-                            // 서버에서 다시 읽도록 상위 기록 화면에 갱신을 알립니다.
-                            onScheduleChanged?()
-                        }
-                    )
-                } else if dateState == .today {
-                    statusView(
-                        title: "약속 당일 화면을 확인할 수 없어요",
-                        message: "확정된 일정의 최종 참여자만 이용할 수 있어요."
-                    )
-                } else if isAppointmentPast {
-                    pastContent
-                } else {
-                switch dateState {
-                case .today:
-                    statusView(title: "약속 당일 화면을 확인할 수 없어요", message: "확정된 일정의 최종 참여자만 이용할 수 있어요.")
-                case .upcoming:
-                    upcomingContent
-                case .past:
-                    pastContent
-                case .unknown:
-                    statusView(
-                        title: "일정 날짜를 확인할 수 없어요",
-                        message: "일정 정보를 다시 확인해 주세요."
-                    )
-                }
-                }
+                commonScheduleContent
             }
         }
         .fullScreenCover(isPresented: $showingReviewEditor) {
@@ -337,6 +275,24 @@ struct ScheduleDetailView: View {
                     }
                 )
             }
+        }
+        .fullScreenCover(isPresented: $showingConditionSheet) {
+            ConditionAdjustmentSheet(
+                selectedConditions: selectedConditions,
+                onApply: { selectedConditions = $0 },
+                onApplyToServer: schedule.scheduleId.map { scheduleId in
+                    { conditions in
+                        try await AuthService.shared.updateScheduleConditions(
+                            scheduleId: scheduleId,
+                            conditions: conditions.map(\.serverValue)
+                        )
+                        await loadNearbyMissions()
+                    }
+                },
+                activityTitle: displayTitle,
+                expectedSteps: schedule.expectedSteps,
+                activityDuration: schedule.duration
+            )
         }
         .sheet(isPresented: $showingRepresentativePicker) {
             RepresentativePhotoPicker(
@@ -398,6 +354,105 @@ struct ScheduleDetailView: View {
                     .padding(.horizontal, 18)
                     .safeAreaPadding(.top, 8)
                     .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+    }
+
+    /// 모든 일정 상태가 같은 정보 구조를 사용하고, 서버 권한에 따라 액션만 바뀝니다.
+    private var commonScheduleContent: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                navigationBar
+                statusBadge
+                    .padding(.top, 8)
+                Text(displayTitle)
+                    .font(KIRITypography.title)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
+                participantLine
+                    .padding(.top, 12)
+                activityDetail
+                    .padding(.top, 18)
+                stateActions
+                    .padding(.top, 14)
+                contentSelector
+                    .padding(.top, 28)
+                selectedContent
+                    .padding(.top, 20)
+                Color.clear.frame(height: 120)
+            }
+            .padding(.horizontal, 18)
+        }
+        .onAppear {
+            if !serverReviews.isEmpty && dateState == .past { selectedTab = .familyMemory }
+        }
+    }
+
+    private var statusBadge: some View {
+        Text(statusBadgeTitle)
+            .font(KIRITypography.bodySmallMedium)
+            .foregroundStyle(KIRIColor.Text.primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(KIRIColor.Background.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+
+    private var participantLine: some View {
+        let participants = serverDetail?.participants ?? []
+        return Group {
+            if !participants.isEmpty {
+                HStack(spacing: 6) {
+                    Text("참여상태")
+                        .font(KIRITypography.bodySmallMedium)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                    Text("|")
+                        .foregroundStyle(KIRIColor.Text.tertiary)
+                    ForEach(Array(participants.enumerated()), id: \.offset) { _, participant in
+                        HStack(spacing: 3) {
+                            Text(participant.nickname)
+                            if participant.status.uppercased() == "ACCEPTED" {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(KIRIColor.Primary.default)
+                            }
+                        }
+                    }
+                }
+                .font(KIRITypography.bodySmall)
+                .foregroundStyle(KIRIColor.Text.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var stateActions: some View {
+        VStack(spacing: 10) {
+            scheduleActions
+            if effectiveStatus.uppercased() == "TODAY",
+               serverDetail?.myStatus?.uppercased() == "ACCEPTED" {
+                Button("컨디션 조정하러가기") {
+                    Task {
+                        if let scheduleId = schedule.scheduleId,
+                           let result = try? await AuthService.shared.scheduleConditions(scheduleId: scheduleId) {
+                            selectedConditions = Set(result.conditions.compactMap(ConditionAdjustmentSheet.Condition.from(serverValue:)))
+                        }
+                        showingConditionSheet = true
+                    }
+                }
+                .buttonStyle(scheduleActionStyle(isPrimary: false))
+            }
+            if isAppointmentPast && serverDetail?.myStatus?.uppercased() == "ACCEPTED" && effectiveStatus.uppercased() != "CANCELLED" {
+                if serverReviews.contains(where: { $0.isMine }) {
+                    EmptyView()
+                } else if canWriteReview {
+                    Button("리뷰 작성하기") { showingReviewEditor = true }
+                        .buttonStyle(scheduleActionStyle(isPrimary: true))
+                        .disabled(isMutatingSchedule)
+                }
             }
         }
     }
@@ -465,6 +520,9 @@ struct ScheduleDetailView: View {
             let result = try await AuthService.shared.scheduleReviews(scheduleId: scheduleId)
             representativePhotoId = result.representativePhotoId
             serverReviews = result.reviews
+            if dateState == .past, result.reviews.contains(where: { $0.isMine }) {
+                selectedTab = .familyMemory
+            }
         } catch {
             reviewsLoadError = "가족 추억을 불러오지 못했어요."
         }
@@ -878,10 +936,60 @@ struct ScheduleDetailView: View {
     }
     private var selectedContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(selectedTab == .aiActivity ? "근처 놀거리 추천" : "가족 추억")
-            .font(KIRITypography.headingSmall)
-            .foregroundStyle(KIRIColor.Text.strong)
             if selectedTab == .aiActivity {
+                if let missionDetail, !missionDetail.steps.isEmpty {
+                    Text("끼리네 추천 활동")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(missionDetail.steps) { step in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(step.title)
+                                    .font(KIRITypography.bodySmallMedium)
+                                    .foregroundStyle(KIRIColor.Text.strong)
+                                if !step.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(step.description)
+                                        .font(KIRITypography.caption)
+                                        .foregroundStyle(KIRIColor.Text.secondary)
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(KIRIColor.Background.secondary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                }
+                Text("오늘의 끼리 맞춤템")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                if let missionDetail, !missionDetail.prepareItems.isEmpty {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(missionDetail.prepareItems) { item in
+                            VStack(alignment: .leading, spacing: 4) {
+                                if item.title.localizedCaseInsensitiveContains("우산") || item.title.localizedCaseInsensitiveContains("양산") {
+                                    Image("figma_umbrella")
+                                        .resizable().scaledToFit().frame(height: 28)
+                                }
+                                Text(item.title).font(KIRITypography.bodySmallMedium).foregroundStyle(KIRIColor.Text.strong)
+                                if !item.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    Text(item.description).font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.secondary).lineLimit(2)
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+                            .background(KIRIColor.Background.secondary)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                } else if missionDetail != nil {
+                    Text("추천 준비물이 아직 없어요.")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
+                Text("근처 놀거리 추천")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
                 if isLoadingNearby {
                     ProgressView().frame(maxWidth: .infinity, minHeight: 110)
                 } else if let nearbyLoadError {
