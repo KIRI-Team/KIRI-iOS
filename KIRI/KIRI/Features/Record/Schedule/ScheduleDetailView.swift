@@ -397,7 +397,7 @@ struct ScheduleDetailView: View {
     private var statusBadge: some View {
         let isConfirmed = effectiveStatus.uppercased() == "CONFIRMED" ||
             (effectiveStatus.uppercased() == "SCHEDULED" && serverDetail?.myStatus?.uppercased() == "ACCEPTED")
-        Text(statusBadgeTitle)
+        return Text(statusBadgeTitle)
             .font(KIRITypography.bodySmallMedium)
             .foregroundStyle(isConfirmed ? KIRIColor.Text.accent : KIRIColor.Text.primary)
             .padding(.horizontal, 10)
