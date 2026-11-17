@@ -991,7 +991,7 @@ struct FamilyHomeView: View {
         let currentMemberId = try? AuthService.shared.currentMemberId()
         let answersByMemberId = Dictionary(uniqueKeysWithValues: familyAnswers.map { ($0.memberId, $0) })
         if !familyMembers.isEmpty {
-            return familyMembers.map { member in
+            var members = familyMembers.map { member in
                 let answer = answersByMemberId[member.memberId]
                 let isMe = member.memberId == currentMemberId
                 return HomeMember(
@@ -1003,10 +1003,19 @@ struct FamilyHomeView: View {
                     answer: answer?.answer, isMe: isMe
                 )
             }
+            // 가족 생성 직후에는 구성원 조회 응답이 세션보다 늦게 도착할 수
+            // 있습니다. 인증된 본인을 응답에서 놓치더라도 오늘 질문이 있으면
+            // 세션의 memberId로 본인 카드를 유지해 답변을 작성할 수 있어야 합니다.
+            if let authenticatedMember = authenticatedHomeMember(currentMemberId: currentMemberId),
+               !members.contains(where: { $0.memberId == authenticatedMember.memberId }) {
+                members.insert(authenticatedMember, at: 0)
+            }
+            return members
         }
-        // 가족 구성원 조회가 완료되기 전에는 답변 응답에 포함된 실제 구성원만
-        // 임시로 표시합니다. 임의의 가족 구성원을 생성하지 않습니다.
-        return familyAnswers.map { member in
+        // 가족 구성원 조회가 완료되기 전에도 답변 응답에 포함된 실제 구성원을
+        // 표시하되, 답변 목록이 비어 있는 1인 가족은 인증 세션의 본인을
+        // 추가합니다. 이는 임의 구성원이 아니라 현재 로그인한 계정입니다.
+        var members = familyAnswers.map { member in
             let isMe = member.memberId == currentMemberId || member.isMe
             return HomeMember(
                 id: String(member.memberId), memberId: member.memberId,
@@ -1015,10 +1024,33 @@ struct FamilyHomeView: View {
                 answer: member.answer, isMe: isMe
             )
         }
+        if let authenticatedMember = authenticatedHomeMember(currentMemberId: currentMemberId),
+           !members.contains(where: { $0.memberId == authenticatedMember.memberId }) {
+            members.insert(authenticatedMember, at: 0)
+        }
+        return members
+    }
+
+    private func authenticatedHomeMember(currentMemberId: Int?) -> HomeMember? {
+        guard let currentMemberId else { return nil }
+        let answer = familyAnswers.first(where: { $0.memberId == currentMemberId || $0.isMe })
+        return HomeMember(
+            id: String(currentMemberId),
+            memberId: currentMemberId,
+            name: nickname ?? "나",
+            role: familyRole,
+            hasAnswered: answer?.isAnswered ?? serverQuestion?.isAnswered ?? false,
+            answerStatusKnown: answer != nil || serverQuestion != nil,
+            answer: answer?.answer ?? serverQuestion?.answer,
+            isMe: true
+        )
     }
 
     private var currentAuthenticatedMemberId: Int? {
         if let memberId = try? AuthService.shared.currentMemberId() {
+            return memberId
+        }
+        if let memberId = AppSessionStore().memberId {
             return memberId
         }
         return familyAnswers.first(where: { $0.isMe })?.memberId
