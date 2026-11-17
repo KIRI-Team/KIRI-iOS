@@ -1134,7 +1134,7 @@ struct FamilyHomeView: View {
 
     @ViewBuilder
     private var recommendationCards: some View {
-        if isLoadingRecommendations {
+        if isLoadingRecommendations && recommendedMissions.isEmpty {
             homeSkeletonCard
         } else if missionFeedError != nil {
             VStack(spacing: 8) {
