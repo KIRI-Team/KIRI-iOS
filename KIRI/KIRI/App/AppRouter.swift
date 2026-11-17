@@ -622,29 +622,57 @@ final class AppRouter {
     func deleteAccount() async -> String? {
         guard !isDeletingAccount else { return "탈퇴 요청이 진행 중입니다." }
         isDeletingAccount = true
-        var failureMessage: String?
+        defer { isDeletingAccount = false }
+
         do {
             try await AuthService.shared.deleteAccount()
-            let identity = tutorialIdentity
-            try tokenStore.clear()
-            if let identity {
-                sessionStore.removeAccountSnapshot(for: identity)
-                UserDefaults.standard.removeObject(forKey: "kiri_home_tutorial_completed.\(identity)")
-            }
-            sessionStore.clearSession()
-            tutorialIdentity = nil
-            pendingInvitation = nil
-            pendingTerms = nil
-            pendingTermAgreements = []
-            userMode = .browse
-            familyState = .unknown
-            lastSessionError = nil
-            appState = .authentication
+            finishAccountDeletion()
+            return nil
+        } catch let APIError.serverError(code, _) where code == "MEMBER409_2" {
+            // 이미 탈퇴 처리된 회원은 서버에 재요청하지 않고 남아 있는
+            // 로컬 세션만 정리해 로그인 화면으로 보냅니다.
+            finishAccountDeletion()
+            return nil
         } catch {
             lastSessionError = error.localizedDescription
-            failureMessage = error.localizedDescription
+            return error.localizedDescription
         }
-        isDeletingAccount = false
-        return failureMessage
+    }
+
+    /// 서버 탈퇴가 끝난 뒤 로컬 상태를 정리합니다. Keychain 삭제가 일시적으로
+    /// 실패해도 UserDefaults의 인증 플래그와 화면 상태는 반드시 제거해, 탈퇴
+    /// 요청을 다시 보내지 않고 로그인 화면으로 복귀하게 합니다.
+    private func finishAccountDeletion() {
+        let identity = tutorialIdentity
+        var tokenCleared = false
+        for _ in 0..<2 where !tokenCleared {
+            do {
+                try tokenStore.clear()
+                tokenCleared = !Self.storedSessionExists(using: tokenStore)
+            } catch {
+                #if DEBUG
+                print("[KIRI][Router] account deletion: local token clear retry")
+                #endif
+            }
+        }
+        if !tokenCleared {
+            #if DEBUG
+            print("[KIRI][Router] account deletion: local token clear pending")
+            #endif
+        }
+
+        if let identity {
+            sessionStore.removeAccountSnapshot(for: identity)
+            UserDefaults.standard.removeObject(forKey: "kiri_home_tutorial_completed.\(identity)")
+        }
+        sessionStore.clearSession()
+        tutorialIdentity = nil
+        pendingInvitation = nil
+        pendingTerms = nil
+        pendingTermAgreements = []
+        userMode = .browse
+        familyState = .unknown
+        lastSessionError = nil
+        appState = .authentication
     }
 }

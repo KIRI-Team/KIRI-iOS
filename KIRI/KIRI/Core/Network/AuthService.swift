@@ -232,10 +232,16 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
-        let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
+        let envelope: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
             endpoint: endpoint,
             accessToken: tokens.accessToken
         )
+        // 탈퇴 성공 응답은 MEMBER200_3/result: null일 수 있습니다. result의
+        // 유무로 성공을 판단하지 않고 공통 envelope의 성공 플래그를 기준으로
+        // 처리합니다.
+        guard envelope.isSuccess else {
+            throw APIError.serverError(code: envelope.code, message: envelope.message)
+        }
     }
 
     func updateNickname(_ nickname: String) async throws -> NicknameUpdateResult {

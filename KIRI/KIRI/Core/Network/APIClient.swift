@@ -102,6 +102,7 @@ final class APIClient {
         #if DEBUG
         if endpoint.path.contains("/terms")
             || endpoint.path == "/api/v1/members/nickname"
+            || endpoint.path == "/api/v1/members/me"
             || endpoint.path == "/api/v1/families"
             || endpoint.path.contains("/api/v1/questions")
             || endpoint.path.contains("/api/v1/missions")
