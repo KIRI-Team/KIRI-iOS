@@ -108,19 +108,7 @@ struct FamilyHomeView: View {
                         case .mission(let missionId):
                             Task { await openNotificationMission(missionId) }
                         case .question(let questionId):
-                            Task {
-                                await loadFamilyAnswers(questionId: questionId)
-                                await MainActor.run {
-                                    serverQuestion = TodayQuestionResult(
-                                        hasFamily: true,
-                                        questionId: questionId,
-                                        question: familyAnswersQuestion,
-                                        isAnswered: false,
-                                        answer: nil
-                                    )
-                                    route = .questionAnswer
-                                }
-                            }
+                            Task { await openNotificationQuestion(questionId) }
                         case .schedule(let scheduleId):
                             Task { await openNotificationSchedule(scheduleId) }
                         case .unavailable:
@@ -227,8 +215,8 @@ struct FamilyHomeView: View {
                     onBack: { route = .home }
                 ) { selectedMemberId, savedAnswer in
                     guard let questionId = serverQuestion?.questionId,
-                          let selected = displayedMembers.first(where: { $0.memberId == selectedMemberId }),
-                          selected.isMe else {
+                          let authenticatedMemberId = currentAuthenticatedMemberId,
+                          selectedMemberId == authenticatedMemberId else {
                         #if DEBUG
                         print("[KIRI][Question] save blocked: selected member is not authenticated member")
                         #endif
@@ -1248,6 +1236,42 @@ struct FamilyHomeView: View {
                 route = .home
                 showPokeToast("미션을 불러오지 못했어요. 다시 시도해 주세요.", isError: true)
             }
+        }
+    }
+
+    private func openNotificationQuestion(_ notificationQuestionId: Int) async {
+        do {
+            let today = try await AuthService.shared.todayQuestion()
+            guard let todayQuestionId = today.questionId else {
+                showPokeToast("오늘 배정된 질문이 없어요.", isError: true)
+                return
+            }
+            guard todayQuestionId == notificationQuestionId else {
+                showPokeToast("지난 질문에 대한 알림이에요.", isError: true)
+                return
+            }
+
+            let answers = try await AuthService.shared.familyAnswers(questionId: todayQuestionId)
+            await MainActor.run {
+                familyAnswers = answers.answers
+                familyAnswersQuestion = answers.question
+                familyAnswersError = nil
+                serverQuestion = TodayQuestionResult(
+                    hasFamily: true,
+                    questionId: todayQuestionId,
+                    question: answers.question,
+                    isAnswered: answers.answers.first(where: { $0.isMe || $0.memberId == currentAuthenticatedMemberId })?.isAnswered ?? today.isAnswered,
+                    answer: answers.answers.first(where: { $0.isMe || $0.memberId == currentAuthenticatedMemberId })?.answer ?? today.answer
+                )
+                didLoadTodayQuestion = true
+                todayQuestionUnavailable = false
+                todayQuestionError = nil
+                route = .questionAnswer
+            }
+        } catch let APIError.serverError(code, _) where code == "QUESTION404_1" {
+            showPokeToast("오늘 배정된 질문이 없어요.", isError: true)
+        } catch {
+            showPokeToast("오늘 질문을 확인하지 못했어요. 다시 시도해 주세요.", isError: true)
         }
     }
 
