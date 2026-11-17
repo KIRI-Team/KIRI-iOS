@@ -51,6 +51,13 @@ final class KakaoLoginService {
         return try await withCheckedThrowingContinuation { continuation in
             let completion: (OAuthToken?, Error?) -> Void = { token, error in
                 if let error {
+                    #if DEBUG
+                    let nsError = error as NSError
+                    print(
+                        "[KIRI][Kakao] SDK sign-in failed: "
+                            + "domain=\(nsError.domain), code=\(nsError.code)"
+                    )
+                    #endif
                     if Self.isUserCancellation(error) {
                         continuation.resume(throwing: KakaoLoginError.cancelled)
                     } else {

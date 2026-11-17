@@ -9,6 +9,8 @@
 //
 
 import SwiftUI
+import KakaoSDKAuth
+import GoogleSignIn
 
 struct RootView: View {
     @State private var router = AppRouter()
@@ -110,6 +112,19 @@ struct RootView: View {
             #endif
         }
         .onOpenURL { url in
+            // SwiftUI 씬 수명주기에서는 OAuth 콜백이 UIApplicationDelegate의
+            // application(_:open:options:) 대신 이 핸들러로 전달될 수 있습니다.
+            // 초대 딥링크 처리보다 먼저 각 SDK의 전용 scheme으로 전달해
+            // 로그인 화면이 콜백 후에도 남는 문제를 방지합니다.
+            if url.scheme?.hasPrefix("kakao") == true {
+                _ = AuthController.handleOpenUrl(url: url, options: [:])
+                return
+            }
+            if url.scheme?.hasPrefix("com.googleusercontent.apps.") == true {
+                _ = GIDSignIn.sharedInstance.handle(url)
+                return
+            }
+
             let components = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
             if (url.host == "kiri.app" || url.host == "www.kiri.app"),
                components.count == 2,

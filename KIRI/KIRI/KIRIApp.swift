@@ -60,11 +60,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
-    if AuthController.handleOpenUrl(url: url, options: options) {
-      return true
+    // SDK별 scheme을 먼저 분리해 Kakao SDK가 Google 콜백을 소비하지 않게
+    // 합니다. 씬 기반 앱에서는 RootView.onOpenURL도 같은 처리를 수행합니다.
+    if url.scheme?.hasPrefix("com.googleusercontent.apps.") == true {
+      return GIDSignIn.sharedInstance.handle(url)
     }
-
-    return GIDSignIn.sharedInstance.handle(url)
+    if url.scheme?.hasPrefix("kakao") == true {
+      return AuthController.handleOpenUrl(url: url, options: options)
+    }
+    return false
   }
 
   func userNotificationCenter(
