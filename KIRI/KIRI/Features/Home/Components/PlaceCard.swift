@@ -91,16 +91,9 @@ struct PlaceCard: View {
         ZStack(alignment: .top) {
             KIRIColor.Background.tertiary
 
-            if let imageURL {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    case .empty, .failure:
-                        imageFallback
-                    @unknown default:
-                        imageFallback
-                    }
+            if imageURL != nil {
+                KIRIContentImage(imageURL: imageURL, contentMode: .fill) {
+                    imageFallback
                 }
             } else {
                 imageFallback
