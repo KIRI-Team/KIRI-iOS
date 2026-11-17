@@ -39,6 +39,7 @@ struct FamilyHomeView: View {
     @State private var selectedRecommendation: FamilyRecommendationResult?
     @State private var selectedMember: HomeMember?
     @State private var isPlaceBookmarked = false
+    @State private var isFamilyMissionSchedulePresented = false
     @State private var showsMissionFace = false
     @State private var didLoadTodayQuestion = false
     @State private var todayQuestionError: String?
@@ -240,8 +241,20 @@ struct FamilyHomeView: View {
                 }
 
             case .missionDetail:
-                HomeMissionDetailView(mission: tutorialMission, onBack: { route = .home }) {
-                    route = .home
+                if let mission = tutorialMission {
+                    MissionActivityDetailView(
+                        missionId: mission.missionId,
+                        title: mission.title,
+                        placeName: mission.placeName,
+                        district: MissionDisplayLabel.category(mission.category) ?? "",
+                        rating: nil,
+                        tags: mission.displayTags,
+                        isRecommended: false,
+                        imageURL: mission.imageUrl,
+                        isBookmarked: $isPlaceBookmarked,
+                        onSchedule: { isFamilyMissionSchedulePresented = true },
+                        onBack: { route = .home }
+                    )
                 }
 
             case .memberDetail:
@@ -332,6 +345,18 @@ struct FamilyHomeView: View {
                     onComplete: { isInvitePresented = false }
                 )
                 .preferredColorScheme(.dark)
+            }
+        }
+        .fullScreenCover(isPresented: $isFamilyMissionSchedulePresented) {
+            if let mission = tutorialMission {
+                ScheduleCreationSheet(
+                    missionId: mission.missionId,
+                    missionTitle: mission.title,
+                    onCreated: {
+                        isFamilyMissionSchedulePresented = false
+                        route = .home
+                    }
+                )
             }
         }
         .alert("초대코드를 불러올 수 없어요", isPresented: $isInviteUnavailableAlertPresented) {

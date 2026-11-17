@@ -25,6 +25,9 @@ struct MissionActivityDetailView: View {
     let imageURL: URL?
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
+    /// 일부 진입점(홈의 가족 배정 미션)은 저장보다 일정 생성을 우선 CTA로
+    /// 사용합니다. nil이면 기존 미션 탭의 버킷 저장 CTA를 유지합니다.
+    let onSchedule: (() -> Void)?
     private let allowsRecommendationNavigation: Bool
 
     @State private var detail: MissionDetailResult?
@@ -63,6 +66,7 @@ struct MissionActivityDetailView: View {
         previewDetail: MissionDetailResult? = nil,
         isBookmarked: Binding<Bool>,
         allowsRecommendationNavigation: Bool = true,
+        onSchedule: (() -> Void)? = nil,
         onBack: @escaping () -> Void
     ) {
         self.missionId = missionId
@@ -77,6 +81,7 @@ struct MissionActivityDetailView: View {
         self._detail = State(initialValue: previewDetail)
         self._isBookmarked = isBookmarked
         self.allowsRecommendationNavigation = allowsRecommendationNavigation
+        self.onSchedule = onSchedule
         self.onBack = onBack
     }
 
@@ -527,6 +532,10 @@ struct MissionActivityDetailView: View {
 
     private var bottomBar: some View {
         Button {
+            if let onSchedule {
+                onSchedule()
+                return
+            }
             guard !isSavingBookmark else { return }
             if isBookmarked {
                 guard let missionId else { return }
@@ -539,17 +548,19 @@ struct MissionActivityDetailView: View {
         } label: {
             let saved = isBookmarked
             HStack(spacing: 10) {
-                Image(saved ? "mission_bookmark_active" : "mission_bookmark_disabled")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                Text(saved ? "버킷에 저장됨" : "버킷에 저장")
+                if onSchedule == nil {
+                    Image(saved ? "mission_bookmark_active" : "mission_bookmark_disabled")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
+                Text(onSchedule == nil ? (saved ? "버킷에 저장됨" : "버킷에 저장") : "일정 잡기")
             }
             .font(KIRITypography.headingSmall)
-            .foregroundStyle(saved ? KIRIColor.Text.accent : KIRIColor.Text.strong)
+            .foregroundStyle(onSchedule == nil && saved ? KIRIColor.Text.accent : KIRIColor.Button.FilledAccent.contentDefault)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(saved ? KIRIColor.Primary.container : KIRIColor.Background.secondary)
+            .background(onSchedule == nil && !saved ? KIRIColor.Background.secondary : KIRIColor.Button.FilledAccent.backgroundDefault)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
