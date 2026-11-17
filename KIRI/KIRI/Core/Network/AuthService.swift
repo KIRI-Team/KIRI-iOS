@@ -912,6 +912,7 @@ final class AuthService {
         let tokens = try authenticatedTokens()
         let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, body: ScheduleResponseRequest(action: action), accessToken: tokens.accessToken)
         guard let result = envelope.result else { throw APIError.decodingFailed }
+        NotificationCenter.default.post(name: .kiriScheduleDidChange, object: nil, userInfo: ["scheduleId": scheduleId])
         return result
     }
 
@@ -920,6 +921,7 @@ final class AuthService {
         let tokens = try authenticatedTokens()
         let envelope: APIEnvelope<ScheduleResult> = try await client.requestEnvelope(endpoint: endpoint, accessToken: tokens.accessToken)
         guard let result = envelope.result else { throw APIError.decodingFailed }
+        NotificationCenter.default.post(name: .kiriScheduleDidChange, object: nil, userInfo: ["scheduleId": scheduleId])
         return result
     }
 
