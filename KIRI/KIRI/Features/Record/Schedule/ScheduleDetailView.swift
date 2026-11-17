@@ -713,20 +713,42 @@ struct ScheduleDetailView: View {
         }
         return "\(month)월 \(day)일"
     }
+    private var detailLocation: String {
+        let value = schedule.location.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !value.isEmpty { return value }
+        if let place = missionDetail?.place {
+            let placeValue = [place.name, place.address]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " · ")
+            if !placeValue.isEmpty { return placeValue }
+        }
+        return "정보 없음"
+    }
+    private var detailSteps: String {
+        let value = schedule.expectedSteps.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !value.isEmpty { return value }
+        if let min = missionDetail?.estimatedStepsMin, let max = missionDetail?.estimatedStepsMax {
+            return "\(min)~\(max)보"
+        }
+        if let min = missionDetail?.estimatedStepsMin { return "약 \(min)보" }
+        return "정보 없음"
+    }
+    private var detailDuration: String {
+        let value = schedule.duration.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !value.isEmpty { return value }
+        if let min = missionDetail?.durationMinMinutes, let max = missionDetail?.durationMaxMinutes {
+            return "\(min)~\(max)분"
+        }
+        if let min = missionDetail?.durationMinMinutes { return "약 \(min)분" }
+        return "정보 없음"
+    }
     private var activityDetail: some View {
         VStack(alignment: .leading, spacing: 9) {
-            if !effectiveStartTime.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                detailRow("시작 시간", effectiveStartTime, changedField: "TIME")
-            }
-            if !schedule.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                detailRow("장소", schedule.location)
-            }
-            if !schedule.expectedSteps.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                detailRow("예상 걸음 수", schedule.expectedSteps)
-            }
-            if !schedule.duration.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                detailRow("활동 시간", schedule.duration)
-            }
+            detailRow("시작 시간", effectiveStartTime.isEmpty ? "정보 없음" : effectiveStartTime, changedField: "TIME")
+            detailRow("장소", detailLocation)
+            detailRow("예상 걸음 수", detailSteps)
+            detailRow("활동 시간", detailDuration)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
@@ -975,6 +997,14 @@ struct ScheduleDetailView: View {
     private var selectedContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             if selectedTab == .aiActivity {
+                HStack(spacing: 0) {
+                    Text("오늘 ")
+                    Text("끼리네 가족")
+                        .foregroundStyle(KIRIColor.Text.accent)
+                    Text("의 맞춤 활동")
+                }
+                .font(KIRITypography.headingSmall)
+                .foregroundStyle(KIRIColor.Text.strong)
                 if let missionDetail, !missionDetail.steps.isEmpty {
                     Text("끼리네 추천 활동")
                         .font(KIRITypography.headingSmall)
