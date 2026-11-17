@@ -84,6 +84,7 @@ struct QuestionMissionFlipCard: View {
     let onQuestionAnswer: () -> Void
     let onMissionDetail: () -> Void
     let onMissionExplore: () -> Void
+    var canAnswer: Bool = true
 
     @State private var isAnimating = false
     @State private var suppressMissionBodyTap = false
@@ -130,7 +131,7 @@ struct QuestionMissionFlipCard: View {
             questionNumber: questionNumber,
             question: question,
             answer: answer,
-            onCardTap: onQuestionAnswer,
+            onCardTap: canAnswer ? onQuestionAnswer : nil,
             onFlip: { flip() }
         )
     }

@@ -930,29 +930,42 @@ struct FamilyHomeView: View {
                     showsMission: $showsMissionFace,
                     onQuestionAnswer: { route = .questionAnswer },
                     onMissionDetail: { route = .missionDetail },
-                    onMissionExplore: onExploreMission
+                    onMissionExplore: onExploreMission,
+                    canAnswer: true
                 )
                 .homeTutorialMeasured(.questionMissionCard)
             } else if let todayQuestionError {
-                VStack(spacing: 10) {
-                    Text(todayQuestionError)
-                        .font(KIRITypography.bodyMedium)
-                        .foregroundStyle(KIRIColor.Text.secondary)
-                    Button("다시 시도") {
-                        Task { await loadTodayQuestion() }
+                VStack(spacing: 8) {
+                    unavailableQuestionFlipCard
+                    HStack(spacing: 8) {
+                        Text(todayQuestionError)
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                        Button("다시 시도") { Task { await loadTodayQuestion() } }
+                            .font(KIRITypography.captionMedium)
+                            .foregroundStyle(KIRIColor.Text.accent)
                     }
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.accent)
                 }
-                .frame(maxWidth: .infinity, minHeight: 136)
             } else if todayQuestionUnavailable {
-                Text("오늘의 질문이 아직 없어요")
-                    .font(KIRITypography.bodyMedium)
-                    .foregroundStyle(KIRIColor.Text.tertiary)
-                    .frame(maxWidth: .infinity, minHeight: 136)
+                unavailableQuestionFlipCard
             }
         }
         .padding(.horizontal, 18)
+    }
+
+    private var unavailableQuestionFlipCard: some View {
+        QuestionMissionFlipCard(
+            questionNumber: 0,
+            question: "오늘 배정된 질문이 없어요",
+            answer: nil,
+            mission: tutorialMission,
+            showsMission: $showsMissionFace,
+            onQuestionAnswer: {},
+            onMissionDetail: { route = .missionDetail },
+            onMissionExplore: onExploreMission,
+            canAnswer: false
+        )
+        .homeTutorialMeasured(.questionMissionCard)
     }
 
     // MARK: - Place Recommendation
