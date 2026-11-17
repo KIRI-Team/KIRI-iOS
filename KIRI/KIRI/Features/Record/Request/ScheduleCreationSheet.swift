@@ -38,7 +38,11 @@ struct ScheduleCreationSheet: View {
     private var timeString: String { Self.format(time, format: "HH:mm", locale: "en_US_POSIX") }
     private var displayDateTime: String {
         guard hasConfirmedDateTime else { return "날짜와 시간을 선택해 주세요" }
-        return Self.format(date, format: "yy.MM.dd(E) · HH:mm", locale: "ko_KR")
+        // 날짜의 시각 성분은 선택 당시의 현재 시각(또는 자정)일 수 있으므로
+        // 날짜와 시간을 각각 확정된 값에서 조합합니다. 발송 요청도 timeString을
+        // 사용하므로 작성 폼과 요청 미리보기가 같은 시간을 표시하게 됩니다.
+        let datePart = Self.format(date, format: "yy.MM.dd(E)", locale: "ko_KR")
+        return "\(datePart) · \(timeString)"
     }
     private static func format(_ date: Date, format: String, locale: String) -> String {
         let formatter = DateFormatter(); formatter.dateFormat = format; formatter.locale = Locale(identifier: locale); return formatter.string(from: date)
