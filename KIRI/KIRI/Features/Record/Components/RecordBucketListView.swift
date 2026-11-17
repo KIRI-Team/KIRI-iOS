@@ -427,7 +427,15 @@ struct RecordBucketListView: View {
     @ViewBuilder
     private func bucketCard(_ group: BucketItemGroup) -> some View {
         let item = group.representative
-        let canSchedule = group.items.contains(where: \.schedulable)
+        let schedulable = group.items.contains(where: \.schedulable)
+        let scheduledItem = group.items.first(where: { $0.scheduleId != nil })
+        let completed = group.items.allSatisfy { $0.status.uppercased() == "COMPLETED" }
+        let statusTitle: String = {
+            if completed { return "완료" }
+            if scheduledItem != nil { return "일정 잡힘" }
+            if schedulable { return "일정 제안 가능" }
+            return "일정 제안 불가"
+        }()
         let saverNames = group.items.map(\.saver.nickname).joined(separator: ", ")
         let savedBy = group.items.count == 1
             ? "\(saverNames)이 저장했어요!"
@@ -447,23 +455,19 @@ struct RecordBucketListView: View {
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        if canSchedule {
+                    }
+                    HStack(spacing: 8) {
+                        tag(title: savedBy, isAccent: false)
+                        tag(title: statusTitle, isAccent: statusTitle == "일정 제안 가능")
+                        if schedulable && scheduledItem == nil {
                             Image(systemName: "calendar.badge.plus")
-                                .font(.system(size: 18, weight: .medium))
+                                .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(KIRIColor.Primary.default)
                                 .accessibilityLabel("일정 제안 가능")
                         }
                     }
-                    HStack(spacing: 8) {
-                        tag(title: savedBy, isAccent: false)
-                        if group.items.allSatisfy({ $0.status == "COMPLETED" }) { tag(title: "완료", isAccent: false) }
-                    }
-                    if let scheduledDate = group.items.compactMap(\.scheduledDate).first(where: { !$0.isEmpty }) {
+                    if let scheduledDate = scheduledItem?.scheduledDate, !scheduledDate.isEmpty {
                         Label(Self.displayScheduleDate(scheduledDate), systemImage: "calendar")
-                            .font(KIRITypography.caption)
-                            .foregroundStyle(KIRIColor.Text.secondary)
-                    } else if canSchedule {
-                        Text("일정을 제안할 수 있어요")
                             .font(KIRITypography.caption)
                             .foregroundStyle(KIRIColor.Text.secondary)
                     }

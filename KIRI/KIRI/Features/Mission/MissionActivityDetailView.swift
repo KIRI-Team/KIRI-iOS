@@ -248,7 +248,8 @@ struct MissionActivityDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             // 추천 활동과 맞춤템은 서로 독립된 API입니다. 미션 상세 응답이
             // 늦거나 실패해도 essentials가 도착하면 맞춤템을 먼저 보여줍니다.
-            detailSectionTitle("오늘의 끼리 추천 활동", accent: false)
+            familyActivitySectionTitle("오늘 끼리네 가족의 맞춤 활동")
+                .padding(.bottom, 4)
             if isLoadingDetail && detail == nil {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 96)
@@ -262,7 +263,9 @@ struct MissionActivityDetailView: View {
                 emptyRecommendationMessage("추천 활동이 아직 없어요.")
             }
 
-            detailSectionTitle("오늘의 끼리 맞춤템", accent: false)
+            familyActivitySectionTitle("오늘 끼리네 가족의 맞춤템")
+                .padding(.top, 20)
+                .padding(.bottom, 4)
             if isLoadingEssentials {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 96)
@@ -288,6 +291,8 @@ struct MissionActivityDetailView: View {
             }
 
             detailSectionTitle("근처 놀거리 추천", accent: false)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
             if isLoadingNearby {
                 ProgressView().frame(maxWidth: .infinity, minHeight: 110)
             } else if let nearbyError {
@@ -472,6 +477,19 @@ struct MissionActivityDetailView: View {
             .font(KIRITypography.headingSmall)
             .foregroundStyle(accent ? KIRIColor.Text.accent : KIRIColor.Text.strong)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func familyActivitySectionTitle(_ title: String) -> some View {
+        let parts = title.components(separatedBy: "끼리네 가족")
+        return HStack(spacing: 0) {
+            Text(parts.first ?? "")
+            Text("끼리네 가족")
+                .foregroundStyle(KIRIColor.Text.accent)
+            Text(parts.dropFirst().joined(separator: "끼리네 가족"))
+        }
+        .font(KIRITypography.headingSmall)
+        .foregroundStyle(KIRIColor.Text.strong)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func unavailableRecommendationCard(_ message: String) -> some View {
