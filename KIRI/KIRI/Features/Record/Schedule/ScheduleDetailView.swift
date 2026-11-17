@@ -701,10 +701,18 @@ struct ScheduleDetailView: View {
     }
     private var activityDetail: some View {
         VStack(alignment: .leading, spacing: 9) {
-            detailRow("시작 시간", effectiveStartTime, changedField: "TIME")
-            detailRow("장소", schedule.location)
-            detailRow("예상 걸음 수", schedule.expectedSteps)
-            detailRow("활동 시간", schedule.duration)
+            if !effectiveStartTime.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                detailRow("시작 시간", effectiveStartTime, changedField: "TIME")
+            }
+            if !schedule.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                detailRow("장소", schedule.location)
+            }
+            if !schedule.expectedSteps.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                detailRow("예상 걸음 수", schedule.expectedSteps)
+            }
+            if !schedule.duration.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                detailRow("활동 시간", schedule.duration)
+            }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 18)
@@ -737,7 +745,13 @@ struct ScheduleDetailView: View {
     private var statusBadgeTitle: String {
         if serverDetail?.myStatus == "PENDING", serverDetail?.canRespond == true { return "일정 요청" }
         if serverDetail?.myStatus == "RECONFIRM_REQUIRED" { return "일정 재확인" }
-        return effectiveStatus == "CONFIRMED" ? "약속 확정" : "약속 예정"
+        switch effectiveStatus.uppercased() {
+        case "TODAY": return "약속 당일"
+        case "COMPLETED": return "약속 완료"
+        case "CANCELLED": return "약속 취소"
+        case "CONFIRMED": return "약속 확정"
+        default: return "약속 예정"
+        }
     }
 
     private func participantSummary(_ participants: [ScheduleParticipantResult]) -> some View {
@@ -842,10 +856,17 @@ struct ScheduleDetailView: View {
                         .foregroundStyle(KIRIColor.Text.strong)
                 }
 
-                if serverDetail?.canEdit == true {
-                Button("일정 수정") { showingEditSheet = true }
-                    .buttonStyle(scheduleActionStyle(isPrimary: false))
-                    .disabled(isMutatingSchedule || schedule.scheduleId == nil)
+                if serverDetail?.canEdit == true && serverDetail?.canCancel == true && serverDetail?.canRespond != true {
+                    HStack(spacing: 8) {
+                        Button("일정 변경하기") { showingEditSheet = true }
+                            .buttonStyle(scheduleActionStyle(isPrimary: false))
+                            .disabled(isMutatingSchedule || schedule.scheduleId == nil)
+                        cancelButton
+                    }
+                } else if serverDetail?.canEdit == true {
+                    Button("일정 변경하기") { showingEditSheet = true }
+                        .buttonStyle(scheduleActionStyle(isPrimary: false))
+                        .disabled(isMutatingSchedule || schedule.scheduleId == nil)
                 }
 
                 if serverDetail?.canRespond == true {
@@ -864,14 +885,8 @@ struct ScheduleDetailView: View {
                     }
                 }
 
-                if serverDetail?.canCancel == true {
-                    Button("약속 취소", role: .destructive) {
-                        showingCancelConfirmation = true
-                    }
-                    .font(KIRITypography.bodySmallMedium)
-                    .foregroundStyle(KIRIColor.Text.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .disabled(isMutatingSchedule)
+                if serverDetail?.canCancel == true && !(serverDetail?.canEdit == true && serverDetail?.canRespond != true) {
+                    cancelButton
                 }
             }
         }
@@ -886,6 +901,14 @@ struct ScheduleDetailView: View {
         } message: {
             Text("가족에게 취소 내역이 표시됩니다.")
         }
+    }
+
+    private var cancelButton: some View {
+        Button("일정 취소하기", role: .destructive) {
+            showingCancelConfirmation = true
+        }
+        .buttonStyle(scheduleActionStyle(isPrimary: false))
+        .disabled(isMutatingSchedule)
     }
 
     private func scheduleActionStyle(isPrimary: Bool) -> some ButtonStyle {
