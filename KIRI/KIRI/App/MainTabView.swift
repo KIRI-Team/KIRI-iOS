@@ -104,8 +104,14 @@ struct MainTabView: View {
             .padding(.horizontal, 19)
             .padding(.bottom, 16)
             .opacity(isTabBarVisible && tabBarSubscreenCount == 0 ? 1 : 0)
-            .allowsHitTesting(isTabBarVisible && tabBarSubscreenCount == 0)
-            .zIndex(1)
+            // 튜토리얼의 dim 오버레이보다 위에 두어 모든 단계에서 탭바가
+            // 계속 보이게 합니다. 튜토리얼 중에는 탭 전환만 잠급니다.
+            .allowsHitTesting(
+                !homeTutorialStore.isActive
+                    && isTabBarVisible
+                    && tabBarSubscreenCount == 0
+            )
+            .zIndex(3)
 
         }
         .environment(\.kiriTabBarVisibility, $isTabBarVisible)

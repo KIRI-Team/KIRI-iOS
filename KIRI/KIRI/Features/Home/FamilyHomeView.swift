@@ -676,6 +676,7 @@ struct FamilyHomeView: View {
                             .padding(.top, 48)
 
                         placeRecommendationSection
+                            .id("tutorial-recommendation-title")
                             .padding(.top, 48)
 
                         moodRecommendationSection
@@ -701,23 +702,27 @@ struct FamilyHomeView: View {
         using proxy: ScrollViewProxy,
         animated: Bool
     ) {
-        guard step == 1 else {
-            if animated && !reduceMotion {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    proxy.scrollTo("tutorial-top", anchor: .top)
-                }
-            } else {
-                proxy.scrollTo("tutorial-top", anchor: .top)
-            }
+        guard let step else {
+            proxy.scrollTo("tutorial-top", anchor: .top)
             return
+        }
+
+        let targetID: String
+        switch step {
+        case 0:
+            targetID = "tutorial-top"
+        case 1:
+            targetID = "tutorial-question-card"
+        default:
+            targetID = "tutorial-recommendation-title"
         }
 
         if animated && !reduceMotion {
             withAnimation(.easeInOut(duration: 0.25)) {
-                proxy.scrollTo("tutorial-question-card", anchor: .top)
+                proxy.scrollTo(targetID, anchor: .top)
             }
         } else {
-            proxy.scrollTo("tutorial-question-card", anchor: .top)
+            proxy.scrollTo(targetID, anchor: .top)
         }
     }
 
@@ -976,7 +981,7 @@ struct FamilyHomeView: View {
             alignment: .leading,
             spacing: 16
         ) {
-            Text("가족과 함께라면 여기!")
+            Text("엄마와 함께라면 여기!")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)

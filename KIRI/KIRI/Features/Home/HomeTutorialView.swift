@@ -59,28 +59,52 @@ struct HomeTutorialView: View {
     @State private var stepIndex = 0
     @State private var isAdvancing = false
 
+    /// 각 단계의 실제 홈 컴포넌트가 측정된 뒤에만 오버레이를 그립니다.
+    /// 측정 중에는 홈을 그대로 보여 주어 다음 강조 위치를 계산하는 동안
+    /// 검은 화면만 남는 순간이 생기지 않게 합니다.
+    private var requiredTargets: [HomeTutorialTarget] {
+        switch stepIndex {
+        case 0:
+            return [.answerCollection, .invite, .questionMissionCard]
+        case 1:
+            return [.questionMissionCard, .missionRefresh]
+        default:
+            return [.recommendationTitle]
+        }
+    }
+
+    private var isReadyForStep: Bool {
+        requiredTargets.allSatisfy { frames[$0] != nil }
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             // 실제 FamilyHomeView를 그대로 뒤에 두고, 튜토리얼 요소만 오버레이합니다.
             // Figma 화면 전체를 이미지로 덮지 않으므로 구성원 수·기기 높이에 맞춰
             // PreferenceKey로 측정한 실제 컴포넌트 위치를 사용합니다.
-            KIRIColor.Primitive.neutral1000.opacity(0.68)
-                .ignoresSafeArea()
+            if isReadyForStep {
+                KIRIColor.Primitive.neutral1000.opacity(0.68)
+                    .ignoresSafeArea()
 
-            highlights
-            guidance
+                highlights
+                guidance
 
-            Color.clear
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 24)
-                        .onEnded { value in
-                            guard value.translation.width < -24 else { return }
-                            advance()
-                        }
-                )
-                .onTapGesture { advance() }
-                .ignoresSafeArea()
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 24)
+                            .onEnded { value in
+                                guard value.translation.width < -24 else { return }
+                                advance()
+                            }
+                    )
+                    .onTapGesture { advance() }
+                    .ignoresSafeArea()
+            } else {
+                // 홈 콘텐츠가 이미 렌더링된 상태를 유지하고, 프레임 측정이
+                // 끝날 때까지 투명한 레이어만 둡니다.
+                Color.clear.ignoresSafeArea()
+            }
         }
         .onAppear {
             stepIndex = 0
@@ -101,8 +125,11 @@ struct HomeTutorialView: View {
         switch stepIndex {
         case 0:
             highlight(.answerCollection)
+            highlight(.invite)
+            highlight(.questionMissionCard)
         case 1:
             highlight(.questionMissionCard)
+            highlight(.missionRefresh)
         default:
             highlight(.recommendationTitle, size: CGSize(width: 160, height: 37))
         }
@@ -113,8 +140,19 @@ struct HomeTutorialView: View {
         switch stepIndex {
         case 0:
             guidanceText("우리 가족들의\n답변을 모아봐요!", anchoredTo: .answerCollection, placement: .below)
-        case 1:
+            guidanceText("가족을 초대해서\n방을 만들어요!", anchoredTo: .invite, placement: .above)
             guidanceText("질문은 매일 하나씩 발행돼요!", anchoredTo: .questionMissionCard, placement: .below)
+        case 1:
+            guidanceText(
+                "스와이프로 질문카드도 확인할 수 있어요!",
+                anchoredTo: .missionRefresh,
+                placement: .above
+            )
+            guidanceText(
+                "우리 가족의 답변을 바탕으로\n매주 한 개의 미션이 발행돼요!",
+                anchoredTo: .questionMissionCard,
+                placement: .below
+            )
         default:
             guidanceText("끼리가 큐레이팅 한 미션 목록!", anchoredTo: .recommendationTitle, placement: .below)
         }
