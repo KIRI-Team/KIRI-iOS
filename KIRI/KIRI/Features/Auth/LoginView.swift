@@ -37,7 +37,7 @@ struct LoginView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Image("kiri_character")
+                Image("login_kiri")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 57, height: 57)
