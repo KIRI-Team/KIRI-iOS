@@ -14,6 +14,7 @@ import Foundation
 extension Notification.Name {
     /// refresh token까지 만료되어 현재 세션을 재인증해야 할 때 발생합니다.
     static let kiriAuthenticationExpired = Notification.Name("kiri.authenticationExpired")
+    static let kiriScheduleDidChange = Notification.Name("kiri.scheduleDidChange")
 }
 
 final class APIClient {

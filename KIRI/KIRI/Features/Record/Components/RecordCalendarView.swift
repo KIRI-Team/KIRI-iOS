@@ -316,12 +316,19 @@ struct RecordCalendarView: View {
 
         let serverSchedules = (serverCalendar?.schedules ?? []).compactMap { event -> ScheduleDetailData? in
             guard let eventDate = parseDate(event.date), calendar.isDate(eventDate, inSameDayAs: date) else { return nil }
-            guard let state = calendarActivityState(for: event.status) else { return nil }
+            // 월간 캘린더의 상태가 캐시되어 있을 수 있으므로, 같은 일정 ID의
+            // 다가오는 일정 응답을 우선해 수락 직후의 상태를 반영합니다.
+            let latest = [serverUpcoming?.responseRequired, serverUpcoming?.upcoming]
+                .compactMap { $0 }
+                .first(where: { $0.scheduleId == event.scheduleId })
+            let rawStatus = latest?.status ?? event.status
+            let myStatus = latest?.myStatus
+            guard let activityState = calendarActivityState(for: rawStatus, myStatus: myStatus) else { return nil }
             return ScheduleDetailData(
                 scheduleId: event.scheduleId,
                 day: calendar.component(.day, from: eventDate),
                 month: calendar.component(.month, from: eventDate),
-                status: state,
+                status: activityState,
                 title: "가족 일정",
                 date: event.date,
                 startTime: event.time,
@@ -331,7 +338,12 @@ struct RecordCalendarView: View {
             )
         }
 
-        return (localSchedules + serverSchedules).reduce(into: [ScheduleDetailData]()) { result, item in
+        let upcomingForDay = serverUpcomingSchedules.filter { item in
+            guard let itemDate = parseDate(item.date) else { return false }
+            return calendar.isDate(itemDate, inSameDayAs: date)
+        }
+
+        return (localSchedules + serverSchedules + upcomingForDay).reduce(into: [ScheduleDetailData]()) { result, item in
             guard item.scheduleId == nil || !result.contains(where: { $0.scheduleId == item.scheduleId }) else { return }
             result.append(item)
         }
@@ -422,13 +434,16 @@ struct RecordCalendarView: View {
         }
         .background(KIRIColor.Background.base)
         .task { await loadServerSchedules() }
+        .onReceive(NotificationCenter.default.publisher(for: .kiriScheduleDidChange)) { _ in
+            Task { await loadServerSchedules(force: true) }
+        }
         .onChange(of: displayedMonthDate) { _, _ in
-            Task { await loadServerSchedules() }
+            Task { await loadServerSchedules(force: true) }
         }
     }
 
-    private func loadServerSchedules() async {
-        guard !isLoadingServerSchedules else { return }
+    private func loadServerSchedules(force: Bool = false) async {
+        guard force || !isLoadingServerSchedules else { return }
         isLoadingServerSchedules = true
         scheduleLoadError = nil
         do {
@@ -484,7 +499,7 @@ struct RecordCalendarView: View {
 
     private func scheduleDetail(_ item: UpcomingSchedule) -> ScheduleDetailData? {
         guard let date = parseDate(item.date) else { return nil }
-        guard let state = calendarActivityState(for: item.status) else { return nil }
+        guard let state = calendarActivityState(for: item.status, myStatus: item.myStatus) else { return nil }
         return ScheduleDetailData(
             scheduleId: item.scheduleId,
             day: calendar.component(.day, from: date),
@@ -501,10 +516,14 @@ struct RecordCalendarView: View {
 
     /// 서버 일정 전체 상태를 캘린더 마커 상태로 변환합니다.
     /// 취소·미지원 상태는 날짜 마커를 만들지 않아 실제 일정이 있는 것처럼 보이지 않게 합니다.
-    private func calendarActivityState(for rawStatus: String) -> ActivityState? {
+    private func calendarActivityState(for rawStatus: String, myStatus: String? = nil) -> ActivityState? {
         switch rawStatus.uppercased() {
-        case "CONFIRMED":
+        case "CONFIRMED", "TODAY":
             return .confirmedSchedule
+        case "SCHEDULED":
+            // SCHEDULED는 수락 완료 일정과 응답 대기 일정 모두에서 사용될 수
+            // 있으므로, 참여자 본인의 최신 응답을 함께 확인합니다.
+            return myStatus?.uppercased() == "ACCEPTED" ? .confirmedSchedule : .pendingSchedule
         case "PENDING_RESPONSE", "PENDING", "RECONFIRM_REQUIRED", "NOT_CONFIRMED":
             return .pendingSchedule
         case "COMPLETED":
@@ -648,13 +667,13 @@ struct RecordCalendarView: View {
     ) -> some View {
         switch state {
         case .pendingSchedule:
-            Image(calendarClockAsset(for: day))
+            Image(calendarClockAsset(for: day, state: state))
                 .resizable()
                 .scaledToFit()
                 .frame(width: 28, height: 28)
 
         case .confirmedSchedule:
-            Image(calendarClockAsset(for: day))
+            Image(calendarClockAsset(for: day, state: state))
                 .resizable()
                 .scaledToFit()
                 .frame(width: 28, height: 28)
@@ -715,10 +734,17 @@ struct RecordCalendarView: View {
         }
     }
 
-    private func calendarClockAsset(for day: Int) -> String {
-        if isPast(day) { return "figma_calendar_clock_past" }
-        if isToday(day) { return "figma_calendar_clock_today" }
-        return "figma_calendar_clock_upcoming"
+    private func calendarClockAsset(for day: Int, state: ActivityState) -> String {
+        switch state {
+        case .confirmedSchedule:
+            // 확정 여부가 색상을 결정합니다. 미래 날짜여도 확정 일정은
+            // 초록 시계를 사용합니다.
+            return "figma_calendar_clock_today"
+        case .pendingSchedule:
+            return isPast(day) ? "figma_calendar_clock_past" : "figma_calendar_clock_upcoming"
+        default:
+            return isPast(day) ? "figma_calendar_clock_past" : "figma_calendar_clock_upcoming"
+        }
     }
 
     private func isSelected(_ day: Int) -> Bool {
