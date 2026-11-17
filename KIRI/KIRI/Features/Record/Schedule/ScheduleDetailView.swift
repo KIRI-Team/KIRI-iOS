@@ -138,6 +138,11 @@ struct ScheduleDetailView: View {
         return value
     }
     private var isReconfirmationRequired: Bool { serverDetail?.myStatus == "RECONFIRM_REQUIRED" }
+    private var canRespondToInvitation: Bool {
+        guard serverDetail?.canRespond == true else { return false }
+        let status = serverDetail?.myStatus?.uppercased()
+        return status == "PENDING" || status == "RECONFIRM_REQUIRED"
+    }
     private var serverTodayContent: TodayActivityView.Content? {
         guard let detail = serverDetail,
               ["TODAY", "CONFIRMED", "SCHEDULED", "COMPLETED"].contains(detail.status?.uppercased() ?? ""),
@@ -390,12 +395,14 @@ struct ScheduleDetailView: View {
     }
 
     private var statusBadge: some View {
+        let isConfirmed = effectiveStatus.uppercased() == "CONFIRMED" ||
+            (effectiveStatus.uppercased() == "SCHEDULED" && serverDetail?.myStatus?.uppercased() == "ACCEPTED")
         Text(statusBadgeTitle)
             .font(KIRITypography.bodySmallMedium)
-            .foregroundStyle(KIRIColor.Text.primary)
+            .foregroundStyle(isConfirmed ? KIRIColor.Text.accent : KIRIColor.Text.primary)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(KIRIColor.Background.elevated)
+            .background(isConfirmed ? KIRIColor.Background.greenSoft : KIRIColor.Background.elevated)
             .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 
@@ -687,7 +694,7 @@ struct ScheduleDetailView: View {
     private var navigationBar: some View {
         ZStack {
             HStack(spacing: 6) {
-                Text(effectiveDate.replacingOccurrences(of: "-", with: "."))
+                Text(formattedHeaderDate)
                     .font(KIRITypography.bodySmallMedium)
                     .foregroundStyle(KIRIColor.Text.tertiary)
                 changedBadge("DATE")
@@ -698,6 +705,13 @@ struct ScheduleDetailView: View {
             }
         }
         .frame(height: 62)
+    }
+    private var formattedHeaderDate: String {
+        let parts = effectiveDate.replacingOccurrences(of: ".", with: "-").split(separator: "-")
+        guard parts.count >= 3, let month = Int(parts[1]), let day = Int(parts[2]) else {
+            return effectiveDate.replacingOccurrences(of: "-", with: ".")
+        }
+        return "\(month)월 \(day)일"
     }
     private var activityDetail: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -750,6 +764,7 @@ struct ScheduleDetailView: View {
         case "COMPLETED": return "약속 완료"
         case "CANCELLED": return "약속 취소"
         case "CONFIRMED": return "약속 확정"
+        case "SCHEDULED": return serverDetail?.myStatus?.uppercased() == "ACCEPTED" ? "약속 확정" : "약속 예정"
         default: return "약속 예정"
         }
     }
@@ -850,13 +865,13 @@ struct ScheduleDetailView: View {
             }
 
             if effectiveStatus != "CANCELLED" {
-                if isReconfirmationRequired && serverDetail?.canRespond == true {
+                if isReconfirmationRequired && canRespondToInvitation {
                     Text("일정이 변경되었어요. 다시 확인해 주세요.")
                         .font(KIRITypography.bodySmallMedium)
                         .foregroundStyle(KIRIColor.Text.strong)
                 }
 
-                if serverDetail?.canEdit == true && serverDetail?.canCancel == true && serverDetail?.canRespond != true {
+                if serverDetail?.canEdit == true && serverDetail?.canCancel == true && !canRespondToInvitation {
                     HStack(spacing: 8) {
                         Button("일정 변경하기") { showingEditSheet = true }
                             .buttonStyle(scheduleActionStyle(isPrimary: false))
@@ -869,7 +884,7 @@ struct ScheduleDetailView: View {
                         .disabled(isMutatingSchedule || schedule.scheduleId == nil)
                 }
 
-                if serverDetail?.canRespond == true {
+                if canRespondToInvitation {
                     HStack(spacing: 8) {
                     Button(serverDetail?.myStatus == "RECONFIRM_REQUIRED" ? "취소" : "거절") {
                         Task { await respond(action: .decline) }
@@ -885,7 +900,7 @@ struct ScheduleDetailView: View {
                     }
                 }
 
-                if serverDetail?.canCancel == true && !(serverDetail?.canEdit == true && serverDetail?.canRespond != true) {
+                if serverDetail?.canCancel == true && !(serverDetail?.canEdit == true && !canRespondToInvitation) {
                     cancelButton
                 }
             }
@@ -917,7 +932,7 @@ struct ScheduleDetailView: View {
 
     private func respond(action: ScheduleResponseAction) async {
         guard let scheduleId = schedule.scheduleId, !isMutatingSchedule else { return }
-        guard serverDetail?.canRespond == true else { return }
+        guard canRespondToInvitation else { return }
         isMutatingSchedule = true
         scheduleMutationError = nil
         defer { isMutatingSchedule = false }
