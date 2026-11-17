@@ -144,7 +144,8 @@ struct FamilyHomeView: View {
                         onMissionDetail: detail.missionId.map { missionID in
                             { Task { await openNotificationMission(missionID) } }
                         },
-                        respondsDirectly: true
+                        respondsDirectly: true,
+                        isScheduleChange: detail.myStatus?.uppercased() == "RECONFIRM_REQUIRED"
                     )
                 }
 
@@ -1292,7 +1293,7 @@ struct FamilyHomeView: View {
         do {
             let detail = try await AuthService.shared.scheduleDetail(scheduleId: scheduleId)
             let myStatus = detail.myStatus?.uppercased()
-            if detail.canRespond && myStatus == "PENDING" {
+            if detail.canRespond && ["PENDING", "RECONFIRM_REQUIRED"].contains(myStatus ?? "") {
                 await MainActor.run {
                     notificationScheduleDetail = detail
                     notificationScheduleID = scheduleId
@@ -1351,7 +1352,8 @@ struct FamilyHomeView: View {
                 )
             },
             description: detail.missionDescription ?? "",
-            familyMessage: detail.requestMessage ?? ""
+            familyMessage: detail.requestMessage ?? "",
+            changedFields: detail.changedFields
         )
     }
 

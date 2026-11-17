@@ -29,6 +29,7 @@ struct InvitationRequestView: View {
         let participantDetails: [Participant]
         let description: String
         let familyMessage: String
+        let changedFields: [String]
     }
 
     let request: RequestData
@@ -38,6 +39,7 @@ struct InvitationRequestView: View {
     let onConfirmSchedule: () -> Void
     var onMissionDetail: (() -> Void)? = nil
     var respondsDirectly: Bool = false
+    var isScheduleChange: Bool = false
 
     @State private var isAddScheduleSheetVisible = false
     @State private var isDescriptionExpanded = false
@@ -95,7 +97,7 @@ struct InvitationRequestView: View {
 
     private var navigationBar: some View {
         ZStack {
-            Text("요청알림")
+            Text(isScheduleChange ? "일정 변경알림" : "요청알림")
                 .font(KIRITypography.headingSmall)
                 .tracking(-0.72)
                 .foregroundStyle(KIRIColor.Text.strong)
@@ -137,6 +139,11 @@ struct InvitationRequestView: View {
                     }
                 }
                 .padding(.horizontal, 2)
+            }
+            if isScheduleChange && request.changedFields.contains("PARTICIPANTS") {
+                Text("참여자가 변경되었어요!")
+                    .font(KIRITypography.captionMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
             }
         }
         .padding(.horizontal, 18)
@@ -216,6 +223,16 @@ struct InvitationRequestView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
+
+                if isScheduleChange && (request.changedFields.contains("DATE") || request.changedFields.contains("TIME")) {
+                    Text("변경되었어요!")
+                        .font(KIRITypography.captionMedium)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(KIRIColor.Primary.default.opacity(0.14))
+                        .clipShape(Capsule())
+                }
 
             HStack(spacing: 4) {
                 Image(systemName: "clock.fill")
@@ -467,7 +484,8 @@ struct InvitationRequestView: View {
             description: """
             2026 한강 뚜벅뚜벅 축제는 잠수교를 보행교로 전환해 시민이 직접 걸으며 공연·체험·미식 등 다양한 문화·여가 프로그램을 즐기는 서울 대표 한강 축제입니다.
             """,
-            familyMessage: "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??"
+            familyMessage: "엄마, 아빠 나 여기 가고싶은데 우리 10월 초에 갈래요??",
+            changedFields: []
         ),
         onBack: {},
         onCancel: {},
