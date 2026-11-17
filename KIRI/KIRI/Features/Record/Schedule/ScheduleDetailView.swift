@@ -489,7 +489,7 @@ struct ScheduleDetailView: View {
 #if DEBUG
             if let detail = serverDetail {
                 let acceptedCount = detail.participants.filter { $0.status.uppercased() == "ACCEPTED" }.count
-                print("[KIRI][Review] eligibility scheduleId=\(scheduleId) status=\(detail.status ?? "nil") myStatus=\(detail.myStatus ?? "nil") acceptedParticipants=\(acceptedCount) date=\(detail.date) time=\(detail.time ?? "nil")")
+                print("[KIRI][Record] schedule permissions scheduleId=\(scheduleId) status=\(detail.status ?? "nil") myStatus=\(detail.myStatus ?? "nil") canEdit=\(detail.canEdit) canCancel=\(detail.canCancel) canRespond=\(detail.canRespond) acceptedParticipants=\(acceptedCount) date=\(detail.date) time=\(detail.time ?? "nil")")
             }
 #endif
         } catch {
@@ -886,24 +886,11 @@ struct ScheduleDetailView: View {
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
 
-            if effectiveStatus != "CANCELLED" {
+            if effectiveStatus.uppercased() != "CANCELLED" {
                 if isReconfirmationRequired && canRespondToInvitation {
                     Text("일정이 변경되었어요. 다시 확인해 주세요.")
                         .font(KIRITypography.bodySmallMedium)
                         .foregroundStyle(KIRIColor.Text.strong)
-                }
-
-                if serverDetail?.canEdit == true && serverDetail?.canCancel == true && !canRespondToInvitation {
-                    HStack(spacing: 8) {
-                        Button("일정 변경하기") { showingEditSheet = true }
-                            .buttonStyle(scheduleActionStyle(isPrimary: false))
-                            .disabled(isMutatingSchedule || schedule.scheduleId == nil)
-                        cancelButton
-                    }
-                } else if serverDetail?.canEdit == true {
-                    Button("일정 변경하기") { showingEditSheet = true }
-                        .buttonStyle(scheduleActionStyle(isPrimary: false))
-                        .disabled(isMutatingSchedule || schedule.scheduleId == nil)
                 }
 
                 if canRespondToInvitation {
@@ -920,10 +907,24 @@ struct ScheduleDetailView: View {
                     .buttonStyle(scheduleActionStyle(isPrimary: true))
                     .disabled(isMutatingSchedule)
                     }
-                }
-
-                if serverDetail?.canCancel == true && !(serverDetail?.canEdit == true && !canRespondToInvitation) {
-                    cancelButton
+                } else {
+                    if serverDetail?.canEdit == true && serverDetail?.canCancel == true {
+                        HStack(spacing: 8) {
+                            Button("일정 변경하기") { showingEditSheet = true }
+                                .buttonStyle(scheduleActionStyle(isPrimary: false))
+                                .disabled(isMutatingSchedule || schedule.scheduleId == nil)
+                            cancelButton
+                        }
+                    } else {
+                        if serverDetail?.canEdit == true {
+                            Button("일정 변경하기") { showingEditSheet = true }
+                                .buttonStyle(scheduleActionStyle(isPrimary: false))
+                                .disabled(isMutatingSchedule || schedule.scheduleId == nil)
+                        }
+                        if serverDetail?.canCancel == true {
+                            cancelButton
+                        }
+                    }
                 }
             }
         }
@@ -1006,9 +1007,6 @@ struct ScheduleDetailView: View {
                 .font(KIRITypography.headingSmall)
                 .foregroundStyle(KIRIColor.Text.strong)
                 if let missionDetail, !missionDetail.steps.isEmpty {
-                    Text("끼리네 추천 활동")
-                        .font(KIRITypography.headingSmall)
-                        .foregroundStyle(KIRIColor.Text.strong)
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(missionDetail.steps) { step in
                             VStack(alignment: .leading, spacing: 4) {
