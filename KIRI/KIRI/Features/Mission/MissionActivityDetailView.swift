@@ -144,8 +144,6 @@ struct MissionActivityDetailView: View {
 
     private var detailContent: some View {
         VStack(alignment: .leading, spacing: 0) {
-            heroImage
-
             if isLoadingDetail && detail == nil {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 80)
@@ -183,13 +181,12 @@ struct MissionActivityDetailView: View {
                     }
 
                     Text(detail?.title ?? title)
-                        .font(KIRITypography.headingSmall)
+                        .font(KIRITypography.title)
                         .foregroundStyle(KIRIColor.Text.strong)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(minHeight: 40, alignment: .leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 23)
+                        .padding(.bottom, 16)
 
                     ActivityDetailCard(detail: detail, fallbackPlace: placeName)
                 }
@@ -234,7 +231,7 @@ struct MissionActivityDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 62)
-        .background(KIRIColor.Background.secondary)
+        .background(KIRIColor.Background.base)
     }
 
     @ViewBuilder
@@ -255,7 +252,7 @@ struct MissionActivityDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             // 추천 활동과 맞춤템은 서로 독립된 API입니다. 미션 상세 응답이
             // 늦거나 실패해도 essentials가 도착하면 맞춤템을 먼저 보여줍니다.
-            familyActivitySectionTitle("오늘 끼리네 가족의 맞춤 활동")
+            familyActivitySectionTitle("오늘의 끼리 추천 활동", accentPhrase: "끼리 추천 활동")
                 .padding(.bottom, 4)
             if isLoadingDetail && detail == nil {
                 ProgressView()
@@ -270,7 +267,7 @@ struct MissionActivityDetailView: View {
                 emptyRecommendationMessage("추천 활동이 아직 없어요.")
             }
 
-            familyActivitySectionTitle("오늘 끼리네 가족의 맞춤템")
+            familyActivitySectionTitle("오늘의 끼리 맞춤템", accentPhrase: nil)
                 .padding(.top, 20)
                 .padding(.bottom, 4)
             if isLoadingEssentials {
@@ -297,9 +294,22 @@ struct MissionActivityDetailView: View {
                 emptyRecommendationMessage("추천 준비물이 아직 없어요.")
             }
 
-            detailSectionTitle("근처 놀거리 추천", accent: false)
-                .padding(.top, 20)
-                .padding(.bottom, 4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(detail?.title ?? title) 근처 놀거리추천")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 0) {
+                    Text("끼리네 가족")
+                        .foregroundStyle(KIRIColor.Text.accent)
+                    Text("한테 맞는 놀거리를 추천해드려요!")
+                        .foregroundStyle(KIRIColor.Text.secondary)
+                }
+                .font(KIRITypography.bodySmall)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 20)
+            .padding(.bottom, 4)
             if isLoadingNearby {
                 ProgressView().frame(maxWidth: .infinity, minHeight: 110)
             } else if let nearbyError {
@@ -376,7 +386,7 @@ struct MissionActivityDetailView: View {
             .clipped()
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.placeName)
-                    .font(KIRITypography.bodySmallMedium)
+                    .font(KIRITypography.headingSmall)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .lineLimit(2)
                 Text(item.region)
@@ -385,7 +395,7 @@ struct MissionActivityDetailView: View {
                     .lineLimit(1)
                 if let distance = item.distance {
                     Text(Self.distanceLabel(distance))
-                        .font(KIRITypography.caption)
+                        .font(KIRITypography.bodySmall)
                         .foregroundStyle(KIRIColor.Text.tertiary)
                 }
                 if !item.description.isEmpty {
@@ -399,7 +409,7 @@ struct MissionActivityDetailView: View {
             .padding(.top, 18)
         }
         .frame(width: 251, height: 284, alignment: .topLeading)
-        .background(KIRIColor.Background.secondary)
+        .background(KIRIColor.Background.primary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
 
         if item.missionId != nil {
@@ -432,14 +442,14 @@ struct MissionActivityDetailView: View {
                         .frame(width: 24, height: 24)
                 }
                 Text(item.title)
-                    .font(KIRITypography.bodySmallMedium)
+                    .font(KIRITypography.headingSmall)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !item.description.isEmpty {
                 Text(item.description)
-                    .font(KIRITypography.caption)
+                    .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -448,7 +458,7 @@ struct MissionActivityDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 110, alignment: .topLeading)
-        .background(KIRIColor.Background.secondary)
+        .background(KIRIColor.Background.primary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -457,22 +467,29 @@ struct MissionActivityDetailView: View {
     /// 하고, 긴 텍스트는 카드 높이를 자연스럽게 확장합니다.
     private func activityCard(_ item: MissionDetailItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // 우산은 추천 활동 아이콘이 아니라 prepareItems의
-            // 양산/우산 카드 전용 리소스입니다.
-            Text(item.title)
-                .font(KIRITypography.bodySmallMedium)
-                .foregroundStyle(KIRIColor.Text.strong)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 4) {
+                Image("figma_umbrella")
+                    .resizable()
+                    .renderingMode(.original)
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                Text(item.title)
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if !item.description.isEmpty {
                 Text(item.description)
-                    .font(KIRITypography.caption)
+                    .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(16)
+        .padding(.horizontal, 30)
+        .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(KIRIColor.Background.secondary)
+        .frame(minHeight: 110, alignment: .topLeading)
+        .background(KIRIColor.Background.primary)
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -488,7 +505,7 @@ struct MissionActivityDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 18)
-            .background(KIRIColor.Background.secondary)
+            .background(KIRIColor.Background.primary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
@@ -499,13 +516,21 @@ struct MissionActivityDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func familyActivitySectionTitle(_ title: String) -> some View {
-        let parts = title.components(separatedBy: "끼리네 가족")
-        return HStack(spacing: 0) {
-            Text(parts.first ?? "")
-            Text("끼리네 가족")
-                .foregroundStyle(KIRIColor.Text.accent)
-            Text(parts.dropFirst().joined(separator: "끼리네 가족"))
+    @ViewBuilder
+    private func familyActivitySectionTitle(_ title: String, accentPhrase: String?) -> some View {
+        Group {
+            if let accentPhrase, let range = title.range(of: accentPhrase) {
+                let prefix = String(title[..<range.lowerBound])
+                let suffix = String(title[range.upperBound...])
+                HStack(spacing: 0) {
+                    Text(prefix)
+                    Text(accentPhrase)
+                        .foregroundStyle(KIRIColor.Text.accent)
+                    Text(suffix)
+                }
+            } else {
+                Text(title)
+            }
         }
         .font(KIRITypography.headingSmall)
         .foregroundStyle(KIRIColor.Text.strong)
@@ -797,7 +822,7 @@ private struct DetailSegmentedControl: View {
                 Button(segment.rawValue) {
                     withAnimation(.easeInOut(duration: 0.2)) { selection = segment }
                 }
-                .font(KIRITypography.bodySmall)
+                .font(KIRITypography.headingSmall)
                 .foregroundStyle(selection == segment ? KIRIColor.Text.strong : KIRIColor.Text.tertiary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 40)
