@@ -14,6 +14,9 @@ import SwiftUI
 /// 가족공간에 연결되지 않은 사용자는 공개 장소 추천만 볼 수 있다.
 struct BrowseHomeView: View {
     let familyState: AppRouter.FamilyState
+    /// 둘러보기 모드는 가족공간 조회 실패와 별개의 화면 상태입니다.
+    /// 라우터가 네트워크 상태를 갱신하는 동안에도 이 카드는 유지합니다.
+    let isBrowseMode: Bool
     let onFamilyCreated: (String, String) -> Void
     let onFamilyJoined: (String, String, Int?) -> Void
     let onRetryFamilyState: () -> Void
@@ -27,11 +30,13 @@ struct BrowseHomeView: View {
 
     init(
         familyState: AppRouter.FamilyState = .noFamily,
+        isBrowseMode: Bool = true,
         onFamilyCreated: @escaping (String, String) -> Void,
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onRetryFamilyState: @escaping () -> Void = {}
     ) {
         self.familyState = familyState
+        self.isBrowseMode = isBrowseMode
         self.onFamilyCreated = onFamilyCreated
         self.onFamilyJoined = onFamilyJoined
         self.onRetryFamilyState = onRetryFamilyState
@@ -89,15 +94,21 @@ struct BrowseHomeView: View {
 
     @ViewBuilder
     private var familyStateCard: some View {
-        switch familyState {
-        case .noFamily:
+        // 둘러보기 사용자는 가족공간을 조회할 대상이 없으므로 조회 실패
+        // 카드가 아니라 항상 가족공간 시작 카드를 봅니다.
+        if isBrowseMode {
             familyActionCard
-        case .loading:
-            familyStatusCard(title: "가족공간을 확인하고 있어요", actionTitle: nil, action: {})
-        case .unknown:
-            familyStatusCard(title: "가족공간 정보를 확인하지 못했어요", actionTitle: "다시 시도", action: onRetryFamilyState)
-        case .hasFamily:
-            familyStatusCard(title: "가족공간 정보를 불러오고 있어요", actionTitle: nil, action: {})
+        } else {
+            switch familyState {
+            case .noFamily:
+                familyActionCard
+            case .loading:
+                familyStatusCard(title: "가족공간을 확인하고 있어요", actionTitle: nil, action: {})
+            case .unknown:
+                familyStatusCard(title: "가족공간 정보를 확인하지 못했어요", actionTitle: "다시 시도", action: onRetryFamilyState)
+            case .hasFamily:
+                familyStatusCard(title: "가족공간 정보를 불러오고 있어요", actionTitle: nil, action: {})
+            }
         }
     }
 
@@ -148,16 +159,26 @@ struct BrowseHomeView: View {
                 .frame(width: 48, height: 48)
                 .clipShape(Circle())
 
-                Text("아직 가족 공간이 없군요!")
-                    .font(KIRITypography.headingSmall)
-                    .foregroundStyle(KIRIColor.Text.strong)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("아직 가족 공간이 없군요!")
+                        .font(KIRITypography.bodySmall)
+                        .foregroundStyle(KIRIColor.Text.secondary)
+
+                    Text("가족공간 만들러 가기")
+                        .font(KIRITypography.headingSmall)
+                        .foregroundStyle(KIRIColor.Text.strong)
+                }
 
                 Spacer()
 
                 Image("browse_arrow")
                     .resizable()
+                    .renderingMode(.original)
                     .scaledToFit()
                     .frame(width: 24, height: 24)
+                    // Figma Action Row reuses the navigation-back vector and
+                    // mirrors it for the trailing (right-facing) chevron.
+                    .rotationEffect(.degrees(180))
             }
             .padding(.horizontal, 18)
             .frame(width: 354, height: 96)
@@ -165,6 +186,7 @@ struct BrowseHomeView: View {
             .clipShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 16))
         .accessibilityLabel("가족공간 만들러 가기")
     }
 

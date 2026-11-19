@@ -164,6 +164,7 @@ struct HomeView: View {
         case .browse:
             BrowseHomeView(
                 familyState: familyState,
+                isBrowseMode: userMode == .browse,
                 onFamilyCreated: onFamilyCreated,
                 onFamilyJoined: onFamilyJoined,
                 onRetryFamilyState: onRetryFamilyState
