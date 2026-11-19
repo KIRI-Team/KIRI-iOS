@@ -40,30 +40,36 @@ struct FamilyCodeView: View {
                     .font(KIRITypography.title)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .multilineTextAlignment(.center)
-                    .lineSpacing(7)
+                    .lineSpacing(0)
 
                 Text("복사해서 가족에게 보내주세요")
-                    .font(KIRITypography.subtitle)
+                    .font(KIRITypography.bodyMedium)
                     .foregroundStyle(KIRIColor.Text.secondary)
-                    .padding(.top, 12)
+                    .padding(.top, 0)
 
                 familyCodeCard
-                    .padding(.top, 58)
-
-                HStack(spacing: 8) {
-                    Button("취소", action: onComplete)
-                        .buttonStyle(InviteSecondaryButtonStyle())
-
-                    Button("초대하기") {
-                        isShareSheetPresented = true
-                    }
-                    .buttonStyle(InvitePrimaryButtonStyle())
-                }
-                .padding(.top, 18)
+                    .padding(.top, 54)
             }
             .padding(.horizontal, KIRISpacing.horizontal)
+            .padding(.top, 51)
+            Spacer(minLength: 0)
         }
         .background(KIRIColor.Background.base)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack(spacing: 8) {
+                Button("취소", action: onComplete)
+                    .buttonStyle(InviteSecondaryButtonStyle())
+
+                Button("초대하기") {
+                    isShareSheetPresented = true
+                }
+                .buttonStyle(InvitePrimaryButtonStyle())
+            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 11)
+            .frame(maxWidth: .infinity)
+            .background(KIRIColor.Background.base)
+        }
         .sheet(isPresented: $isShareSheetPresented) {
             KIRIShareSheet(
                 items: [shareMessage]
@@ -77,13 +83,12 @@ struct FamilyCodeView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 4)
-        .frame(height: 70)
+        .frame(height: 62)
     }
 
     private var familyCodeCard: some View {
         VStack(spacing: 8) {
-            Text("링크코드")
+            Text("초대코드")
                 .font(KIRITypography.caption)
                 .foregroundStyle(KIRIColor.Text.tertiary)
 
@@ -92,8 +97,7 @@ struct FamilyCodeView: View {
             } label: {
                 HStack(spacing: 6) {
                     Text(familyCode)
-                        .font(.system(size: 22, weight: .regular))
-                        .tracking(1.2)
+                        .font(.system(size: 24, weight: .regular))
                         .foregroundStyle(KIRIColor.Text.strong)
 
                     Image("family_code_copy")
