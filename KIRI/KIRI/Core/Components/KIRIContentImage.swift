@@ -131,7 +131,11 @@ struct KIRIContentImage<Placeholder: View>: View {
         .task(id: imageURL) {
             imageData = nil
             guard let imageURL else { return }
+            let startedAt = Date()
             imageData = await KIRIImagePipeline.shared.data(for: imageURL)
+            #if DEBUG
+            print("[KIRI][ImagePerf] image ready elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) success=\(imageData != nil)")
+            #endif
         }
     }
 

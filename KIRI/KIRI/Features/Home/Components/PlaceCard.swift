@@ -95,6 +95,8 @@ struct PlaceCard: View {
                 KIRIContentImage(imageURL: imageURL, contentMode: .fill) {
                     imageFallback
                 }
+                .frame(width: 251, height: 144)
+                .clipped()
             } else {
                 imageFallback
             }

@@ -63,6 +63,9 @@ struct FamilyHomeView: View {
     @State private var pokeToastIsError = false
     @State private var recommendedMissions: [MissionFeedItem] = []
     @State private var isLoadingRecommendations = false
+    @State private var isLoadingMoreRecommendations = false
+    @State private var nextRecommendationCursor: Int?
+    @State private var hasMoreRecommendations = false
     @State private var missionFeedError: String?
     @State private var notificationMission: MissionDetailResult?
     @State private var notificationScheduleDetail: ScheduleDetailResult?
@@ -1130,6 +1133,11 @@ struct FamilyHomeView: View {
                 missionCards(outdoorMissions)
             }
         }
+        .onAppear {
+            // 세로 스크롤로 두 번째 추천 섹션에 접근한 경우에도 다음 페이지를
+            // 미리 받아 카드 끝에서 빈 구간이 생기지 않게 합니다.
+            Task { await loadMoreRecommendations() }
+        }
     }
 
     @ViewBuilder
@@ -1210,6 +1218,15 @@ struct FamilyHomeView: View {
                             PlaceCard(title: mission.title, location: mission.placeName, rating: nil, description: nil, imageURL: mission.imageUrl)
                         }
                         .buttonStyle(.plain)
+                        .onAppear {
+                            guard mission.missionId == missions.last?.missionId else { return }
+                            Task { await loadMoreRecommendations() }
+                        }
+                    }
+                    if hasMoreRecommendations {
+                        ProgressView()
+                            .tint(KIRIColor.Primary.default)
+                            .frame(width: 36, height: 284)
                     }
                 }
                 .padding(.horizontal, 18)
@@ -1492,35 +1509,22 @@ struct FamilyHomeView: View {
             missionFeedError = nil
         }
 
-        // 가족 홈의 두 섹션은 모두 공개 미션 목록을 사용합니다. 추천/계절
-        // 전용 API의 결과로 목록을 제한하지 않고, 커서가 있는 모든 페이지를
-        // 읽어 둡니다. OUTDOOR 필터는 화면에서만 적용합니다.
+        // 첫 화면에 필요한 첫 페이지만 먼저 표시합니다. 다음 페이지는
+        // 가로 카드 끝에 도달했을 때 loadMoreRecommendations()가 조회합니다.
         do {
-            var cursor: Int?
-            var allMissions: [MissionFeedItem] = []
+            let page = try await AuthService.shared.missionFeed(cursor: nil)
             var seen = Set<Int>()
-            var page = try await AuthService.shared.missionFeed(cursor: cursor)
             let firstPage = page.missions.filter { seen.insert($0.missionId).inserted }
-            allMissions.append(contentsOf: firstPage)
             await MainActor.run {
-                recommendedMissions = allMissions
+                recommendedMissions = firstPage
+                nextRecommendationCursor = page.nextCursor
+                hasMoreRecommendations = page.hasNext && page.nextCursor != nil
                 isLoadingRecommendations = false
             }
             #if DEBUG
             print("[KIRI][HomePerf] missions first page elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) count=\(firstPage.count)")
             #endif
 
-            // 이후 페이지는 첫 페이지 표시를 막지 않고 도착할 때마다 추가합니다.
-            while page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor {
-                cursor = nextCursor
-                page = try await AuthService.shared.missionFeed(cursor: cursor)
-                let nextPage = page.missions.filter { seen.insert($0.missionId).inserted }
-                allMissions.append(contentsOf: nextPage)
-                await MainActor.run { recommendedMissions = allMissions }
-            }
-            #if DEBUG
-            print("[KIRI][HomePerf] missions complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) count=\(allMissions.count)")
-            #endif
         } catch {
             await MainActor.run {
                 // 첫 페이지가 이미 표시된 뒤 다음 페이지가 실패해도
@@ -1533,6 +1537,24 @@ struct FamilyHomeView: View {
             #if DEBUG
             print("[KIRI][HomePerf] missions failed elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
             #endif
+        }
+    }
+
+    @MainActor
+    private func loadMoreRecommendations() async {
+        guard hasMoreRecommendations,
+              !isLoadingMoreRecommendations,
+              let cursor = nextRecommendationCursor else { return }
+        isLoadingMoreRecommendations = true
+        defer { isLoadingMoreRecommendations = false }
+        do {
+            let page = try await AuthService.shared.missionFeed(cursor: cursor)
+            let existing = Set(recommendedMissions.map(\.missionId))
+            recommendedMissions.append(contentsOf: page.missions.filter { !existing.contains($0.missionId) })
+            nextRecommendationCursor = page.nextCursor
+            hasMoreRecommendations = page.hasNext && page.nextCursor != cursor && page.nextCursor != nil
+        } catch {
+            // 기존 카드와 위치는 유지하고 다음 끝 도달 때 다시 시도합니다.
         }
     }
 

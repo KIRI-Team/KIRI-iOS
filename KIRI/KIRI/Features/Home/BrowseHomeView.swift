@@ -24,6 +24,9 @@ struct BrowseHomeView: View {
     @State private var isFamilyEntryPresented = false
     @State private var missions: [MissionFeedItem] = []
     @State private var isLoadingMissions = false
+    @State private var isLoadingMoreMissions = false
+    @State private var nextMissionCursor: Int?
+    @State private var hasMoreMissions = false
     @State private var missionError: String?
     @State private var selectedMission: MissionFeedItem?
     @State private var selectedMissionBookmark = false
@@ -207,6 +210,11 @@ struct BrowseHomeView: View {
 
             missionContent(for: missions)
         }
+        .onAppear {
+            // 두 번째 세로 섹션에 접근할 때도 다음 커서를 미리 요청합니다.
+            guard title == "오늘 가을분위기를 느끼고 싶다면" else { return }
+            Task { await loadMoreMissions() }
+        }
     }
 
     @ViewBuilder
@@ -246,6 +254,15 @@ struct BrowseHomeView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .onAppear {
+                            guard mission.missionId == missions.last?.missionId else { return }
+                            Task { await loadMoreMissions() }
+                        }
+                    }
+                    if hasMoreMissions {
+                        ProgressView()
+                            .tint(KIRIColor.Primary.default)
+                            .frame(width: 36, height: 284)
                     }
                 }
                 .padding(.trailing, 18)
@@ -261,27 +278,35 @@ struct BrowseHomeView: View {
         missionError = nil
         defer { isLoadingMissions = false }
         do {
-            var cursor: Int?
-            var allMissions: [MissionFeedItem] = []
-            var pageCount = 0
-            repeat {
-                let page = try await AuthService.shared.missionFeed(cursor: cursor)
-                pageCount += 1
-                allMissions.append(contentsOf: page.missions)
-                guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
-                cursor = nextCursor
-            } while true
-
+            let page = try await AuthService.shared.missionFeed(cursor: nil)
             var seen = Set<Int>()
-            missions = allMissions.filter { seen.insert($0.missionId).inserted }
+            missions = page.missions.filter { seen.insert($0.missionId).inserted }
+            nextMissionCursor = page.nextCursor
+            hasMoreMissions = page.hasNext && page.nextCursor != nil
             #if DEBUG
-            print("[KIRI][BrowsePerf] missionFeed pages=\(pageCount) items=\(missions.count) elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+            print("[KIRI][BrowsePerf] missionFeed firstPage items=\(missions.count) hasNext=\(hasMoreMissions) elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
             #endif
         } catch {
             missionError = "미션 조회 실패"
             #if DEBUG
             print("[KIRI][BrowsePerf] missionFeed failed elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
             #endif
+        }
+    }
+
+    @MainActor
+    private func loadMoreMissions() async {
+        guard hasMoreMissions, !isLoadingMoreMissions, let cursor = nextMissionCursor else { return }
+        isLoadingMoreMissions = true
+        defer { isLoadingMoreMissions = false }
+        do {
+            let page = try await AuthService.shared.missionFeed(cursor: cursor)
+            let existing = Set(missions.map(\.missionId))
+            missions.append(contentsOf: page.missions.filter { !existing.contains($0.missionId) })
+            nextMissionCursor = page.nextCursor
+            hasMoreMissions = page.hasNext && page.nextCursor != cursor && page.nextCursor != nil
+        } catch {
+            // 이미 표시 중인 카드는 유지하고 다음 가로 스크롤에서 재시도합니다.
         }
     }
 }
