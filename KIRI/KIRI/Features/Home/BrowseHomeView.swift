@@ -343,7 +343,7 @@ struct BrowseFamilyEntryFlow: View {
                     // 둘러보기 홈에서 시작한 생성 흐름에서는 다시 둘러보기로
                     // 돌아가는 버튼을 보여주지 않습니다. 뒤로가기는 기존 홈으로
                     // 복귀시키고, 온보딩의 기본 진입은 .all을 유지합니다.
-                    mode: .creationOnly,
+                    mode: .familyConnection,
                     onBack: onDismiss,
                     onCreateFamily: {
                         step = .familyName

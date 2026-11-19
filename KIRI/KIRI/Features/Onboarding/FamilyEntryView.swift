@@ -15,6 +15,9 @@ struct FamilyEntryView: View {
     enum Mode: Equatable {
         case all
         case creationOnly
+        /// 둘러보기에서 가족공간을 연결할 때 사용합니다. 생성과 코드 참여만
+        /// 보여주고, 이미 둘러보기 중인 사용자를 다시 둘러보기로 보내지 않습니다.
+        case familyConnection
     }
 
     var mode: Mode = .all
@@ -45,13 +48,15 @@ struct FamilyEntryView: View {
                         action: onCreateFamily
                     )
 
-                    if mode == .all {
+                    if mode == .all || mode == .familyConnection {
                         entryCard(
-                            title: "가족코드 입력하기",
+                            title: "초대코드로 참여하기",
                             subtitle: "전달받은 가족코드를 입력해주세요!",
                             action: onEnterFamilyCode
                         )
+                    }
 
+                    if mode == .all {
                         entryCard(
                             title: "먼저 둘러보러가기",
                             subtitle: "할 수 있는 미션을 먼저 살펴봐요!",
