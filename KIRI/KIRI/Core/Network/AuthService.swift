@@ -1161,6 +1161,9 @@ final class AuthService {
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        #if DEBUG
+        print("[KIRI][Question] AuthService received answerUTF8Length=\(answerData.count)")
+        #endif
         guard let answer = String(data: answerData, encoding: .utf8) else {
             throw APIError.serverError(code: "COMMON400_1", message: "답변을 입력해 주세요.")
         }

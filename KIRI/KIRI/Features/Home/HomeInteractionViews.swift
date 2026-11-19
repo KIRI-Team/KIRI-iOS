@@ -219,14 +219,28 @@ struct HomeQuestionAnswerView: View {
         let trimmed = answerText.trimmingCharacters(in: .whitespacesAndNewlines)
         let isEnabled = isCurrentMember && selectedMemberId != nil && !trimmed.isEmpty && answerText.count <= 500 && !isSaving
         return Button {
-            guard let selectedMemberId, isEnabled else { return }
+            guard let selectedMemberId, isCurrentMember, !isSaving else { return }
+            // Do not use the `trimmed` local captured while the Button view
+            // was built. SwiftUI can retain that action while TextEditor is
+            // updating. Read the source of truth again on the MainActor at
+            // the exact tap moment.
+            let liveAnswer = answerText
+            let liveTrimmed = liveAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let liveData = Data(liveTrimmed.utf8)
+            #if DEBUG
+            print("[KIRI][Question] submit snapshot charLength=\(liveAnswer.count) utf8Length=\(liveAnswer.utf8.count) trimmedLength=\(liveTrimmed.count) trimmedUTF8Length=\(liveTrimmed.utf8.count) dataBytes=\(liveData.count)")
+            #endif
+            guard !liveTrimmed.isEmpty, liveAnswer.count <= 500, !liveData.isEmpty else {
+                saveError = "답변을 입력해 주세요."
+                return
+            }
             // Freeze the edited value on the main actor before creating the
             // asynchronous save task. The task must never read TextEditor
             // storage after SwiftUI has rendered another edit.
             // Copy UTF-8 bytes while still on the MainActor. Data is a value
             // type and cannot alias TextEditor/SwiftUI String storage after
             // this button action returns.
-            let answerSnapshot = Data(trimmed.utf8)
+            let answerSnapshot = liveData
             isSaving = true
             saveError = nil
             Task { @MainActor [selectedMemberId, answerSnapshot] in
