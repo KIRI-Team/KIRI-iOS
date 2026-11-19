@@ -76,7 +76,8 @@ final class AuthService {
         #if DEBUG
         print(
             "[KIRI][Auth] login request: provider=\(provider.rawValue), "
-                + "tokenPresent=\(!token.isEmpty), noncePresent=\(!nonce.isEmpty)"
+                + "tokenPresent=\(!token.isEmpty), tokenUTF8Length=\(token.utf8.count), "
+                + "noncePresent=\(!nonce.isEmpty), nonceLength=\(nonce.count)"
         )
         #endif
         let envelope: APIEnvelope<SocialLoginResult> = try await client.requestEnvelope(

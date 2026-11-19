@@ -248,6 +248,11 @@ struct LoginView: View {
                 return
             }
 
+            #if DEBUG
+            Self.logAppleTokenMetadata(identityToken)
+            print("[KIRI][Apple] callback tokenPresent=true tokenUTF8Length=\(identityToken.utf8.count) noncePresent=true nonceLength=\(nonce.count)")
+            #endif
+
             onAppleLogin(identityToken, nonce)
 
         case .failure(let error):
@@ -260,6 +265,30 @@ struct LoginView: View {
             onLoginFailure(error.localizedDescription)
         }
     }
+
+    #if DEBUG
+    private static func logAppleTokenMetadata(_ token: String) {
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else {
+            print("[KIRI][Apple] JWT metadata unavailable segmentCount=\(parts.count)")
+            return
+        }
+        var encoded = String(parts[1])
+        encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+        encoded = encoded.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        guard let data = Data(base64Encoded: encoded),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            print("[KIRI][Apple] JWT metadata unavailable payloadInvalid=true")
+            return
+        }
+        let exp = payload["exp"] as? TimeInterval
+        let age: String
+        if let exp { age = String(Int(exp - Date().timeIntervalSince1970)) } else { age = "missing" }
+        let audMatches = (payload["aud"] as? String) == Bundle.main.bundleIdentifier
+        let issuerMatches = (payload["iss"] as? String) == "https://appleid.apple.com"
+        print("[KIRI][Apple] JWT metadata audMatchesBundle=\(audMatches) issMatchesApple=\(issuerMatches) secondsUntilExp=\(age)")
+    }
+    #endif
 }
 
 /// Apple 인증 창이 닫힐 때까지 요청 객체·delegate·presentation context·nonce를 유지합니다.

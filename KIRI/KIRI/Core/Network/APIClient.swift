@@ -324,6 +324,13 @@ final class APIClient {
         request.httpMethod = endpoint.method.rawValue
         request.timeoutInterval = 30
 
+        #if DEBUG
+        if endpoint.path == "/api/v1/auth/login" {
+            let authHeaderPresent = request.value(forHTTPHeaderField: "Authorization") != nil
+            print("[KIRI][APIClient] login URLRequest authHeaderPresent=\(authHeaderPresent)")
+        }
+        #endif
+
         request.setValue(
             "application/json",
             forHTTPHeaderField: "Accept"
