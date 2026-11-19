@@ -122,15 +122,24 @@ final class APIClient {
         if httpResponse.statusCode == 401 {
             #if DEBUG
             if let envelope = try? responseDecoder.decode(
-                APIEnvelope<EmptyAPIResult>.self,
+                APIEnvelope<IgnoredAPIResult>.self,
                 from: data
             ) {
+                let host = APIConfig.baseURL.host ?? "unknown"
                 print(
-                    "[KIRI][API] auth failure: "
-                        + "code=\(envelope.code), message=\(envelope.message)"
+                    "[KIRI][API] auth failure: host=\(host), "
+                        + "path=\(endpoint.path), code=\(envelope.code), message=\(envelope.message)"
                 )
             }
             #endif
+            // The social login endpoint authenticates the Apple/Google/Kakao
+            // credential itself and never uses the existing app session. Keep
+            // the server's concrete code/message instead of translating every
+            // 401 into the expired-session error.
+            if endpoint.path == "/api/v1/auth/login",
+               let envelope = try? responseDecoder.decode(APIEnvelope<IgnoredAPIResult>.self, from: data) {
+                throw APIError.serverError(code: envelope.code, message: envelope.message)
+            }
             #if DEBUG
             if endpoint.path.contains("/terms") {
                 print("[KIRI][Terms] response status=401")

@@ -97,6 +97,10 @@ struct AuthFlowView: View {
         guard !isAuthenticating else { return }
         isAuthenticating = true
 
+        #if DEBUG
+        print("[KIRI][Apple] AuthFlow received tokenPresent=\(!identityToken.isEmpty) tokenUTF8Length=\(identityToken.utf8.count) noncePresent=\(!nonce.isEmpty) nonceLength=\(nonce.count)")
+        #endif
+
         Task {
             defer { isAuthenticating = false }
             do {

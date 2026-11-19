@@ -74,8 +74,10 @@ final class AuthService {
             nonce: nonce
         )
         #if DEBUG
+        let host = APIConfig.baseURL.host ?? "unknown"
         print(
             "[KIRI][Auth] login request: provider=\(provider.rawValue), "
+                + "host=\(host), "
                 + "tokenPresent=\(!token.isEmpty), tokenUTF8Length=\(token.utf8.count), "
                 + "noncePresent=\(!nonce.isEmpty), nonceLength=\(nonce.count)"
         )
