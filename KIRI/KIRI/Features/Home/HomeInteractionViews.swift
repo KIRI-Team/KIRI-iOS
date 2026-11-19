@@ -220,10 +220,14 @@ struct HomeQuestionAnswerView: View {
         let isEnabled = isCurrentMember && selectedMemberId != nil && !trimmed.isEmpty && answerText.count <= 500 && !isSaving
         return Button {
             guard let selectedMemberId, isEnabled else { return }
+            // Freeze the edited value on the main actor before creating the
+            // asynchronous save task. The task must never read TextEditor
+            // storage after SwiftUI has rendered another edit.
+            let answerSnapshot = String(trimmed)
             isSaving = true
             saveError = nil
-            Task { @MainActor in
-                let succeeded = await onSave(selectedMemberId, trimmed)
+            Task { @MainActor [selectedMemberId, answerSnapshot] in
+                let succeeded = await onSave(selectedMemberId, answerSnapshot)
                 isSaving = false
                 if succeeded {
                     withAnimation(.easeInOut(duration: 0.2)) { isShowingCompletion = true }

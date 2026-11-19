@@ -1161,9 +1161,20 @@ final class AuthService {
         #if DEBUG
         print("[KIRI][Question] PUT questionId=\(questionId) answerLength=\(normalizedAnswer.count)")
         #endif
+        // Build the JSON bytes before entering URLSession. This request is
+        // initiated from a SwiftUI TextEditor task; using a fresh immutable
+        // object here avoids sharing the editor's String storage with a
+        // generic Encodable encoder across the async boundary.
+        let bodyData = try JSONSerialization.data(
+            withJSONObject: ["answer": normalizedAnswer],
+            options: []
+        )
+        #if DEBUG
+        print("[KIRI][Question] bodyKeys=answer bodyBytes=\(bodyData.count)")
+        #endif
         let _: APIEnvelope<EmptyAPIResult> = try await client.requestEnvelope(
             endpoint: endpoint,
-            body: WriteAnswerRequest(answer: normalizedAnswer),
+            bodyData: bodyData,
             accessToken: tokens.accessToken
         )
     }
