@@ -18,7 +18,7 @@ struct FamilyNameEditView: View {
     @State private var didRegisterSubscreen = false
 
     @Binding var familyName: String
-    var onSave: ((String) async -> String?)? = nil
+    var onSave: (@MainActor (String) async -> String?)? = nil
 
     @State private var editedFamilyName = ""
     @State private var isSaving = false
@@ -111,9 +111,16 @@ struct FamilyNameEditView: View {
                   containsOnlyAllowedCharacters(familyNameToSave) else { return }
 
             isSaving = true
+            let familyNameSnapshot = String(familyNameToSave)
             let save = onSave
-            Task { @MainActor in
-                let error = await save?(familyNameToSave)
+            #if DEBUG
+            print("[KIRI][FamilyNameEdit] submit snapshot charLength=\(familyNameSnapshot.count) utf8Length=\(familyNameSnapshot.utf8.count)")
+            #endif
+            Task { @MainActor [familyNameSnapshot, save] in
+                #if DEBUG
+                print("[KIRI][FamilyNameEdit] task start charLength=\(familyNameSnapshot.count) utf8Length=\(familyNameSnapshot.utf8.count)")
+                #endif
+                let error = await save?(familyNameSnapshot)
                 if let error {
                     errorMessage = error
                 } else {

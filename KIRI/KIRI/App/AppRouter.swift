@@ -373,6 +373,9 @@ final class AppRouter {
     func updateFamilyName(_ value: String) async -> String? {
         guard let familyId else { return "가족공간 정보를 확인할 수 없습니다." }
         let familyNameToSave = String(value)
+        #if DEBUG
+        print("[KIRI][AppRouter] updateFamilyName callback charLength=\(familyNameToSave.count) utf8Length=\(familyNameToSave.utf8.count)")
+        #endif
         guard !familyNameToSave.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return "가족명을 입력해 주세요."
         }

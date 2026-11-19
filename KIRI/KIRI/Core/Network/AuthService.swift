@@ -382,6 +382,9 @@ final class AuthService {
         let tokens = try authenticatedTokens()
         // SwiftUI 입력 State를 네트워크 비동기 경계 밖에서 확정하고,
         // 가족명 PATCH 계약({"name": string})과 동일한 JSON 바이트를 전송합니다.
+        #if DEBUG
+        print("[KIRI][AuthService] updateFamilyName received charLength=\(name.count) utf8Length=\(name.utf8.count)")
+        #endif
         let nameValue = normalizedFamilyName(String(name))
         guard isValidFamilyName(nameValue) else {
             throw APIError.serverError(
