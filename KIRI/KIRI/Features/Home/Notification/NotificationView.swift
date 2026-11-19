@@ -39,6 +39,7 @@ struct NotificationView: View {
     @State private var toastIsError = false
     @State private var isMarkingAllRead = false
     @State private var serverUnreadCount: Int?
+    @State private var isShowingMarkAllConfirmation = false
 
     private var filtered: [NotificationPreviewResult] {
         notifications.filter { selectedFilter.matches($0.notificationType) }
@@ -66,6 +67,15 @@ struct NotificationView: View {
         .task {
             await refreshUnreadCount()
         }
+        .alert("알림을 모두 읽을까요?", isPresented: $isShowingMarkAllConfirmation) {
+            Button("취소", role: .cancel) { isShowingMarkAllConfirmation = false }
+            Button("모두 읽기") {
+                isShowingMarkAllConfirmation = false
+                Task { await markAllAsRead() }
+            }
+        } message: {
+            Text("읽지 않은 알림을 모두 읽음 처리합니다.")
+        }
     }
 
     private var navigationBar: some View {
@@ -80,7 +90,8 @@ struct NotificationView: View {
                 }
                 Spacer()
                 Button("모두읽음") {
-                    Task { await markAllAsRead() }
+                    guard unreadCount > 0, !isMarkingAllRead else { return }
+                    isShowingMarkAllConfirmation = true
                 }
                 .font(KIRITypography.bodySmallMedium)
                 .foregroundStyle(unreadCount > 0 && !isMarkingAllRead ? KIRIColor.Text.accent : KIRIColor.Text.tertiary)
