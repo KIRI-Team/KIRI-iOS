@@ -12,12 +12,19 @@ import SwiftUI
 import UserNotifications
 import FirebaseCore // firebase 연결
 import FirebaseAppCheck
+import FirebaseMessaging
 import KakaoSDKCommon
 import KakaoSDKAuth
 import GoogleSignIn
 
 // AppDelegate 추가
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+extension Notification.Name {
+  static let kiriFCMTokenDidRefresh = Notification.Name("kiri.fcmTokenDidRefresh")
+  static let kiriRemoteNotificationTapped = Notification.Name("kiri.remoteNotificationTapped")
+  static let kiriRemoteNotificationReadyForHome = Notification.Name("kiri.remoteNotificationReadyForHome")
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
   func application(_ application: UIApplication,
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
     #if DEBUG
@@ -31,6 +38,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
     #endif
     FirebaseApp.configure()
+    Messaging.messaging().delegate = self
     // iOS 시스템 알림 아이콘은 앱의 AppIcon 설정을 그대로 사용합니다.
     // 알림이 앱 전경에서 표시될 때만 KIRI 전용 콘텐츠 이미지를 첨부합니다.
     // 백그라운드/잠금화면 원격 푸시는 Notification Service Extension과
@@ -56,6 +64,43 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
   }
 
   func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    // Firebase Messaging needs the APNs token before it can issue an FCM token.
+    Messaging.messaging().apnsToken = deviceToken
+    #if DEBUG
+    print("[KIRI][Push] APNs registration succeeded tokenBytes=\(deviceToken.count)")
+    #endif
+  }
+
+  func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    #if DEBUG
+    print("[KIRI][Push] APNs registration failed error=\(error.localizedDescription)")
+    #endif
+  }
+
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    let byteCount = fcmToken?.data(using: .utf8)?.count ?? 0
+    #if DEBUG
+    print("[KIRI][Push] FCM token refreshed present=\(fcmToken != nil) tokenBytes=\(byteCount)")
+    #endif
+    // The server device-registration contract is not present in the available
+    // Swagger/repository. Publish only metadata; registration is completed by
+    // the authenticated session layer once that contract is supplied.
+    DispatchQueue.main.async {
+      NotificationCenter.default.post(
+        name: .kiriFCMTokenDidRefresh,
+        object: nil,
+        userInfo: ["token": fcmToken as Any]
+      )
+    }
+  }
+
+  func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
@@ -77,6 +122,24 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     completionHandler([.banner, .list, .sound, .badge])
+  }
+
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    // Keep the original payload available to the authenticated app router.
+    // It is intentionally not interpreted here: notificationType/referenceId
+    // must be checked against the latest server record and user permissions.
+    DispatchQueue.main.async {
+      NotificationCenter.default.post(
+        name: .kiriRemoteNotificationTapped,
+        object: nil,
+        userInfo: response.notification.request.content.userInfo
+      )
+    }
+    completionHandler()
   }
 }
 // 여기까지 AppDelegate

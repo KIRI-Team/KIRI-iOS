@@ -421,6 +421,13 @@ struct FamilyHomeView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .kiriRemoteNotificationReadyForHome)) { notification in
+            guard let userInfo = notification.userInfo else { return }
+            let type = (userInfo["notificationType"] as? String)
+                ?? (userInfo["type"] as? String)
+            let referenceId = Self.notificationReferenceID(from: userInfo)
+            Task { await handleRemoteNotification(type: type, referenceId: referenceId) }
+        }
         .onDisappear {
             tabBarVisibility.wrappedValue = true
         }
@@ -429,6 +436,34 @@ struct FamilyHomeView: View {
             memberFrames = frames
         }
         .task { await loadInitialHomeData() }
+    }
+
+    private func handleRemoteNotification(type: String?, referenceId: Int?) async {
+        guard let type, let referenceId else {
+            await MainActor.run { route = .notification }
+            return
+        }
+        let normalized = type.uppercased()
+        if normalized.hasPrefix("SCHEDULE") {
+            await openNotificationSchedule(referenceId)
+        } else if normalized == "POKE"
+                    || normalized == "QUESTION_REMINDER"
+                    || normalized == "QUESTION_COMPLETE" {
+            await openNotificationQuestion(referenceId)
+        } else if normalized.contains("MISSION") || normalized == "EXTERNAL_EVENT_CANCELLED" {
+            await openNotificationMission(referenceId)
+        } else {
+            await MainActor.run { route = .notification }
+        }
+    }
+
+    private static func notificationReferenceID(from userInfo: [AnyHashable: Any]) -> Int? {
+        for key in ["referenceId", "referenceID", "refId", "id"] {
+            if let value = userInfo[key] as? Int { return value }
+            if let value = userInfo[key] as? NSNumber { return value.intValue }
+            if let value = userInfo[key] as? String, let id = Int(value) { return id }
+        }
+        return nil
     }
 
     /// 독립적인 홈 섹션은 각 응답이 도착하는 즉시 화면을 갱신합니다.

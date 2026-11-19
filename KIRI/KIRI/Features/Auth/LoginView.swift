@@ -262,11 +262,28 @@ struct LoginView: View {
                authorizationError.code == .canceled {
                 return
             }
-            onLoginFailure(error.localizedDescription)
+            #if DEBUG
+            Self.logAppleAuthorizationError(error)
+            #endif
+            // AuthenticationServices의 영문 시스템 문구와 내부 코드를
+            // 사용자에게 그대로 노출하지 않습니다. 진행 상태는 이미
+            // callback 진입 직전에 해제되어 다음 시도가 가능합니다.
+            onLoginFailure("Apple 로그인을 완료하지 못했어요. 다시 시도해 주세요.")
         }
     }
 
     #if DEBUG
+    private static func logAppleAuthorizationError(_ error: Error) {
+        let nsError = error as NSError
+        let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError
+        print(
+            "[KIRI][Apple] authorization error "
+                + "domain=\(nsError.domain) code=\(nsError.code) "
+                + "underlyingDomain=\(underlying?.domain ?? "none") "
+                + "underlyingCode=\(underlying?.code.description ?? "none")"
+        )
+    }
+
     private static func logAppleTokenMetadata(_ token: String) {
         let parts = token.split(separator: ".")
         guard parts.count == 3 else {
@@ -366,9 +383,9 @@ private final class AppleSignInCoordinator: NSObject,
             .compactMap { $0 as? UIWindowScene }
             .filter { $0.activationState == .foregroundActive }
 
-        return scenes
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow && !$0.isHidden && $0.alpha > 0 }
+        let windows = scenes.flatMap(\.windows).filter { !$0.isHidden && $0.alpha > 0 }
+        return windows.first(where: { $0.isKeyWindow })
+            ?? windows.first(where: { $0.windowLevel == .normal })
     }
 
     private static func randomNonce(length: Int = 32) -> String {

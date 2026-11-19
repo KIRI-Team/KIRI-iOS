@@ -39,6 +39,7 @@ struct MainTabView: View {
     @State private var isTabBarVisible = true
     @State private var tabBarSubscreenCount = 0
     @State private var pendingScheduleId: Int?
+    @State private var pendingRemoteNotification: [AnyHashable: Any]?
 
     init(
         userMode: AppRouter.UserMode,
@@ -120,6 +121,28 @@ struct MainTabView: View {
             // 탭을 전환하면 각 탭의 루트 화면에서 탭바를 다시 표시합니다.
             isTabBarVisible = true
             tabBarSubscreenCount = 0
+            if selectedTab == .home, let payload = pendingRemoteNotification {
+                pendingRemoteNotification = nil
+                NotificationCenter.default.post(
+                    name: .kiriRemoteNotificationReadyForHome,
+                    object: nil,
+                    userInfo: payload
+                )
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .kiriRemoteNotificationTapped)) { notification in
+            guard let payload = notification.userInfo else { return }
+            pendingRemoteNotification = payload
+            if selectedTab == .home {
+                pendingRemoteNotification = nil
+                NotificationCenter.default.post(
+                    name: .kiriRemoteNotificationReadyForHome,
+                    object: nil,
+                    userInfo: payload
+                )
+            } else {
+                selectedTab = .home
+            }
         }
     }
 

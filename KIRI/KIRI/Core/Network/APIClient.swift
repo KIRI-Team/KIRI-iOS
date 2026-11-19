@@ -126,7 +126,8 @@ final class APIClient {
                 from: data
             ) {
                 let host = APIConfig.baseURL.host ?? "unknown"
-                let traceID = httpResponse.value(forHTTPHeaderField: "X-Request-Id")
+                let traceID = httpResponse.value(forHTTPHeaderField: "X-Trace-Id")
+                    ?? httpResponse.value(forHTTPHeaderField: "X-Request-Id")
                     ?? httpResponse.value(forHTTPHeaderField: "X-Correlation-Id")
                     ?? "unavailable"
                 print(
