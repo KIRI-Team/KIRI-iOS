@@ -13,15 +13,18 @@ struct RecordView: View {
     // 둘러보기와 상태 확인 실패를 서버 빈 목록으로 오인하지 않도록 라우터 상태를 받습니다.
     let userMode: AppRouter.UserMode
     let familyState: AppRouter.FamilyState
+    let onRetryFamilyState: () -> Void
     let initialScheduleId: Int?
 
     init(
         userMode: AppRouter.UserMode = .family,
         familyState: AppRouter.FamilyState = .hasFamily,
+        onRetryFamilyState: @escaping () -> Void = {},
         initialScheduleId: Int? = nil
     ) {
         self.userMode = userMode
         self.familyState = familyState
+        self.onRetryFamilyState = onRetryFamilyState
         self.initialScheduleId = initialScheduleId
     }
 
@@ -263,7 +266,7 @@ struct RecordView: View {
         if userMode == .browse || familyState == .noFamily {
             RecordFamilyRequiredView()
         } else if familyState == .loading || familyState == .unknown {
-            RecordFamilyStateView(state: familyState)
+            RecordFamilyStateView(state: familyState, onRetry: onRetryFamilyState)
         } else {
 
         VStack(spacing: 0) {
@@ -465,6 +468,7 @@ private struct RecordFamilyRequiredView: View {
 
 private struct RecordFamilyStateView: View {
     let state: AppRouter.FamilyState
+    let onRetry: () -> Void
 
     var body: some View {
         VStack(spacing: 14) {
@@ -480,6 +484,9 @@ private struct RecordFamilyStateView: View {
                 Text("잠시 후 다시 시도해 주세요.")
                     .font(KIRITypography.bodySmall)
                     .foregroundStyle(KIRIColor.Text.secondary)
+                Button("다시 시도", action: onRetry)
+                    .font(KIRITypography.bodySmallMedium)
+                    .foregroundStyle(KIRIColor.Text.accent)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

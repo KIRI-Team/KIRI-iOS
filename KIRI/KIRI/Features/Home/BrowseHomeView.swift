@@ -17,7 +17,7 @@ struct BrowseHomeView: View {
     /// 둘러보기 모드는 가족공간 조회 실패와 별개의 화면 상태입니다.
     /// 라우터가 네트워크 상태를 갱신하는 동안에도 이 카드는 유지합니다.
     let isBrowseMode: Bool
-    let onFamilyCreated: (String, String) -> Void
+    let onFamilyCreated: (String, String, Int?) -> Void
     let onFamilyJoined: (String, String, Int?) -> Void
     let onRetryFamilyState: () -> Void
 
@@ -34,7 +34,7 @@ struct BrowseHomeView: View {
     init(
         familyState: AppRouter.FamilyState = .noFamily,
         isBrowseMode: Bool = true,
-        onFamilyCreated: @escaping (String, String) -> Void,
+        onFamilyCreated: @escaping (String, String, Int?) -> Void,
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onRetryFamilyState: @escaping () -> Void = {}
     ) {
@@ -325,11 +325,12 @@ struct BrowseFamilyEntryFlow: View {
     @State private var step: Step = .entry
     @State private var familyName = ""
     @State private var familyCode = ""
+    @State private var createdFamilyId: Int?
     @State private var joinedFamilyName = ""
     @State private var errorMessage: String?
 
     let onDismiss: () -> Void
-    let onFamilyCreated: (String, String) -> Void
+    let onFamilyCreated: (String, String, Int?) -> Void
     let onFamilyJoined: (String, String, Int?) -> Void
 
     var body: some View {
@@ -377,7 +378,7 @@ struct BrowseFamilyEntryFlow: View {
                     onBack: {
                         step = .familyName
                     },
-                    onComplete: { onFamilyCreated(familyName, familyCode) }
+                    onComplete: { onFamilyCreated(familyName, familyCode, createdFamilyId) }
                 )
 
             case .familyCodeInput:
@@ -413,6 +414,7 @@ struct BrowseFamilyEntryFlow: View {
             do {
                 let result = try await AuthService.shared.createFamily(name: familyName)
                 familyCode = result.inviteCode
+                createdFamilyId = result.familyId
                 AppSessionStore().saveFamily(
                     name: result.name,
                     inviteCode: result.inviteCode,
@@ -453,5 +455,5 @@ struct BrowseFamilyEntryFlow: View {
 }
 
 #Preview {
-    BrowseHomeView(onFamilyCreated: { _, _ in }, onRetryFamilyState: {})
+    BrowseHomeView(onFamilyCreated: { _, _, _ in }, onRetryFamilyState: {})
 }

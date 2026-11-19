@@ -63,7 +63,7 @@ struct HomeView: View {
     let familyState: AppRouter.FamilyState
     let onRetryFamilyState: () -> Void
     let tutorialStore: HomeTutorialStore
-    let onFamilyCreated: (String, String) -> Void
+    let onFamilyCreated: (String, String, Int?) -> Void
     let onFamilyJoined: (String, String, Int?) -> Void
     let onExploreMission: () -> Void
     let onSelectNotification: (NotificationDestination) -> Void
@@ -81,7 +81,7 @@ struct HomeView: View {
         familyState: AppRouter.FamilyState = .unknown,
         onRetryFamilyState: @escaping () -> Void = {},
         tutorialStore: HomeTutorialStore,
-        onFamilyCreated: @escaping (String, String) -> Void,
+        onFamilyCreated: @escaping (String, String, Int?) -> Void,
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onExploreMission: @escaping () -> Void,
         onSelectNotification: @escaping (NotificationDestination) -> Void = { _ in }
@@ -252,7 +252,7 @@ struct HomeView: View {
         userMode: .family,
         familyName: "끼리네 가족",
         familyInviteCode: "KIRI24",
-        onFamilyCreated: { _, _ in },
+        onFamilyCreated: { _, _, _ in },
         onLogout: {}
     )
 }
@@ -262,7 +262,7 @@ struct HomeView: View {
         userMode: .browse,
         familyName: nil,
         familyInviteCode: nil,
-        onFamilyCreated: { _, _ in },
+        onFamilyCreated: { _, _, _ in },
         onLogout: {}
     )
 }

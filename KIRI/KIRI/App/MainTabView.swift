@@ -28,7 +28,7 @@ struct MainTabView: View {
     let tutorialIdentity: String?
     let familyState: AppRouter.FamilyState
     let onRetryFamilyState: () -> Void
-    let onFamilyCreated: (String, String) -> Void
+    let onFamilyCreated: (String, String, Int?) -> Void
     let onFamilyJoined: (String, String, Int?) -> Void
     let onLogout: () -> Void
     let onDeleteAccount: () async -> String?
@@ -50,7 +50,7 @@ struct MainTabView: View {
         tutorialIdentity: String? = nil,
         familyState: AppRouter.FamilyState = .unknown,
         onRetryFamilyState: @escaping () -> Void = {},
-        onFamilyCreated: @escaping (String, String) -> Void,
+        onFamilyCreated: @escaping (String, String, Int?) -> Void,
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onLogout: @escaping () -> Void
         , onDeleteAccount: @escaping () async -> String? = { nil },
@@ -152,7 +152,7 @@ struct MainTabView: View {
             MissionView()
 
         case .record:
-            RecordView(userMode: userMode, familyState: familyState, initialScheduleId: pendingScheduleId)
+            RecordView(userMode: userMode, familyState: familyState, onRetryFamilyState: onRetryFamilyState, initialScheduleId: pendingScheduleId)
 
         case .myPage:
             MyPageView(
@@ -174,7 +174,7 @@ struct MainTabView: View {
         userMode: .family,
         familyName: "끼리네 가족",
         familyInviteCode: "KIRI24",
-        onFamilyCreated: { _, _ in },
+        onFamilyCreated: { _, _, _ in },
         onLogout: {}
     )
 }

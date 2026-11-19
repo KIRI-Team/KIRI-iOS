@@ -317,6 +317,7 @@ final class AppRouter {
         self.nickname = sessionStore.nickname
         self.familyId = sessionStore.familyId
         self.familyRole = sessionStore.familyRole
+        familyState = .hasFamily
         sessionStore.saveOnboardingCompleted(
             userMode: .family
         )

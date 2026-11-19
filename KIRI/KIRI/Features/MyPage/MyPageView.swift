@@ -100,9 +100,9 @@ struct MyPageView: View {
         .fullScreenCover(isPresented: $isFamilyEntryPresented) {
             BrowseFamilyEntryFlow(
                 onDismiss: { isFamilyEntryPresented = false },
-                onFamilyCreated: { name, code in
+                onFamilyCreated: { name, code, familyId in
                     isFamilyEntryPresented = false
-                    router.enterFamilyMode(familyName: name, inviteCode: code)
+                    router.enterFamilyMode(familyName: name, inviteCode: code, familyId: familyId)
                 },
                 onFamilyJoined: { name, code, joinedFamilyId in
                     isFamilyEntryPresented = false

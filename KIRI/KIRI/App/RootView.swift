@@ -70,8 +70,8 @@ struct RootView: View {
                         onRetryFamilyState: {
                             Task { await router.refreshFamilyState() }
                         },
-                        onFamilyCreated: { name, code in
-                            enterMain(familyName: name, inviteCode: code)
+                        onFamilyCreated: { name, code, familyId in
+                            enterMain(familyName: name, inviteCode: code, familyId: familyId)
                         },
                         onFamilyJoined: { name, code, familyId in
                             enterMain(familyName: name, inviteCode: code, familyId: familyId)
