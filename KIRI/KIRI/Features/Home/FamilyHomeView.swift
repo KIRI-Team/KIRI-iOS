@@ -220,13 +220,21 @@ struct FamilyHomeView: View {
                     },
                     onBack: { route = .home }
                 ) { selectedMemberId, savedAnswer in
-                    guard let questionId = serverQuestion?.questionId,
-                          let authenticatedMemberId = currentAuthenticatedMemberId,
-                          selectedMemberId == authenticatedMemberId else {
+                    guard let questionId = serverQuestion?.questionId else {
                         #if DEBUG
-                        print("[KIRI][Question] save blocked: selected member is not authenticated member")
+                        print("[KIRI][Question] save blocked: missing questionId")
                         #endif
                         return false
+                    }
+                    // The endpoint is /answers/me, so the server derives the
+                    // author from the authenticated session. A stale family
+                    // member list must never prevent the current user from
+                    // submitting their own answer locally.
+                    if let authenticatedMemberId = currentAuthenticatedMemberId,
+                       selectedMemberId != authenticatedMemberId {
+                        #if DEBUG
+                        print("[KIRI][Question] selected member differs from authenticated member; submitting as /me")
+                        #endif
                     }
                     #if DEBUG
                     print("[KIRI][Question] save start questionId=\(questionId) answerLength=\(savedAnswer.count)")
@@ -239,6 +247,18 @@ struct FamilyHomeView: View {
                         await loadTodayQuestion()
                         return true
                     } catch {
+                        #if DEBUG
+                        if let apiError = error as? APIError {
+                            switch apiError {
+                            case .serverError(let code, _):
+                                print("[KIRI][Question] save failed code=\(code)")
+                            default:
+                                print("[KIRI][Question] save failed error=\(apiError)")
+                            }
+                        } else {
+                            print("[KIRI][Question] save failed error=\(error)")
+                        }
+                        #endif
                         await MainActor.run { todayQuestionError = error.localizedDescription }
                         return false
                     }
@@ -1079,10 +1099,12 @@ struct FamilyHomeView: View {
     }
 
     private var currentAuthenticatedMemberId: Int? {
-        if let memberId = try? AuthService.shared.currentMemberId() {
+        // AppRouter refreshes this value from GET /api/v1/members/me. Prefer
+        // that server-owned identity over a JWT claim or stale answer payload.
+        if let memberId = AppSessionStore().memberId {
             return memberId
         }
-        if let memberId = AppSessionStore().memberId {
+        if let memberId = try? AuthService.shared.currentMemberId() {
             return memberId
         }
         return familyAnswers.first(where: { $0.isMe })?.memberId
@@ -1090,7 +1112,7 @@ struct FamilyHomeView: View {
 
     private func isCurrentMember(_ member: HomeMember) -> Bool {
         guard let memberId = member.memberId,
-              let currentMemberId = try? AuthService.shared.currentMemberId() else {
+              let currentMemberId = currentAuthenticatedMemberId else {
             return false
         }
         return memberId == currentMemberId
