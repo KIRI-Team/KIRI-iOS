@@ -36,7 +36,7 @@ final class KeychainAuthTokenStore: AuthTokenStoring {
     private let account: String
 
     init(
-        service: String = Bundle.main.bundleIdentifier ?? "com.kiriteam.KIRI",
+        service: String = "\(Bundle.main.bundleIdentifier ?? "com.kiriteam.KIRI").\(APIConfig.baseURL.host ?? "unknown")",
         account: String = "auth.tokens"
     ) {
         self.service = service

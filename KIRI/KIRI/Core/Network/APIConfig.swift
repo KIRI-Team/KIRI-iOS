@@ -11,5 +11,12 @@
 import Foundation
 
 enum APIConfig {
-    static let baseURL = URL(string: "https://kiri-dev.halo-app.co.kr")!
+    /// Launch environment is useful for local verification; the built app
+    /// value comes from the configuration-specific Info.plist setting.
+    static let baseURL: URL = {
+        let configured = ProcessInfo.processInfo.environment["KIRI_API_BASE_URL"]
+            ?? Bundle.main.object(forInfoDictionaryKey: "KIRI_API_BASE_URL") as? String
+            ?? "https://kiri-dev.halo-app.co.kr"
+        return URL(string: configured.trimmingCharacters(in: .whitespacesAndNewlines))!
+    }()
 }

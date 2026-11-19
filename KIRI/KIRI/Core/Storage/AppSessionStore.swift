@@ -75,6 +75,18 @@ final class AppSessionStore {
         defaults.bool(forKey: Key.familyAddressConfiguredPrefix + String(familyId))
     }
 
+    /// Dev and production installations can share the same app bundle and
+    /// UserDefaults. Never carry family/question presentation state between
+    /// hosts when switching an installed build's API environment.
+    func synchronizeServerEnvironment(host: String?) {
+        let key = "kiri.api.serverHost"
+        let normalizedHost = host ?? "unknown"
+        if let previousHost = defaults.string(forKey: key), previousHost != normalizedHost {
+            clearSession()
+        }
+        defaults.set(normalizedHost, forKey: key)
+    }
+
     func markFamilyAddressConfigured(for familyId: Int) {
         defaults.set(true, forKey: Key.familyAddressConfiguredPrefix + String(familyId))
     }

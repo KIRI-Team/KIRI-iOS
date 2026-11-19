@@ -1,4 +1,7 @@
 // Shared defaults. The optional local file is ignored by Git and may contain
 // developer-only values such as KAKAO_LOCAL_REST_API_KEY.
 KAKAO_LOCAL_REST_API_KEY =
+// Debug uses the development API. Release/Archive is overridden in the
+// project configuration to the production API.
+KIRI_API_BASE_URL = https://kiri-dev.halo-app.co.kr
 #include? "KIRI.Local.xcconfig"

@@ -78,6 +78,7 @@ final class AppRouter {
     ) {
         self.sessionStore = sessionStore
         self.tokenStore = tokenStore
+        sessionStore.synchronizeServerEnvironment(host: APIConfig.baseURL.host)
         // Observer가 self를 캡처하기 전에 @Observable 저장 프로퍼티를 초기화합니다.
         self.appState = .authentication
         self.userMode = .browse
@@ -354,6 +355,8 @@ final class AppRouter {
             return nil
         } catch let APIError.serverError(code, message) {
             switch code {
+            case "MEMBER400_1":
+                return message.isEmpty ? "닉네임에 사용할 수 없는 표현이 포함되어 있습니다." : message
             case "MEMBER409_1":
                 return "이미 사용 중인 닉네임입니다."
             case "COMMON400_1":
@@ -382,7 +385,10 @@ final class AppRouter {
             self.familyId = result.familyId
             saveAccountSnapshot(hasFamily: true)
             return nil
-        } catch let APIError.serverError(_, message) {
+        } catch let APIError.serverError(code, message) {
+            if code == "FAMILY400_1" {
+                return message.isEmpty ? "가족 이름에 사용할 수 없는 표현이 포함되어 있습니다." : message
+            }
             return message.isEmpty ? "가족명을 저장하지 못했어요. 다시 시도해 주세요." : message
         } catch {
             return "가족명을 저장하지 못했어요. 다시 시도해 주세요."
