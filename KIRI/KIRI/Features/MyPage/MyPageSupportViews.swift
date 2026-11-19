@@ -54,6 +54,7 @@ private struct MyPageAppBar<Content: View>: View {
             }
             tabBarVisibility.wrappedValue = tabBarSubscreenCount.wrappedValue == 0
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -633,7 +634,7 @@ struct WithdrawalView: View {
     }
 }
 
-private struct MyPageDialogButtonStyle: ButtonStyle {
+struct MyPageDialogButtonStyle: ButtonStyle {
     let isPrimary: Bool
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

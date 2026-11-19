@@ -22,6 +22,8 @@ struct MyPageView: View {
     let onUpdateFamilyName: (String) async -> String?
     @State private var editedNickname = ""
     @State private var savedFamilyAddress: FamilyAddressUpdateResult?
+    @State private var isBrowseFamilyDialogPresented = false
+    @State private var isFamilyEntryPresented = false
 
     var body: some View {
         NavigationStack {
@@ -40,15 +42,24 @@ struct MyPageView: View {
                             NavigationLink { PushNotificationView() } label: { menuRow("알림 설정") }
                         }.padding(.top, 48)
                         menuSection(title: "가족 설정") {
-                            NavigationLink {
-                                FamilySettingsView(
-                                    familyId: familyId,
-                                    familyName: familyName,
-                                    nickname: nickname,
-                                    familyRole: familyRole,
-                                    onUpdateFamilyName: onUpdateFamilyName
-                                )
-                            } label: { menuRow("가족 기본 설정") }
+                            if router.userMode == .browse {
+                                Button {
+                                    isBrowseFamilyDialogPresented = true
+                                } label: {
+                                    menuRow("가족 기본 설정")
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                NavigationLink {
+                                    FamilySettingsView(
+                                        familyId: familyId,
+                                        familyName: familyName,
+                                        nickname: nickname,
+                                        familyRole: familyRole,
+                                        onUpdateFamilyName: onUpdateFamilyName
+                                    )
+                                } label: { menuRow("가족 기본 설정") }
+                            }
                             NavigationLink {
                                 AddressSettingsView(familyId: familyId, savedAddress: $savedFamilyAddress)
                             } label: { menuRow("우리집 주소 설정") }
@@ -61,8 +72,67 @@ struct MyPageView: View {
                         Color.clear.frame(height: 110)
                     }.padding(.horizontal, 18)
                 }
+                if isBrowseFamilyDialogPresented {
+                    browseFamilyDialog
+                        .transition(.opacity)
+                        .zIndex(20)
+                }
             }
             .toolbar(.hidden, for: .navigationBar)
+        }
+        .animation(.easeOut(duration: 0.18), value: isBrowseFamilyDialogPresented)
+        .fullScreenCover(isPresented: $isFamilyEntryPresented) {
+            BrowseFamilyEntryFlow(
+                onDismiss: { isFamilyEntryPresented = false },
+                onFamilyCreated: { name, code in
+                    isFamilyEntryPresented = false
+                    router.enterFamilyMode(familyName: name, inviteCode: code)
+                },
+                onFamilyJoined: { name, code, joinedFamilyId in
+                    isFamilyEntryPresented = false
+                    router.enterFamilyMode(familyName: name, inviteCode: code, familyId: joinedFamilyId)
+                }
+            )
+        }
+    }
+
+    private var browseFamilyDialog: some View {
+        ZStack {
+            Color.black.opacity(0.62)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { isBrowseFamilyDialogPresented = false }
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("가족공간이 필요해요")
+                    .font(KIRITypography.headingMedium)
+                    .foregroundStyle(KIRIColor.Text.strong)
+
+                Text("가족공간을 만들거나 초대받은 가족공간에 참여하면 가족 설정을 이용할 수 있어요.")
+                    .font(KIRITypography.bodySmall)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 12)
+
+                HStack(spacing: 10) {
+                    Button("취소") {
+                        isBrowseFamilyDialogPresented = false
+                    }
+                    .buttonStyle(MyPageDialogButtonStyle(isPrimary: false))
+
+                    Button("가족공간 만들기") {
+                        isBrowseFamilyDialogPresented = false
+                        isFamilyEntryPresented = true
+                    }
+                    .buttonStyle(MyPageDialogButtonStyle(isPrimary: true))
+                }
+                .padding(.top, 24)
+            }
+            .padding(22)
+            .frame(maxWidth: 342)
+            .background(KIRIColor.Background.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.25), radius: 22, y: 8)
         }
     }
 

@@ -277,7 +277,7 @@ struct BrowseHomeView: View {
     }
 }
 
-private struct BrowseFamilyEntryFlow: View {
+struct BrowseFamilyEntryFlow: View {
     private enum Step {
         case entry
         case familyName
