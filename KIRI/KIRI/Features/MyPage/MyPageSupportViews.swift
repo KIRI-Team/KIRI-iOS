@@ -1526,40 +1526,73 @@ struct TasteTestView: View {
         hasValidTasteSelection && !isSaving
     }
 
+    private var currentNickname: String {
+        AppSessionStore().nickname?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? (AppSessionStore().nickname ?? "")
+            : ""
+    }
+
     var body: some View {
         ZStack { KIRIColor.Background.base.ignoresSafeArea()
             MyPageAppBar(title: "내 취향 설정") {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("우리 가족의 취향을 알려주세요").font(KIRITypography.title).foregroundStyle(KIRIColor.Text.strong)
-                    preferenceSection("선호 활동 (최대 3개)", options: activities, selected: $selectedActivities, limit: 3)
-                    preferenceSection("공간", options: spaces, selectedValue: $space)
-                    preferenceSection("활동량", options: amounts, selectedValue: $amount)
-                    preferenceSection("비용", options: costs, selectedValue: $cost)
-                    preferenceSection("활동시간", options: durations, selectedValue: $duration)
-                    if let errorMessage { Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error) }
-                    Button {
-                        guard canSaveTaste else { return }
-                        Task { await saveTaste() }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isSaving {
-                                ProgressView().tint(KIRIColor.Button.FilledNeutral.contentDefault)
-                            } else {
-                                Text("저장")
-                            }
-                            Spacer()
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("\(currentNickname)님, 가족과 어떤 시간을\n함께하고 싶나요?")
+                                .font(KIRITypography.title)
+                                .fontWeight(.bold)
+                                .foregroundStyle(KIRIColor.Text.strong)
+                                .lineSpacing(0)
+                            Text("내 취향을 바탕으로 우리 가족에게 어울리는 활동을 추천해드려요.")
+                                .font(KIRITypography.bodySmall)
+                                .foregroundStyle(KIRIColor.Text.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .font(KIRITypography.button)
-                        .foregroundStyle(canSaveTaste ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDefault)
+                        preferenceSection("선호 활동 · 최대 3개", options: activities, selected: $selectedActivities, limit: 3)
+                        preferenceSection("공간", options: spaces, selectedValue: $space)
+                        preferenceSection("활동량", options: amounts, selectedValue: $amount)
+                        preferenceSection("비용", options: costs, selectedValue: $cost)
+                        preferenceSection("활동시간", options: durations, selectedValue: $duration)
+                        if let errorMessage { Text(errorMessage).font(KIRITypography.caption).foregroundStyle(KIRIColor.Status.error) }
                     }
-                    .frame(maxWidth: .infinity).frame(height: 54)
-                    .background(canSaveTaste ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledNeutral.backgroundDisabled)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .disabled(!canSaveTaste)
-                    .buttonStyle(.plain)
-                    Spacer()
-                }.padding(18)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 12)
+                    .padding(.bottom, 24)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 8) {
+                        Button {
+                            guard canSaveTaste else { return }
+                            Task { await saveTaste() }
+                        } label: {
+                            Group {
+                                if isSaving {
+                                    ProgressView().tint(KIRIColor.Button.FilledAccent.contentDefault)
+                                } else {
+                                    Text("취향 저장하기")
+                                }
+                            }
+                            .font(KIRITypography.button)
+                            .fontWeight(.bold)
+                            .foregroundStyle(canSaveTaste ? KIRIColor.Button.FilledAccent.contentDefault : KIRIColor.Button.FilledNeutral.contentDisabled)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(canSaveTaste ? KIRIColor.Button.FilledAccent.backgroundDefault : KIRIColor.Button.FilledAccent.backgroundDisabled)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                        .disabled(!canSaveTaste)
+                        .buttonStyle(.plain)
+
+                        Text("다음 추천부터 반영돼요. 이미 제공된 주간 미션은 바뀌지 않아요.")
+                            .font(KIRITypography.caption)
+                            .foregroundStyle(KIRIColor.Text.tertiary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.top, 12)
+                    .padding(.bottom, 10)
+                    .background(KIRIColor.Background.base)
+                }
             }
         }
         .overlay(alignment: .top) {
@@ -1577,7 +1610,7 @@ struct TasteTestView: View {
     private func preferenceSection(_ title: String, options: [String], selected: Binding<Set<String>>, limit: Int) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+            TasteChipLayout {
                 ForEach(options, id: \.self) { option in
                     Button {
                         if selected.wrappedValue.contains(option) { selected.wrappedValue.remove(option) }
@@ -1592,7 +1625,7 @@ struct TasteTestView: View {
     private func preferenceSection(_ title: String, options: [String], selectedValue: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title).font(KIRITypography.bodyMedium).foregroundStyle(KIRIColor.Text.primary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+            TasteChipLayout {
                 ForEach(options, id: \.self) { option in
                     Button {
                         // 단일 선택 그룹은 같은 항목을 다시 누르면 선택을 해제합니다.
@@ -1604,10 +1637,14 @@ struct TasteTestView: View {
     }
 
     private func chip(_ title: String, isSelected: Bool) -> some View {
-        Text(title).font(KIRITypography.bodySmall).foregroundStyle(isSelected ? KIRIColor.Text.onGreen : KIRIColor.Text.primary)
-            .frame(maxWidth: .infinity).frame(height: 40)
-            .background(isSelected ? KIRIColor.Primary.default : KIRIColor.Background.secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        Text(title)
+            .font(KIRITypography.bodySmallMedium)
+            .fontWeight(.bold)
+            .foregroundStyle(isSelected ? KIRIColor.Chip.contentSelected : KIRIColor.Chip.contentDefault)
+            .padding(.horizontal, 16)
+            .frame(height: 36)
+            .background(isSelected ? KIRIColor.Chip.backgroundSelected : KIRIColor.Chip.backgroundDefault)
+            .clipShape(Capsule())
     }
 
     private func loadTaste() async {
@@ -1666,6 +1703,44 @@ struct TasteTestView: View {
     private func tastePriceRaw(_ label: String) -> String? { ["무료 위주":"FREE", "부담 적게":"LOW"][label] }
     private func tasteDurationLabel(_ raw: String?) -> String { ["WITHIN_1H":"1시간 이내", "H1_TO_3":"1~3시간", "HALF_DAY_PLUS":"반나절 이상"][raw ?? ""] ?? "상관없음" }
     private func tasteDurationRaw(_ label: String) -> String? { ["1시간 이내":"WITHIN_1H", "1~3시간":"H1_TO_3", "반나절 이상":"HALF_DAY_PLUS"][label] }
+}
+
+private struct TasteChipLayout: Layout {
+    let spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        layout(proposal: proposal, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = layout(proposal: ProposedViewSize(width: bounds.width, height: bounds.height), subviews: subviews)
+        for (index, origin) in result.origins.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y), anchor: .topLeading, proposal: ProposedViewSize(width: result.sizes[index].width, height: result.sizes[index].height))
+        }
+    }
+
+    private func layout(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, origins: [CGPoint], sizes: [CGSize]) {
+        let width = proposal.width ?? .infinity
+        var origins: [CGPoint] = []
+        var sizes: [CGSize] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(ProposedViewSize(width: nil, height: 36))
+            if x > 0, x + size.width > width {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            origins.append(CGPoint(x: x, y: y))
+            sizes.append(size)
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return (CGSize(width: width.isFinite ? width : x, height: y + rowHeight), origins, sizes)
+    }
 }
 
 struct SuggestionView: View {
