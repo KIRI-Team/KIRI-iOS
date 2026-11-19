@@ -143,11 +143,11 @@ struct MyPageView: View {
             ZStack {
                 Circle()
                     .fill(KIRIColor.Background.tertiary)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 43.636, height: 43.636)
                 Image(profileAvatarAsset)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 29.28, height: 29.28)
+                    .frame(width: 27.216, height: 27.216)
             }
             .frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 4) {
