@@ -171,7 +171,7 @@ final class APIClient {
                         throw APIError.unauthorized
                     }
                     guard (200...299).contains(retryHTTP.statusCode) else {
-                        if let envelope = try? responseDecoder.decode(APIEnvelope<EmptyAPIResult>.self, from: retryData) {
+                        if let envelope = try? responseDecoder.decode(APIEnvelope<IgnoredAPIResult>.self, from: retryData) {
                             throw APIError.serverError(code: envelope.code, message: envelope.message)
                         }
                         throw APIError.httpError(statusCode: retryHTTP.statusCode)
@@ -205,7 +205,7 @@ final class APIClient {
                 throw APIError.serverError(code: validation.code, message: detail)
             }
             if let envelope = try? responseDecoder.decode(
-                APIEnvelope<EmptyAPIResult>.self,
+                APIEnvelope<IgnoredAPIResult>.self,
                 from: data
             ) {
                 #if DEBUG

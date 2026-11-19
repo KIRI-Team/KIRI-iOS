@@ -33,6 +33,24 @@ struct APIEnvelope<Result: Decodable>: Decodable {
 
 struct EmptyAPIResult: Decodable {}
 
+/// Error responses do not have a stable result shape: depending on the
+/// endpoint it may be an object, string, array, or null. We only need the
+/// envelope code/message when handling an error, so consume any valid JSON
+/// value without making error reporting depend on its shape.
+struct IgnoredAPIResult: Decodable {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() { return }
+        if (try? container.decode(String.self)) != nil { return }
+        if (try? container.decode(Bool.self)) != nil { return }
+        if (try? container.decode(Double.self)) != nil { return }
+        if (try? container.decode([IgnoredAPIResult].self)) != nil { return }
+        if (try? container.decode([String: IgnoredAPIResult].self)) != nil { return }
+        // Preserve the existing envelope error path for an unsupported JSON
+        // scalar rather than failing the entire response decode.
+    }
+}
+
 /// 알림함 목록 응답. 서버의 Spring Page JSON을 그대로 보존해 다음 페이지를
 /// 중복 없이 이어 붙일 수 있도록 합니다.
 struct NotificationPreviewResult: Decodable, Identifiable, Sendable, Equatable {

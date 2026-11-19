@@ -219,7 +219,9 @@ struct FamilyHomeView: View {
                         }
                     },
                     onBack: { route = .home }
-                ) { selectedMemberId, savedAnswer in
+                ) { @MainActor submission in
+                    let selectedMemberId = submission.memberId
+                    let savedAnswer = Data(submission.utf8Bytes)
                     guard let questionId = serverQuestion?.questionId else {
                         #if DEBUG
                         print("[KIRI][Question] save blocked: missing questionId")
@@ -237,6 +239,7 @@ struct FamilyHomeView: View {
                         #endif
                     }
                     #if DEBUG
+                    print("[KIRI][Question] callback entered memberId=\(selectedMemberId) answerUTF8Length=\(savedAnswer.count)")
                     print("[KIRI][Question] save start questionId=\(questionId) answerUTF8Length=\(savedAnswer.count)")
                     #endif
                     do {

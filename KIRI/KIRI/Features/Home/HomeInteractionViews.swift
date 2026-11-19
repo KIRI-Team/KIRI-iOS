@@ -18,6 +18,13 @@ private struct HomeMemberQuestionSizePreferenceKey: PreferenceKey {
     }
 }
 
+struct HomeQuestionAnswerSubmission: Sendable {
+    let memberId: Int
+    let utf8Bytes: [UInt8]
+
+    var byteCount: Int { utf8Bytes.count }
+}
+
 struct HomeQuestionAnswerView: View {
     @Environment(\.kiriTabBarVisibility) private var tabBarVisibility
     let question: String
@@ -27,7 +34,9 @@ struct HomeQuestionAnswerView: View {
     let familyMembersError: String?
     let onRetryFamilyMembers: () -> Void
     let onBack: () -> Void
-    let onSave: (Int, Data) async -> Bool
+    /// The save handler is main-actor isolated so the value snapshot and the
+    /// callback invocation cross the SwiftUI/Task boundary together.
+    let onSave: @MainActor (HomeQuestionAnswerSubmission) async -> Bool
     private enum Step { case selectingNickname, writing }
     @State private var selectedMemberId: Int?
     @State private var answerText: String
@@ -36,7 +45,7 @@ struct HomeQuestionAnswerView: View {
     @State private var saveError: String?
     @State private var isShowingCompletion = false
 
-    init(question: String, existingAnswer: String?, familyMembers: [HomeMember], currentMemberId: Int?, familyMembersError: String? = nil, onRetryFamilyMembers: @escaping () -> Void = {}, onBack: @escaping () -> Void, onSave: @escaping (Int, Data) async -> Bool) {
+    init(question: String, existingAnswer: String?, familyMembers: [HomeMember], currentMemberId: Int?, familyMembersError: String? = nil, onRetryFamilyMembers: @escaping () -> Void = {}, onBack: @escaping () -> Void, onSave: @escaping @MainActor (HomeQuestionAnswerSubmission) async -> Bool) {
         self.question = question
         self.existingAnswer = existingAnswer
         self.familyMembers = familyMembers
@@ -240,11 +249,18 @@ struct HomeQuestionAnswerView: View {
             // Copy UTF-8 bytes while still on the MainActor. Data is a value
             // type and cannot alias TextEditor/SwiftUI String storage after
             // this button action returns.
-            let answerSnapshot = liveData
+            let answerSnapshot = HomeQuestionAnswerSubmission(memberId: selectedMemberId, utf8Bytes: Array(liveData))
             isSaving = true
             saveError = nil
-            Task { @MainActor [selectedMemberId, answerSnapshot] in
-                let succeeded = await onSave(selectedMemberId, answerSnapshot)
+            let save = onSave
+            #if DEBUG
+            print("[KIRI][Question] task capture dataBytes=\(answerSnapshot.byteCount)")
+            #endif
+            Task { @MainActor [answerSnapshot, save] in
+                #if DEBUG
+                print("[KIRI][Question] task start dataBytes=\(answerSnapshot.byteCount)")
+                #endif
+                let succeeded = await save(answerSnapshot)
                 isSaving = false
                 if succeeded {
                     withAnimation(.easeInOut(duration: 0.2)) { isShowingCompletion = true }
