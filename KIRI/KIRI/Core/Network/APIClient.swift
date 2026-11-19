@@ -126,9 +126,13 @@ final class APIClient {
                 from: data
             ) {
                 let host = APIConfig.baseURL.host ?? "unknown"
+                let traceID = httpResponse.value(forHTTPHeaderField: "X-Request-Id")
+                    ?? httpResponse.value(forHTTPHeaderField: "X-Correlation-Id")
+                    ?? "unavailable"
                 print(
                     "[KIRI][API] auth failure: host=\(host), "
-                        + "path=\(endpoint.path), code=\(envelope.code), message=\(envelope.message)"
+                        + "path=\(endpoint.path), status=\(httpResponse.statusCode), "
+                        + "code=\(envelope.code), message=\(envelope.message), traceID=\(traceID)"
                 )
             }
             #endif
