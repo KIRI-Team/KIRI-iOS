@@ -74,7 +74,11 @@ struct PlaceCard: View {
             .padding(.top, 18)
             .padding(.bottom, 16)
         }
-        .frame(width: 251, height: 284)
+        // Keep the card contents pinned to the rounded top edge. A fixed-height
+        // frame without an explicit alignment centers the intrinsic VStack when
+        // the metadata is shorter than the card, leaving the card background
+        // visible as a dark band above the photo.
+        .frame(width: 251, height: 284, alignment: .top)
         .background(KIRIColor.Background.primary)
         .clipShape(
             RoundedRectangle(
