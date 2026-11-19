@@ -237,10 +237,10 @@ struct FamilyHomeView: View {
                         #endif
                     }
                     #if DEBUG
-                    print("[KIRI][Question] save start questionId=\(questionId) answerLength=\(savedAnswer.count)")
+                    print("[KIRI][Question] save start questionId=\(questionId) answerUTF8Length=\(savedAnswer.count)")
                     #endif
                     do {
-                        try await AuthService.shared.writeAnswer(questionId: questionId, answer: savedAnswer)
+                        try await AuthService.shared.writeAnswer(questionId: questionId, answerData: savedAnswer)
                         #if DEBUG
                         print("[KIRI][Question] save success questionId=\(questionId)")
                         #endif

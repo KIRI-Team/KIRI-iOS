@@ -27,7 +27,7 @@ struct HomeQuestionAnswerView: View {
     let familyMembersError: String?
     let onRetryFamilyMembers: () -> Void
     let onBack: () -> Void
-    let onSave: (Int, String) async -> Bool
+    let onSave: (Int, Data) async -> Bool
     private enum Step { case selectingNickname, writing }
     @State private var selectedMemberId: Int?
     @State private var answerText: String
@@ -36,7 +36,7 @@ struct HomeQuestionAnswerView: View {
     @State private var saveError: String?
     @State private var isShowingCompletion = false
 
-    init(question: String, existingAnswer: String?, familyMembers: [HomeMember], currentMemberId: Int?, familyMembersError: String? = nil, onRetryFamilyMembers: @escaping () -> Void = {}, onBack: @escaping () -> Void, onSave: @escaping (Int, String) async -> Bool) {
+    init(question: String, existingAnswer: String?, familyMembers: [HomeMember], currentMemberId: Int?, familyMembersError: String? = nil, onRetryFamilyMembers: @escaping () -> Void = {}, onBack: @escaping () -> Void, onSave: @escaping (Int, Data) async -> Bool) {
         self.question = question
         self.existingAnswer = existingAnswer
         self.familyMembers = familyMembers
@@ -223,7 +223,10 @@ struct HomeQuestionAnswerView: View {
             // Freeze the edited value on the main actor before creating the
             // asynchronous save task. The task must never read TextEditor
             // storage after SwiftUI has rendered another edit.
-            let answerSnapshot = String(trimmed)
+            // Copy UTF-8 bytes while still on the MainActor. Data is a value
+            // type and cannot alias TextEditor/SwiftUI String storage after
+            // this button action returns.
+            let answerSnapshot = Data(trimmed.utf8)
             isSaving = true
             saveError = nil
             Task { @MainActor [selectedMemberId, answerSnapshot] in

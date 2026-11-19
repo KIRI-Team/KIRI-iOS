@@ -1148,12 +1148,22 @@ final class AuthService {
     }
 
     func writeAnswer(questionId: Int, answer: String) async throws {
+        try await writeAnswer(questionId: questionId, answerData: Data(answer.utf8))
+    }
+
+    /// Saves an answer from an immutable UTF-8 snapshot captured by the UI.
+    /// Keeping Data across the async boundary avoids reading mutable SwiftUI
+    /// String storage in the request task.
+    func writeAnswer(questionId: Int, answerData: Data) async throws {
         let endpoint = APIEndpoint(
             path: "/api/v1/questions/\(questionId)/answers/me",
             method: .PUT,
             requiresAuthentication: true
         )
         let tokens = try authenticatedTokens()
+        guard let answer = String(data: answerData, encoding: .utf8) else {
+            throw APIError.serverError(code: "COMMON400_1", message: "답변을 입력해 주세요.")
+        }
         let normalizedAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedAnswer.isEmpty else {
             throw APIError.serverError(code: "COMMON400_1", message: "답변을 입력해 주세요.")
