@@ -19,6 +19,28 @@ private actor KIRIImagePipeline {
     private var cache: [URL: Data] = [:]
     private var inFlight: [URL: Task<Data?, Never>] = [:]
 
+    private var diskCacheDirectory: URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let directory = base.appendingPathComponent("KIRIImages", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
+        return directory
+    }
+
+    private func diskURL(for url: URL) -> URL {
+        // URL-safe, deterministic key that survives relaunches without logging the URL.
+        let encoded = Data(url.absoluteString.utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "=", with: "")
+        let key = encoded.count > 200
+            ? String(encoded.prefix(180)) + String(encoded.suffix(20))
+            : encoded
+        return diskCacheDirectory.appendingPathComponent(key)
+    }
+
     func data(for url: URL) async -> Data? {
         let startedAt = Date()
         if let cached = cache[url] {
@@ -29,14 +51,31 @@ private actor KIRIImagePipeline {
         }
         if let task = inFlight[url] { return await task.value }
 
-        let task = Task<Data?, Never> {
-            guard let raw = try? await URLSession.shared.data(from: url).0 else { return nil }
+        if let persisted = try? Data(contentsOf: diskURL(for: url)) {
+            cache[url] = persisted
+            #if DEBUG
+            print("[KIRI][ImagePerf] disk cache hit")
+            #endif
+            return persisted
+        }
+
+        let task: Task<Data?, Never> = Task.detached(priority: .userInitiated) {
+            let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
+            guard let (raw, urlResponse) = try? await URLSession.shared.data(for: request) else { return nil }
+            #if DEBUG
+            if let http = urlResponse as? HTTPURLResponse {
+                print("[KIRI][ImagePerf] network status=\(http.statusCode)")
+            }
+            #endif
             return Self.downsample(raw, maxPixelSize: 1200)
         }
         inFlight[url] = task
         let result = await task.value
         inFlight[url] = nil
-        if let result { cache[url] = result }
+        if let result {
+            cache[url] = result
+            try? result.write(to: diskURL(for: url), options: Data.WritingOptions.atomic)
+        }
         #if DEBUG
         print("[KIRI][ImagePerf] fetch complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) success=\(result != nil)")
         #endif

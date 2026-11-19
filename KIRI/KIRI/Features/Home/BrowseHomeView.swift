@@ -256,14 +256,17 @@ struct BrowseHomeView: View {
     @MainActor
     private func loadMissions() async {
         guard !isLoadingMissions else { return }
+        let startedAt = Date()
         isLoadingMissions = true
         missionError = nil
         defer { isLoadingMissions = false }
         do {
             var cursor: Int?
             var allMissions: [MissionFeedItem] = []
+            var pageCount = 0
             repeat {
                 let page = try await AuthService.shared.missionFeed(cursor: cursor)
+                pageCount += 1
                 allMissions.append(contentsOf: page.missions)
                 guard page.hasNext, let nextCursor = page.nextCursor, nextCursor != cursor else { break }
                 cursor = nextCursor
@@ -271,8 +274,14 @@ struct BrowseHomeView: View {
 
             var seen = Set<Int>()
             missions = allMissions.filter { seen.insert($0.missionId).inserted }
+            #if DEBUG
+            print("[KIRI][BrowsePerf] missionFeed pages=\(pageCount) items=\(missions.count) elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+            #endif
         } catch {
             missionError = "미션 조회 실패"
+            #if DEBUG
+            print("[KIRI][BrowsePerf] missionFeed failed elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+            #endif
         }
     }
 }
