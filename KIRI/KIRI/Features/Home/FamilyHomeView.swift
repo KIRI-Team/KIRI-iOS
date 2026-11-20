@@ -745,7 +745,7 @@ struct FamilyHomeView: View {
 
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
-                    VStack(
+                    LazyVStack(
                         alignment: .leading,
                         spacing: 0
                     ) {
@@ -1279,14 +1279,16 @@ struct FamilyHomeView: View {
                         }
                         .buttonStyle(.plain)
                         .onAppear {
-                            guard mission.missionId == missions.last?.missionId else { return }
+                            guard let index = missions.firstIndex(where: { $0.missionId == mission.missionId }),
+                                  index >= max(missions.count - 2, 0) else { return }
                             Task { await loadMoreRecommendations() }
                         }
                     }
                     if hasMoreRecommendations {
                         ProgressView()
                             .tint(KIRIColor.Primary.default)
-                            .frame(width: 36, height: 284)
+                            .frame(width: 24, height: 24)
+                            .padding(.horizontal, 6)
                     }
                 }
                 .padding(.horizontal, 18)
@@ -1572,7 +1574,7 @@ struct FamilyHomeView: View {
         // 첫 화면에 필요한 첫 페이지만 먼저 표시합니다. 다음 페이지는
         // 가로 카드 끝에 도달했을 때 loadMoreRecommendations()가 조회합니다.
         do {
-            let page = try await AuthService.shared.missionFeed(cursor: nil)
+            let page = try await AuthService.shared.missionFeed(cursor: nil, size: 5)
             var seen = Set<Int>()
             let firstPage = page.missions.filter { seen.insert($0.missionId).inserted }
             await MainActor.run {
@@ -1608,7 +1610,7 @@ struct FamilyHomeView: View {
         isLoadingMoreRecommendations = true
         defer { isLoadingMoreRecommendations = false }
         do {
-            let page = try await AuthService.shared.missionFeed(cursor: cursor)
+            let page = try await AuthService.shared.missionFeed(cursor: cursor, size: 5)
             let existing = Set(recommendedMissions.map(\.missionId))
             recommendedMissions.append(contentsOf: page.missions.filter { !existing.contains($0.missionId) })
             nextRecommendationCursor = page.nextCursor

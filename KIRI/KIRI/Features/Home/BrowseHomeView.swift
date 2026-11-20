@@ -54,7 +54,7 @@ struct BrowseHomeView: View {
                 navigationBar
 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
                         familyStateCard
                             .padding(.top, 18)
 
@@ -255,14 +255,16 @@ struct BrowseHomeView: View {
                         }
                         .buttonStyle(.plain)
                         .onAppear {
-                            guard mission.missionId == missions.last?.missionId else { return }
+                            guard let index = missions.firstIndex(where: { $0.missionId == mission.missionId }),
+                                  index >= max(missions.count - 2, 0) else { return }
                             Task { await loadMoreMissions() }
                         }
                     }
                     if hasMoreMissions {
                         ProgressView()
                             .tint(KIRIColor.Primary.default)
-                            .frame(width: 36, height: 284)
+                            .frame(width: 24, height: 24)
+                            .padding(.horizontal, 6)
                     }
                 }
                 .padding(.trailing, 18)
@@ -278,7 +280,7 @@ struct BrowseHomeView: View {
         missionError = nil
         defer { isLoadingMissions = false }
         do {
-            let page = try await AuthService.shared.missionFeed(cursor: nil)
+            let page = try await AuthService.shared.missionFeed(cursor: nil, size: 5)
             var seen = Set<Int>()
             missions = page.missions.filter { seen.insert($0.missionId).inserted }
             nextMissionCursor = page.nextCursor
@@ -300,7 +302,7 @@ struct BrowseHomeView: View {
         isLoadingMoreMissions = true
         defer { isLoadingMoreMissions = false }
         do {
-            let page = try await AuthService.shared.missionFeed(cursor: cursor)
+            let page = try await AuthService.shared.missionFeed(cursor: cursor, size: 5)
             let existing = Set(missions.map(\.missionId))
             missions.append(contentsOf: page.missions.filter { !existing.contains($0.missionId) })
             nextMissionCursor = page.nextCursor
