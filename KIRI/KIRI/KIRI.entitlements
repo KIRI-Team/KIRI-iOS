@@ -12,6 +12,7 @@
 	<array>
 		<string>applinks:kiri.app</string>
 		<string>applinks:www.kiri.app</string>
+		<string>applinks:www.halo-official.co.kr</string>
 	</array>
 </dict>
 </plist>

@@ -126,7 +126,13 @@ struct RootView: View {
             }
 
             let components = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
-            if (url.host == "kiri.app" || url.host == "www.kiri.app"),
+            let supportedInvitationHosts = [
+                "kiri.app",
+                "www.kiri.app",
+                "www.halo-official.co.kr"
+            ]
+            if let host = url.host?.lowercased(),
+               supportedInvitationHosts.contains(host),
                components.count == 2,
                components[0].lowercased() == "invite" {
                 router.receiveInvitationToken(components[1])

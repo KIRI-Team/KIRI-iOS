@@ -436,6 +436,12 @@ final class AppRouter {
             // 추가되면 family/browse 및 미완료 단계만 그 응답으로 보완한다.
             appState = .main
             await refreshFamilyState()
+            // A Universal Link can arrive while the splash/session restore is
+            // still running. Keep the token captured by RootView and continue
+            // into the invitation flow after the existing session is restored.
+            if pendingInvitation != nil {
+                appState = .onboarding
+            }
             #if DEBUG
             print("[KIRI][Router] restoreSession: restored \(Self.stateName(appState))")
             #endif
