@@ -40,6 +40,9 @@ struct FamilyHomeView: View {
     @State private var resolvedFamilyInviteCode: String?
     @State private var isLoadingInvite = false
     @State private var isInviteUnavailableAlertPresented = false
+    @State private var inviteErrorTitle = "초대코드를 불러올 수 없어요"
+    @State private var inviteErrorMessage = "가족공간의 초대코드가 연결되지 않았습니다."
+    @State private var canRetryInviteLoad = false
     @State private var selectedMission: MissionFeedItem?
     @State private var selectedRecommendation: FamilyRecommendationResult?
     @State private var selectedMember: HomeMember?
@@ -391,10 +394,15 @@ struct FamilyHomeView: View {
                 )
             }
         }
-        .alert("초대코드를 불러올 수 없어요", isPresented: $isInviteUnavailableAlertPresented) {
+        .alert(inviteErrorTitle, isPresented: $isInviteUnavailableAlertPresented) {
+            if canRetryInviteLoad {
+                Button("다시 시도") {
+                    loadFamilyInviteForPresentation()
+                }
+            }
             Button("확인", role: .cancel) {}
         } message: {
-            Text("가족공간의 초대코드가 연결되지 않았습니다.")
+            Text(inviteErrorMessage)
         }
         .onAppear {
             tabBarVisibility.wrappedValue = route == .home
@@ -882,24 +890,8 @@ struct FamilyHomeView: View {
                 Button {
                     if let code = familyInviteCode, !code.isEmpty {
                         isInvitePresented = true
-                    } else if let familyId, !isLoadingInvite {
-                        isLoadingInvite = true
-                        Task {
-                            defer { isLoadingInvite = false }
-                            do {
-                                let code = try await onLoadFamilyInvite()
-                                guard !code.isEmpty else {
-                                    isInviteUnavailableAlertPresented = true
-                                    return
-                                }
-                                resolvedFamilyInviteCode = code
-                                isInvitePresented = true
-                            } catch {
-                                isInviteUnavailableAlertPresented = true
-                            }
-                        }
-                    } else {
-                        isInviteUnavailableAlertPresented = true
+                    } else if !isLoadingInvite {
+                        loadFamilyInviteForPresentation()
                     }
                 } label: {
                     HStack(spacing: 5) {
@@ -1006,6 +998,46 @@ struct FamilyHomeView: View {
             }
         }
         .padding(.horizontal, 18)
+    }
+
+    private func loadFamilyInviteForPresentation() {
+        guard !isLoadingInvite else { return }
+        isLoadingInvite = true
+        canRetryInviteLoad = false
+        Task {
+            defer { isLoadingInvite = false }
+            do {
+                let code = try await onLoadFamilyInvite()
+                guard !code.isEmpty else {
+                    inviteErrorTitle = "초대코드가 아직 없어요"
+                    inviteErrorMessage = "가족 초대 관리에서 초대코드를 발급해 주세요."
+                    canRetryInviteLoad = false
+                    isInviteUnavailableAlertPresented = true
+                    return
+                }
+                resolvedFamilyInviteCode = code
+                isInvitePresented = true
+            } catch let error as APIError {
+                if case .serverError(let code, let message) = error,
+                   code.hasPrefix("FAMILY404") {
+                    inviteErrorTitle = "초대코드가 아직 없어요"
+                    inviteErrorMessage = message.isEmpty
+                        ? "가족 초대 관리에서 초대코드를 발급해 주세요."
+                        : message
+                    canRetryInviteLoad = false
+                } else {
+                    inviteErrorTitle = "초대코드를 불러올 수 없어요"
+                    inviteErrorMessage = "네트워크 오류로 초대코드를 불러오지 못했어요. 다시 시도해 주세요."
+                    canRetryInviteLoad = true
+                }
+                isInviteUnavailableAlertPresented = true
+            } catch {
+                inviteErrorTitle = "초대코드를 불러올 수 없어요"
+                inviteErrorMessage = "초대코드를 불러오지 못했어요. 다시 시도해 주세요."
+                canRetryInviteLoad = true
+                isInviteUnavailableAlertPresented = true
+            }
+        }
     }
 
     // MARK: - Question / Mission Flip Card
