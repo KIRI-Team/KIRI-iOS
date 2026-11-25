@@ -213,6 +213,8 @@ struct MissionActivityDetailView: View {
                         .padding(.bottom, 16)
 
                     ActivityDetailCard(detail: detail, fallbackPlace: placeName)
+
+                    missionDescriptionSection
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 20)
@@ -241,6 +243,30 @@ struct MissionActivityDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var missionDescriptionSection: some View {
+        if let rawDescription = detail?.description?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !rawDescription.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("미션 설명")
+                    .font(KIRITypography.headingSmall)
+                    .foregroundStyle(KIRIColor.Text.strong)
+                ForEach(Array(rawDescription.components(separatedBy: "\n\n").enumerated()), id: \.offset) { _, paragraph in
+                    let text = paragraph.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !text.isEmpty {
+                        Text(text)
+                            .font(KIRITypography.bodySmall)
+                            .foregroundStyle(KIRIColor.Text.secondary)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .padding(.top, 24)
+        }
     }
 
     private var navigationBar: some View {
