@@ -513,6 +513,32 @@ final class AppRouter {
         }
     }
 
+    /// Resolves the current family's server-owned invitation without relying on
+    /// the invite code cached at login/onboarding time.  Invite codes are
+    /// intentionally not persisted as the source of truth because they may be
+    /// absent after a fresh session restore or replaced by a reissue.
+    func loadFamilyInviteCode() async throws -> String {
+        var resolvedFamilyId = familyId
+        if resolvedFamilyId == nil {
+            let result = try await AuthService.shared.familyIdForCurrentMember()
+            resolvedFamilyId = result.familyId
+            familyId = result.familyId
+        }
+        guard let resolvedFamilyId else {
+            throw AuthServiceError.missingStoredSession
+        }
+
+        let invite = try await AuthService.shared.familyInvite(familyId: resolvedFamilyId)
+        familyInviteCode = invite.inviteCode
+        sessionStore.saveFamily(
+            name: familyName ?? sessionStore.familyName ?? "",
+            inviteCode: invite.inviteCode,
+            familyId: resolvedFamilyId
+        )
+        saveAccountSnapshot(hasFamily: true)
+        return invite.inviteCode
+    }
+
     private func restoreAccountSnapshot() {
         guard let identity = tutorialIdentity,
               let snapshot = sessionStore.accountSnapshot(for: identity)

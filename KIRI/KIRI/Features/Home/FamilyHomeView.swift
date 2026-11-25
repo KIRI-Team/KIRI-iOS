@@ -32,8 +32,13 @@ struct FamilyHomeView: View {
     var loadsServerQuestion: Bool = true
     var onExploreMission: () -> Void = {}
     var onSelectNotification: (NotificationDestination) -> Void = { _ in }
+    var onLoadFamilyInvite: () async throws -> String = {
+        throw AuthServiceError.missingStoredSession
+    }
 
     @State private var isInvitePresented = false
+    @State private var resolvedFamilyInviteCode: String?
+    @State private var isLoadingInvite = false
     @State private var isInviteUnavailableAlertPresented = false
     @State private var selectedMission: MissionFeedItem?
     @State private var selectedRecommendation: FamilyRecommendationResult?
@@ -364,7 +369,7 @@ struct FamilyHomeView: View {
             }
         }
         .fullScreenCover(isPresented: $isInvitePresented) {
-            if let code = familyInviteCode, !code.isEmpty {
+            if let code = resolvedFamilyInviteCode ?? familyInviteCode, !code.isEmpty {
                 FamilyCodeView(
                     familyName: familyName ?? "가족공간",
                     familyCode: code,
@@ -877,6 +882,22 @@ struct FamilyHomeView: View {
                 Button {
                     if let code = familyInviteCode, !code.isEmpty {
                         isInvitePresented = true
+                    } else if let familyId, !isLoadingInvite {
+                        isLoadingInvite = true
+                        Task {
+                            defer { isLoadingInvite = false }
+                            do {
+                                let code = try await onLoadFamilyInvite()
+                                guard !code.isEmpty else {
+                                    isInviteUnavailableAlertPresented = true
+                                    return
+                                }
+                                resolvedFamilyInviteCode = code
+                                isInvitePresented = true
+                            } catch {
+                                isInviteUnavailableAlertPresented = true
+                            }
+                        }
                     } else {
                         isInviteUnavailableAlertPresented = true
                     }
