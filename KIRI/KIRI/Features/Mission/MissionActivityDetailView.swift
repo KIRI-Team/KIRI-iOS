@@ -25,6 +25,10 @@ struct MissionActivityDetailView: View {
     let imageURL: URL?
     @Binding var isBookmarked: Bool
     let onBack: () -> Void
+    /// 둘러보기에서는 가족공간 연결 전까지 버킷 저장을 실행하지 않습니다.
+    let isBrowseMode: Bool
+    let onFamilyCreated: ((String, String, Int?) -> Void)?
+    let onFamilyJoined: ((String, String, Int?) -> Void)?
     /// 일부 진입점(홈의 가족 배정 미션)은 저장보다 일정 생성을 우선 CTA로
     /// 사용합니다. nil이면 기존 미션 탭의 버킷 저장 CTA를 유지합니다.
     let onSchedule: (() -> Void)?
@@ -47,6 +51,7 @@ struct MissionActivityDetailView: View {
     @State private var nearbyError: String?
     @State private var selectedNearby: NearbyMissionResult?
     @State private var nearbyIsBookmarked = false
+    @State private var isFamilyConnectionPresented = false
 
     fileprivate enum DetailSegment: String, CaseIterable, Hashable {
         case recommended = "추천 활동"
@@ -66,6 +71,9 @@ struct MissionActivityDetailView: View {
         previewDetail: MissionDetailResult? = nil,
         isBookmarked: Binding<Bool>,
         allowsRecommendationNavigation: Bool = true,
+        isBrowseMode: Bool = false,
+        onFamilyCreated: ((String, String, Int?) -> Void)? = nil,
+        onFamilyJoined: ((String, String, Int?) -> Void)? = nil,
         onSchedule: (() -> Void)? = nil,
         onBack: @escaping () -> Void
     ) {
@@ -83,6 +91,9 @@ struct MissionActivityDetailView: View {
         self.allowsRecommendationNavigation = allowsRecommendationNavigation
         self.onSchedule = onSchedule
         self.onBack = onBack
+        self.isBrowseMode = isBrowseMode
+        self.onFamilyCreated = onFamilyCreated
+        self.onFamilyJoined = onFamilyJoined
     }
 
     var body: some View {
@@ -138,6 +149,19 @@ struct MissionActivityDetailView: View {
                 isBookmarked: $nearbyIsBookmarked,
                 allowsRecommendationNavigation: false,
                 onBack: { selectedNearby = nil }
+            )
+        }
+        .fullScreenCover(isPresented: $isFamilyConnectionPresented) {
+            BrowseFamilyEntryFlow(
+                onDismiss: { isFamilyConnectionPresented = false },
+                onFamilyCreated: { name, code, familyId in
+                    isFamilyConnectionPresented = false
+                    onFamilyCreated?(name, code, familyId)
+                },
+                onFamilyJoined: { name, code, familyId in
+                    isFamilyConnectionPresented = false
+                    onFamilyJoined?(name, code, familyId)
+                }
             )
         }
     }
@@ -561,6 +585,10 @@ struct MissionActivityDetailView: View {
                 onSchedule()
                 return
             }
+            if isBrowseMode {
+                isFamilyConnectionPresented = true
+                return
+            }
             guard !isSavingBookmark else { return }
             if isBookmarked {
                 guard let missionId else { return }
@@ -629,7 +657,11 @@ struct MissionActivityDetailView: View {
                 }
             }
         } catch {
-            bookmarkError = "버킷 저장에 실패했어요. 다시 시도해 주세요."
+            if case APIError.serverError(let code, let message) = error, code == "BUCKET403_1" {
+                bookmarkError = message
+            } else {
+                bookmarkError = "버킷 저장에 실패했어요. 다시 시도해 주세요."
+            }
         }
     }
 

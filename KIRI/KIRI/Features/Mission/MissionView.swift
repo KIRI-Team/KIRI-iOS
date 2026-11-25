@@ -12,6 +12,9 @@
 import SwiftUI
 
 struct MissionView: View {
+    let userMode: AppRouter.UserMode
+    let onFamilyCreated: (String, String, Int?) -> Void
+    let onFamilyJoined: (String, String, Int?) -> Void
     private enum Category: String, CaseIterable, Hashable {
         case all = "전체", exhibition = "전시·문화", popup = "팝업·행사"
         case experience = "체험·놀거리", outdoor = "산책·야외", performance = "공연", food = "맛집·카페"
@@ -64,8 +67,19 @@ struct MissionView: View {
     @State private var bookmarkFeedback: String?
     @State private var filterFeedback: String?
     @State private var filterFeedbackIsError = false
+    @State private var isFamilyConnectionPresented = false
     // 필터·카테고리 변경으로 새 요청이 시작되면 이전 응답이 화면을 덮어쓰지 않도록 식별자를 갱신합니다.
     @State private var loadGeneration = UUID()
+
+    init(
+        userMode: AppRouter.UserMode = .family,
+        onFamilyCreated: @escaping (String, String, Int?) -> Void = { _, _, _ in },
+        onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in }
+    ) {
+        self.userMode = userMode
+        self.onFamilyCreated = onFamilyCreated
+        self.onFamilyJoined = onFamilyJoined
+    }
 
     private var hasFamilyAddressConfigured: Bool {
         guard let familyId = AppSessionStore().familyId else { return false }
@@ -172,6 +186,19 @@ struct MissionView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $isFamilyConnectionPresented) {
+            BrowseFamilyEntryFlow(
+                onDismiss: { isFamilyConnectionPresented = false },
+                onFamilyCreated: { name, code, familyId in
+                    isFamilyConnectionPresented = false
+                    onFamilyCreated(name, code, familyId)
+                },
+                onFamilyJoined: { name, code, familyId in
+                    isFamilyConnectionPresented = false
+                    onFamilyJoined(name, code, familyId)
+                }
+            )
+        }
         .fullScreenCover(item: $selectedMission) { row in
             MissionActivityDetailView(missionId: row.mission.missionId, title: row.mission.title, placeName: row.mission.placeName, district: MissionDisplayLabel.category(row.mission.category) ?? "", rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { value in
                 // 상세 화면이 서버 저장·해제를 완료한 뒤 목록의 표시 상태만 갱신합니다.
@@ -179,7 +206,13 @@ struct MissionView: View {
                 if let index = rows.firstIndex(where: { $0.id == row.id }) {
                     rows[index].isBookmarked = value
                 }
-            }), onBack: { selectedMission = nil })
+            }), isBrowseMode: userMode == .browse, onFamilyCreated: { name, code, familyId in
+                selectedMission = nil
+                onFamilyCreated(name, code, familyId)
+            }, onFamilyJoined: { name, code, familyId in
+                selectedMission = nil
+                onFamilyJoined(name, code, familyId)
+            }, onBack: { selectedMission = nil })
         }
     }
 
@@ -321,10 +354,14 @@ struct MissionView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 260)
         } else {
-            LazyVStack(spacing: 16) {
+                    LazyVStack(spacing: 16) {
                 ForEach(filteredRows) { row in
                     MissionPlaceCard(title: row.mission.title, placeName: row.mission.placeName, district: nil, rating: nil, tags: row.mission.displayTags, isRecommended: false, imageURL: row.mission.imageUrl, isBookmarked: Binding(get: { rows.first(where: { $0.id == row.id })?.isBookmarked ?? false }, set: { _ in }), onBookmarkTapped: {
                         guard savingMissionID == nil else { return }
+                        if userMode == .browse {
+                            isFamilyConnectionPresented = true
+                            return
+                        }
                         if row.isBookmarked {
                             Task { await save(row.id, value: false) }
                         } else {

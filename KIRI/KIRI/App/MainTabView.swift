@@ -178,7 +178,11 @@ struct MainTabView: View {
             )
 
         case .mission:
-            MissionView()
+            MissionView(
+                userMode: userMode,
+                onFamilyCreated: onFamilyCreated,
+                onFamilyJoined: onFamilyJoined
+            )
 
         case .record:
             RecordView(userMode: userMode, familyState: familyState, onRetryFamilyState: onRetryFamilyState, initialScheduleId: pendingScheduleId)
