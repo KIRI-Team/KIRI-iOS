@@ -1,0 +1,4 @@
+Simulator app container: /Users/namhyuk/Library/Developer/CoreSimulator/Devices/077B5997-15ED-4CB4-B25D-FA149ED2E3A9/data/Containers/Bundle/Application/686EE2A9-051C-46C1-BBA6-6B15EDF6CF56/KIRI.app
+CFBundleIdentifier=com.kiriteam.KIRI
+CFBundleShortVersionString=1.0.1
+MinimumOSVersion=17.0

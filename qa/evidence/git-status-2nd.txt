@@ -1,0 +1,39 @@
+ M KIRI/KIRI.xcodeproj/project.pbxproj
+ M KIRI/KIRI/Core/Components/KIRIChip.swift
+ M KIRI/KIRI/Core/Components/KIRICodeInput.swift
+ M KIRI/KIRI/Core/Components/KIRIContentImage.swift
+ M KIRI/KIRI/Core/Components/KIRIPrimaryButton.swift
+ M KIRI/KIRI/Core/Components/KIRISearchField.swift
+ M KIRI/KIRI/Core/Components/KIRITabBar.swift
+ M KIRI/KIRI/Core/Components/KIRITextField.swift
+ M KIRI/KIRI/Core/Components/KIRIToast.swift
+ M KIRI/KIRI/Core/Components/KIRITopTab.swift
+ M KIRI/KIRI/Core/Components/KIRIValidationGuidance.swift
+ M KIRI/KIRI/Core/DesignSystem/KIRITypography.swift
+ M KIRI/KIRI/Features/Home/BrowseHomeView.swift
+ M KIRI/KIRI/Features/Home/Components/PlaceCard.swift
+ M KIRI/KIRI/Features/Home/FamilyHomeView.swift
+ M KIRI/KIRI/Features/Home/HomeTutorialView.swift
+ M KIRI/KIRI/Features/Home/Notification/NotificationView.swift
+ M KIRI/KIRI/Features/Mission/MissionPlaceCard.swift
+ M KIRI/KIRI/Features/Mission/MissionView.swift
+ M KIRI/KIRI/Features/MyPage/FamilySettingsView.swift
+ M KIRI/KIRI/Features/MyPage/MyPageSupportViews.swift
+ M KIRI/KIRI/Features/MyPage/MyPageView.swift
+ M KIRI/KIRI/Features/MyPage/NicknameEditView.swift
+ M KIRI/KIRI/Features/Onboarding/FamilyCodeInputView.swift
+ M KIRI/KIRI/Features/Record/Components/FamilyReviewCard.swift
+ M KIRI/KIRI/Features/Record/Components/RecordBucketListView.swift
+ M KIRI/KIRI/Features/Record/Components/RecordCalendarView.swift
+ M KIRI/KIRI/Features/Record/Components/ScheduleParticipantTooltip.swift
+ M KIRI/KIRI/Features/Record/Invitation/InvitationSendMethodSheet.swift
+ M KIRI/KIRI/Features/Record/Invitation/InvitationView.swift
+ M KIRI/KIRI/Features/Record/Request/AddScheduleSheet.swift
+ M KIRI/KIRI/Features/Record/Request/InvitationRequestView.swift
+ M KIRI/KIRI/Features/Record/Request/ScheduleCreationSheet.swift
+ M KIRI/KIRI/Features/Record/Review/ReviewDetailView.swift
+ M KIRI/KIRI/Features/Record/Schedule/ConditionAdjustmentSheet.swift
+?? "Test Case/"
+?? login_kiri.png
+?? qa/
+?? tutorial.png

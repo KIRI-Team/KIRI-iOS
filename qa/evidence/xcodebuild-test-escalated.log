@@ -1,0 +1,137 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test -project KIRI/KIRI.xcodeproj -scheme KIRI -destination "platform=iOS Simulator,id=077B5997-15ED-4CB4-B25D-FA149ED2E3A9" -derivedDataPath /tmp/KIRI-QA-DD2 -skipPackagePluginValidation
+
+Resolve Package Graph
+
+Fetching from https://github.com/google/promises.git (cached)
+
+Fetching from https://github.com/google/GTMAppAuth.git (cached)
+
+Fetching from https://github.com/google/GoogleUtilities.git (cached)
+
+Fetching from https://github.com/google/grpc-binary.git (cached)
+
+Fetching from https://github.com/google/gtm-session-fetcher.git (cached)
+
+Fetching from https://github.com/googleads/google-ads-on-device-conversion-ios-sdk (cached)
+
+Fetching from https://github.com/google/app-check.git (cached)
+
+Fetching from https://github.com/google/GoogleDataTransport.git (cached)
+
+Fetching from https://github.com/firebase/nanopb.git (cached)
+
+Fetching from https://github.com/firebase/firebase-ios-sdk (cached)
+
+Fetching from https://github.com/google/abseil-cpp-binary.git (cached)
+
+Fetching from https://github.com/google/interop-ios-for-google-sdks.git (cached)
+
+Fetching from https://github.com/Alamofire/Alamofire.git (cached)
+
+Fetching from https://github.com/google/GoogleAppMeasurement.git (cached)
+
+Fetching from https://github.com/google/GoogleSignIn-iOS (cached)
+
+Fetching from https://github.com/kakao/kakao-ios-sdk (cached)
+
+Fetching from https://github.com/openid/AppAuth-iOS.git (cached)
+
+Fetching from https://github.com/firebase/leveldb.git (cached)
+
+Creating working copy of package ‘google-ads-on-device-conversion-ios-sdk’
+
+Creating working copy of package ‘grpc-binary’
+
+Creating working copy of package ‘promises’
+
+Creating working copy of package ‘GoogleUtilities’
+
+Creating working copy of package ‘GTMAppAuth’
+
+Creating working copy of package ‘gtm-session-fetcher’
+
+Checking out 3.7.0 of package ‘google-ads-on-device-conversion-ios-sdk’
+
+Checking out 1.69.1 of package ‘grpc-binary’
+
+Checking out 6.0.0 of package ‘GTMAppAuth’
+
+Checking out 2.4.1 of package ‘promises’
+
+Checking out 8.1.5 of package ‘GoogleUtilities’
+
+Checking out 5.3.1 of package ‘gtm-session-fetcher’
+
+Creating working copy of package ‘firebase-ios-sdk’
+
+Creating working copy of package ‘nanopb’
+
+Creating working copy of package ‘abseil-cpp-binary’
+
+Creating working copy of package ‘interop-ios-for-google-sdks’
+
+Checking out 2.30910.1 of package ‘nanopb’
+
+Creating working copy of package ‘app-check’
+
+Creating working copy of package ‘GoogleSignIn-iOS’
+
+Checking out 1.2024072200.0 of package ‘abseil-cpp-binary’
+
+Checking out 101.0.0 of package ‘interop-ios-for-google-sdks’
+
+Creating working copy of package ‘Alamofire’
+
+Creating working copy of package ‘GoogleAppMeasurement’
+
+Checking out 11.3.2 of package ‘app-check’
+
+Creating working copy of package ‘AppAuth-iOS’
+
+Checking out 10.0.0 of package ‘GoogleSignIn-iOS’
+
+Creating working copy of package ‘GoogleDataTransport’
+
+Checking out 12.19.2 of package ‘GoogleAppMeasurement’
+
+Checking out 5.12.2 of package ‘Alamofire’
+
+Checking out 3.0.0 of package ‘AppAuth-iOS’
+
+Creating working copy of package ‘kakao-ios-sdk’
+
+Creating working copy of package ‘leveldb’
+
+Checking out 12.19.3 of package ‘firebase-ios-sdk’
+
+Checking out 10.1.1 of package ‘GoogleDataTransport’
+
+Checking out 2.29.0 of package ‘kakao-ios-sdk’
+
+Checking out 1.22.5 of package ‘leveldb’
+
+
+Resolved source packages:
+  Alamofire: https://github.com/Alamofire/Alamofire.git @ 5.12.2
+  nanopb: https://github.com/firebase/nanopb.git @ 2.30910.1
+  GoogleDataTransport: https://github.com/google/GoogleDataTransport.git @ 10.1.1
+  GTMSessionFetcher: https://github.com/google/gtm-session-fetcher.git @ 5.3.1
+  AppAuth: https://github.com/openid/AppAuth-iOS.git @ 3.0.0
+  GoogleSignIn: https://github.com/google/GoogleSignIn-iOS @ 10.0.0
+  InteropForGoogle: https://github.com/google/interop-ios-for-google-sdks.git @ 101.0.0
+  GoogleAppMeasurement: https://github.com/google/GoogleAppMeasurement.git @ 12.19.2
+  AppCheck: https://github.com/google/app-check.git @ 11.3.2
+  Firebase: https://github.com/firebase/firebase-ios-sdk @ 12.19.3
+  GoogleUtilities: https://github.com/google/GoogleUtilities.git @ 8.1.5
+  GoogleAdsOnDeviceConversion: https://github.com/googleads/google-ads-on-device-conversion-ios-sdk @ 3.7.0
+  abseil: https://github.com/google/abseil-cpp-binary.git @ 1.2024072200.0
+  Promises: https://github.com/google/promises.git @ 2.4.1
+  KakaoOpenSDK: https://github.com/kakao/kakao-ios-sdk @ 2.29.0
+  gRPC: https://github.com/google/grpc-binary.git @ 1.69.1
+  leveldb: https://github.com/firebase/leveldb.git @ 1.22.5
+  GTMAppAuth: https://github.com/google/GTMAppAuth.git @ 6.0.0
+
+2026-11-25 10:24:21.101 xcodebuild[87344:24458143] Writing error result bundle to /var/folders/0h/ftvv24jd7l5gn5ldrt3cstwc0000gn/T/ResultBundle_2026-25-11_10-24-0021.xcresult
+xcodebuild: error: Scheme KIRI is not currently configured for the test action.
+

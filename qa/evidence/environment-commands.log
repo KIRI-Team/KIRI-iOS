@@ -1,0 +1,18 @@
+2차 iOS QA 환경 확인 (2026-11-25)
+
+$ xcode-select -p
+/Applications/Xcode.app/Contents/Developer
+
+$ xcodebuild -version
+Xcode 26.3 / Build version 17C529
+
+$ xcodebuild -list -project KIRI/KIRI.xcodeproj
+Target: KIRI; Configurations: Debug, Release; Scheme: KIRI; test action 미구성
+
+$ xcrun simctl list devices available
+iPhone 17 Pro (077B5997-15ED-4CB4-B25D-FA149ED2E3A9) Booted; iOS 26.3
+
+$ xcrun simctl list runtimes
+iOS 26.3 (23D8133)
+
+비고: 샌드박스 내 xcodebuild test/simctl은 CoreSimulatorService connection refused가 발생했으나, 권한 확장 후 Simulator 조회·빌드·설치·실행이 가능했다. 제품 코드나 시스템 상태는 변경하지 않았다.
