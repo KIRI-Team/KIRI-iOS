@@ -394,7 +394,8 @@ struct BrowseFamilyEntryFlow: View {
                     onBack: {
                         step = .familyName
                     },
-                    onComplete: { onFamilyCreated(familyName, familyCode, createdFamilyId) }
+                    onComplete: { onFamilyCreated(familyName, familyCode, createdFamilyId) },
+                    onShareFinished: { onFamilyCreated(familyName, familyCode, createdFamilyId) }
                 )
 
             case .familyCodeInput:

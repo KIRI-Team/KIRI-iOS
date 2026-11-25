@@ -16,6 +16,9 @@ struct FamilyCodeView: View {
 
     let onBack: () -> Void
     let onComplete: () -> Void
+    /// 공유 시트를 닫고 앱으로 돌아왔을 때 생성 완료 후속 흐름을 실행합니다.
+    /// 기존 초대 화면 호출부는 기본값(nil)으로 기존 동작을 유지합니다.
+    var onShareFinished: (() -> Void)? = nil
 
     @State private var didCopyCode = false
     @State private var isShareSheetPresented = false
@@ -70,7 +73,9 @@ struct FamilyCodeView: View {
             .frame(maxWidth: .infinity)
             .background(KIRIColor.Background.base)
         }
-        .sheet(isPresented: $isShareSheetPresented) {
+        .sheet(isPresented: $isShareSheetPresented, onDismiss: {
+            onShareFinished?()
+        }) {
             KIRIShareSheet(
                 items: [shareMessage]
             )

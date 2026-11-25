@@ -33,6 +33,7 @@ struct OnboardingFlowView: View {
     @State private var familyName: String = ""
 
     @State private var createdFamilyCode: String = ""
+    @State private var createdFamilyId: Int?
     @State private var enteredFamilyCode: String = ""
     @State private var joinedFamilyName: String = ""
     @State private var familyOperationError: String?
@@ -111,7 +112,10 @@ struct OnboardingFlowView: View {
                         step = .familyName
                     },
                     onComplete: {
-                        onEnterFamily(familyName, createdFamilyCode, nil)
+                        onEnterFamily(familyName, createdFamilyCode, createdFamilyId)
+                    },
+                    onShareFinished: {
+                        onEnterFamily(familyName, createdFamilyCode, createdFamilyId)
                     }
                 )
 
@@ -231,6 +235,7 @@ struct OnboardingFlowView: View {
             do {
                 let result = try await AuthService.shared.createFamily(name: familyName)
                 createdFamilyCode = result.inviteCode
+                createdFamilyId = result.familyId
                 AppSessionStore().saveFamily(
                     name: result.name,
                     inviteCode: result.inviteCode,
