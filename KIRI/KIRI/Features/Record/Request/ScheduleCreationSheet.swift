@@ -29,6 +29,9 @@ struct ScheduleCreationSheet: View {
     @State private var memberLoadError: String?
     @State private var isLoadingMembers = false
     @State private var missionDescription: String?
+    @State private var missionType: String?
+    @State private var missionStartDate: Date?
+    @State private var missionEndDate: Date?
     @State private var dateTimeValidationMessage: String?
     @State private var isMissionDetailPresented = false
 
@@ -48,6 +51,9 @@ struct ScheduleCreationSheet: View {
         let formatter = DateFormatter(); formatter.dateFormat = format; formatter.locale = Locale(identifier: locale); return formatter.string(from: date)
     }
     private var selectedMembers: [FamilyMemberInfoResult] { familyMembers.filter { selectedMemberIds.contains($0.memberId) } }
+    private var isPeriodMission: Bool {
+        missionType?.uppercased() == "TEMPORARY" || (missionStartDate != nil && missionEndDate != nil)
+    }
 
     init(bucket: BucketItemResult, onCreated: @escaping () -> Void) {
         self.bucket = bucket
@@ -325,7 +331,12 @@ struct ScheduleCreationSheet: View {
     }
 
     private func isDateSelectable(_ day: Date) -> Bool {
-        calendar.startOfDay(for: day) >= calendar.startOfDay(for: Date())
+        let day = calendar.startOfDay(for: day)
+        guard day >= calendar.startOfDay(for: Date()) else { return false }
+        guard isPeriodMission else { return true }
+        if let missionStartDate, day < calendar.startOfDay(for: missionStartDate) { return false }
+        if let missionEndDate, day > calendar.startOfDay(for: missionEndDate) { return false }
+        return true
     }
 
     private func isTimeSelectable(_ value: String) -> Bool {
@@ -345,6 +356,14 @@ struct ScheduleCreationSheet: View {
         }
         guard !isSelectedDateTimeInPast else {
             dateTimeValidationMessage = "지난 날짜나 시간은 선택할 수 없어요."
+            return false
+        }
+        if isPeriodMission,
+           let missionStartDate,
+           let missionEndDate,
+           (calendar.startOfDay(for: date) < calendar.startOfDay(for: missionStartDate)
+            || calendar.startOfDay(for: date) > calendar.startOfDay(for: missionEndDate)) {
+            dateTimeValidationMessage = "행사 운영기간 내에서 날짜를 선택해 주세요."
             return false
         }
         dateTimeValidationMessage = nil
@@ -570,6 +589,11 @@ struct ScheduleCreationSheet: View {
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if isPeriodMission, let missionStartDate, let missionEndDate {
+                Text("행사 운영기간: \(Self.format(missionStartDate, format: "yyyy.MM.dd", locale: "ko_KR")) ~ \(Self.format(missionEndDate, format: "yyyy.MM.dd", locale: "ko_KR"))")
+                    .font(KIRITypography.caption)
+                    .foregroundStyle(KIRIColor.Text.secondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -675,7 +699,23 @@ struct ScheduleCreationSheet: View {
                 throw APIError.decodingFailed
             }
             onCreated(); dismiss()
-        } catch { errorMessage = "일정 요청을 보내지 못했어요. 다시 시도해 주세요." }
+        } catch {
+            errorMessage = scheduleErrorMessage(for: error)
+        }
+    }
+
+    private func scheduleErrorMessage(for error: Error) -> String {
+        guard case APIError.serverError(let code, let message) = error else {
+            return "일정 요청을 보내지 못했어요. 다시 시도해 주세요."
+        }
+        switch code {
+        case "SCHEDULE400_2": return "이미 지난 시각이에요. 다른 시간을 선택해 주세요."
+        case "SCHEDULE400_3": return "행사 운영기간 내에서 날짜를 선택해 주세요."
+        case "SCHEDULE400_4": return "초대할 가족 구성원을 다시 확인해 주세요."
+        case "SCHEDULE409_1": return "현재 이 활동의 일정을 만들 수 없어요."
+        case "SCHEDULE409_9": return "종료되었거나 이용할 수 없는 미션이에요."
+        default: return message
+        }
     }
 
     private func loadFamilyMembers(force: Bool = false) async {
@@ -715,6 +755,9 @@ struct ScheduleCreationSheet: View {
         guard let detailMissionId else { return }
         do {
             let detail = try await AuthService.shared.missionDetail(missionId: detailMissionId)
+            missionType = detail.missionType
+            missionStartDate = Self.parseMissionDate(detail.startDate)
+            missionEndDate = Self.parseMissionDate(detail.endDate)
             let description = detail.description?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let description, !description.isEmpty {
                 missionDescription = description
@@ -728,6 +771,14 @@ struct ScheduleCreationSheet: View {
             // 상세 조회 실패 시에도 버킷 응답에 설명이 있으면 표시하고 입력은 유지합니다.
             missionDescription = bucket?.mission.description?.trimmingCharacters(in: .whitespacesAndNewlines)
         }
+    }
+
+    private static func parseMissionDate(_ value: String?) -> Date? {
+        guard let value, !value.isEmpty else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = value.count > 10 ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd"
+        return formatter.date(from: String(value.prefix(19)))
     }
 }
 

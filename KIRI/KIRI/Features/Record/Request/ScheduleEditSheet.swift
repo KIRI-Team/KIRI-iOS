@@ -6,6 +6,8 @@ struct ScheduleEditSheet: View {
     let scheduleId: Int
     let initialDate: String
     let initialTime: String
+    let missionStartDate: Date?
+    let missionEndDate: Date?
     let onUpdated: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -17,10 +19,22 @@ struct ScheduleEditSheet: View {
     @State private var isSubmitting = false
     @State private var errorMessage: String?
 
-    init(scheduleId: Int, initialDate: String, initialTime: String, onUpdated: @escaping () -> Void) {
+    private var earliestSelectableDate: Date {
+        let today = Calendar.current.startOfDay(for: Date())
+        guard let missionStartDate else { return today }
+        return max(today, Calendar.current.startOfDay(for: missionStartDate))
+    }
+
+    private var latestSelectableDate: Date {
+        missionEndDate.map { Calendar.current.startOfDay(for: $0) } ?? Date.distantFuture
+    }
+
+    init(scheduleId: Int, initialDate: String, initialTime: String, missionStartDate: Date? = nil, missionEndDate: Date? = nil, onUpdated: @escaping () -> Void) {
         self.scheduleId = scheduleId
         self.initialDate = initialDate
         self.initialTime = initialTime
+        self.missionStartDate = missionStartDate
+        self.missionEndDate = missionEndDate
         self.onUpdated = onUpdated
         let dateFormatter = DateFormatter(); dateFormatter.dateFormat = "yyyy-MM-dd"
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm"
@@ -32,8 +46,13 @@ struct ScheduleEditSheet: View {
         NavigationStack {
             Form {
                 Section("약속 시간") {
-                    DatePicker("날짜", selection: $date, in: Date()..., displayedComponents: .date)
+                    DatePicker("날짜", selection: $date, in: earliestSelectableDate...latestSelectableDate, displayedComponents: .date)
                     DatePicker("시간", selection: $time, displayedComponents: .hourAndMinute)
+                    if let missionStartDate, let missionEndDate {
+                        Text("행사 운영기간: \(dateString(missionStartDate)) ~ \(dateString(missionEndDate))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Section("초대할 가족") {
                     if isLoadingMembers { ProgressView("가족 구성원을 불러오는 중") }
@@ -87,6 +106,23 @@ struct ScheduleEditSheet: View {
             errorMessage = "초대할 가족 구성원을 한 명 이상 선택해 주세요."
             return
         }
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        let dateIsOutsidePeriod = date < earliestSelectableDate || date > latestSelectableDate
+        let dateTime = calendar.date(
+            bySettingHour: calendar.component(.hour, from: time),
+            minute: calendar.component(.minute, from: time),
+            second: 0,
+            of: date
+        ) ?? date
+        guard !dateIsOutsidePeriod else {
+            errorMessage = "행사 운영기간 내에서 날짜를 선택해 주세요."
+            return
+        }
+        guard dateTime >= Date(), date >= startOfToday else {
+            errorMessage = "이미 지난 시각이에요. 다른 시간을 선택해 주세요."
+            return
+        }
         isSubmitting = true; errorMessage = nil; defer { isSubmitting = false }
         let dateFormatter = DateFormatter(); dateFormatter.dateFormat = "yyyy-MM-dd"
         let timeFormatter = DateFormatter(); timeFormatter.dateFormat = "HH:mm"
@@ -101,6 +137,23 @@ struct ScheduleEditSheet: View {
                 )
             )
             onUpdated(); dismiss()
-        } catch { errorMessage = "일정을 수정하지 못했어요. 다시 시도해 주세요." }
+        } catch {
+            if case APIError.serverError(let code, let message) = error {
+                switch code {
+                case "SCHEDULE400_2": errorMessage = "이미 지난 시각이에요. 다른 시간을 선택해 주세요."
+                case "SCHEDULE400_3": errorMessage = "행사 운영기간 내에서 날짜를 선택해 주세요."
+                case "SCHEDULE400_4": errorMessage = "초대할 가족 구성원을 다시 확인해 주세요."
+                case "SCHEDULE409_1": errorMessage = "현재 이 활동의 일정을 만들 수 없어요."
+                case "SCHEDULE409_9": errorMessage = "종료되었거나 이용할 수 없는 미션이에요."
+                default: errorMessage = message
+                }
+            } else {
+                errorMessage = "일정을 수정하지 못했어요. 다시 시도해 주세요."
+            }
+        }
+    }
+
+    private func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter(); formatter.dateFormat = "yyyy.MM.dd"; return formatter.string(from: date)
     }
 }
