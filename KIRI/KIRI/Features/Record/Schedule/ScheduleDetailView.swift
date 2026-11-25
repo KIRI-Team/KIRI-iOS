@@ -270,6 +270,8 @@ struct ScheduleDetailView: View {
                     scheduleId: scheduleId,
                     initialDate: effectiveDate,
                     initialTime: effectiveStartTime,
+                    missionStartDate: parseMissionDate(missionDetail?.startDate),
+                    missionEndDate: parseMissionDate(missionDetail?.endDate),
                     onUpdated: {
                         Task {
                             await loadServerDetail()
@@ -361,6 +363,14 @@ struct ScheduleDetailView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+    }
+
+    private func parseMissionDate(_ value: String?) -> Date? {
+        guard let value, !value.isEmpty else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = value.count > 10 ? "yyyy-MM-dd'T'HH:mm:ss" : "yyyy-MM-dd"
+        return formatter.date(from: String(value.prefix(19)))
     }
 
     /// 모든 일정 상태가 같은 정보 구조를 사용하고, 서버 권한에 따라 액션만 바뀝니다.
