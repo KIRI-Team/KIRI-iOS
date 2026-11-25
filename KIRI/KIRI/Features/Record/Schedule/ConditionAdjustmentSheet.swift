@@ -120,8 +120,7 @@ struct ConditionAdjustmentSheet: View {
     private var navigationBar: some View {
         ZStack {
             Text("컨디션 커스텀")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
 
             HStack {
@@ -140,13 +139,11 @@ struct ConditionAdjustmentSheet: View {
     private var titleSection: some View {
         VStack(spacing: 5) {
             Text("컨디션 조정이 필요하신가요?")
-                .font(KIRITypography.body)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.bodyLarge)
                 .foregroundStyle(KIRIColor.Text.secondary)
 
             Text(activityTitle)
-                .font(KIRITypography.title)
-                .tracking(-0.56)
+                .kiriTextStyle(KIRITypography.displayLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -186,8 +183,7 @@ struct ConditionAdjustmentSheet: View {
                 Text(activityDuration)
             }
         }
-        .font(KIRITypography.body)
-        .tracking(-0.64)
+        .kiriTextStyle(KIRITypography.bodyLarge)
         .foregroundStyle(KIRIColor.Text.primary)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
@@ -216,8 +212,7 @@ struct ConditionAdjustmentSheet: View {
                     .frame(width: 44, height: 44)
 
                 Text(condition.title)
-                    .font(KIRITypography.bodyMedium)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(
                         isSelected
                             ? KIRIColor.Text.strong
@@ -288,8 +283,7 @@ struct ConditionAdjustmentSheet: View {
                         .foregroundStyle(KIRIColor.Text.secondary)
                 }
             }
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .frame(maxWidth: .infinity)
                 .frame(height: 58)

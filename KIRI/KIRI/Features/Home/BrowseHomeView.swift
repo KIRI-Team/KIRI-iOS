@@ -138,8 +138,7 @@ struct BrowseHomeView: View {
 
     private var navigationBar: some View {
         Text("끼리네 가족")
-            .font(KIRITypography.headingSmall)
-            .tracking(-0.72)
+            .kiriTextStyle(KIRITypography.titleLarge)
             .foregroundStyle(KIRIColor.Text.strong)
             .frame(maxWidth: .infinity)
             .frame(height: 62)
@@ -204,8 +203,7 @@ struct BrowseHomeView: View {
     private func recommendationSection(title: String, missions: [MissionFeedItem]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
 
             missionContent(for: missions)
@@ -213,8 +211,24 @@ struct BrowseHomeView: View {
         .onAppear {
             // 두 번째 세로 섹션에 접근할 때도 다음 커서를 미리 요청합니다.
             guard title == "오늘 가을분위기를 느끼고 싶다면" else { return }
-            Task { await loadMoreMissions() }
+            Task {
+                await prefetchOutdoorImages()
+                await loadMoreMissions()
+            }
         }
+    }
+
+    private func prefetchOutdoorImages() async {
+        let urls = outdoorMissions.prefix(3).compactMap(\.imageUrl)
+        guard !urls.isEmpty else { return }
+        let startedAt = Date()
+        #if DEBUG
+        print("[KIRI][BrowsePerf] autumn image prefetch started count=\(urls.count)")
+        #endif
+        await KIRIImagePrefetcher.prefetch(urls, maxPixelSize: 768)
+        #if DEBUG
+        print("[KIRI][BrowsePerf] autumn image prefetch complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+        #endif
     }
 
     @ViewBuilder

@@ -24,15 +24,13 @@ struct KIRISearchField: View {
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text(placeholder)
-                        .font(KIRITypography.bodyMedium)
-                        .tracking(-0.64)
+                        .kiriTextStyle(KIRITypography.titleMedium)
                         .foregroundStyle(KIRIColor.Input.helperDefault)
                         .allowsHitTesting(false)
                 }
 
                 TextField("", text: $text)
-                    .font(KIRITypography.bodyMedium)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(KIRIColor.Input.contentDefault)
                     .tint(KIRIColor.Primary.default)
                     .focused($isFocused)

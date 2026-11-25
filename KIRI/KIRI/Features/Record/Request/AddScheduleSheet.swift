@@ -79,8 +79,7 @@ struct AddScheduleSheet: View {
 
     private var titleSection: some View {
         Text("캘린더에 일정을 추가하시겠습니까?")
-            .font(KIRITypography.headingMedium)
-            .tracking(-0.8)
+            .kiriTextStyle(KIRITypography.headingMediumStyle)
             .foregroundStyle(
                 KIRIColor.Text.strong
             )
@@ -131,15 +130,13 @@ struct AddScheduleSheet: View {
                 spacing: 2
             ) {
                 Text("활동명")
-                    .font(KIRITypography.caption)
-                    .tracking(-0.48)
+                    .kiriTextStyle(KIRITypography.bodySmallStyle)
                     .foregroundStyle(
                         KIRIColor.Text.tertiary
                     )
 
                 Text(title)
-                    .font(KIRITypography.headingLarge)
-                    .tracking(-0.48)
+                    .kiriTextStyle(KIRITypography.headingLargeStyle)
                     .foregroundStyle(
                         KIRIColor.Text.strong
                     )
@@ -166,8 +163,7 @@ struct AddScheduleSheet: View {
                         )
 
                     Text(date)
-                        .font(KIRITypography.bodySmall)
-                        .tracking(-0.56)
+                        .kiriTextStyle(KIRITypography.bodyMediumStyle)
                         .foregroundStyle(
                             KIRIColor.Text.secondary
                         )
@@ -190,8 +186,7 @@ struct AddScheduleSheet: View {
                         )
 
                     Text(participants)
-                        .font(KIRITypography.bodySmall)
-                        .tracking(-0.56)
+                        .kiriTextStyle(KIRITypography.bodyMediumStyle)
                         .foregroundStyle(
                             KIRIColor.Text.secondary
                         )
@@ -218,8 +213,7 @@ struct AddScheduleSheet: View {
 
     private var notificationText: some View {
         Text("초대된 가족 구성원에게도 알림이 발송됩니다")
-            .font(KIRITypography.bodySmall)
-            .tracking(-0.56)
+            .kiriTextStyle(KIRITypography.bodyMediumStyle)
             .foregroundStyle(
                 KIRIColor.Text.secondary
             )
@@ -237,8 +231,7 @@ struct AddScheduleSheet: View {
                 onCancel()
             } label: {
                 Text("취소")
-                    .font(KIRITypography.button)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(
                         KIRIColor.Text.primary
                     )
@@ -261,8 +254,7 @@ struct AddScheduleSheet: View {
                 onConfirm()
             } label: {
                 Text("확인")
-                    .font(KIRITypography.button)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(
                         KIRIColor.Text.onGreen
                     )

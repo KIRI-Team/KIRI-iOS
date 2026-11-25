@@ -16,8 +16,13 @@ import UniformTypeIdentifiers
 private actor KIRIImagePipeline {
     static let shared = KIRIImagePipeline()
 
-    private var cache: [URL: Data] = [:]
-    private var inFlight: [URL: Task<Data?, Never>] = [:]
+    private struct CacheKey: Hashable {
+        let url: URL
+        let maxPixelSize: Int
+    }
+
+    private var cache: [CacheKey: Data] = [:]
+    private var inFlight: [CacheKey: Task<Data?, Never>] = [:]
 
     private var diskCacheDirectory: URL {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -28,31 +33,33 @@ private actor KIRIImagePipeline {
         return directory
     }
 
-    private func diskURL(for url: URL) -> URL {
+    private func diskURL(for url: URL, maxPixelSize: Int) -> URL {
         // URL-safe, deterministic key that survives relaunches without logging the URL.
         let encoded = Data(url.absoluteString.utf8)
             .base64EncodedString()
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "=", with: "")
+        let sizeSuffix = "_\(maxPixelSize)"
         let key = encoded.count > 200
             ? String(encoded.prefix(180)) + String(encoded.suffix(20))
             : encoded
-        return diskCacheDirectory.appendingPathComponent(key)
+        return diskCacheDirectory.appendingPathComponent(key + sizeSuffix)
     }
 
-    func data(for url: URL) async -> Data? {
+    func data(for url: URL, maxPixelSize: Int) async -> Data? {
+        let key = CacheKey(url: url, maxPixelSize: maxPixelSize)
         let startedAt = Date()
-        if let cached = cache[url] {
+        if let cached = cache[key] {
             #if DEBUG
             print("[KIRI][ImagePerf] cache hit elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
             #endif
             return cached
         }
-        if let task = inFlight[url] { return await task.value }
+        if let task = inFlight[key] { return await task.value }
 
-        if let persisted = try? Data(contentsOf: diskURL(for: url)) {
-            cache[url] = persisted
+        if let persisted = try? Data(contentsOf: diskURL(for: url, maxPixelSize: maxPixelSize)) {
+            cache[key] = persisted
             #if DEBUG
             print("[KIRI][ImagePerf] disk cache hit")
             #endif
@@ -67,19 +74,27 @@ private actor KIRIImagePipeline {
                 print("[KIRI][ImagePerf] network status=\(http.statusCode)")
             }
             #endif
-            return Self.downsample(raw, maxPixelSize: 1200)
+            return Self.downsample(raw, maxPixelSize: maxPixelSize)
         }
-        inFlight[url] = task
+        inFlight[key] = task
         let result = await task.value
-        inFlight[url] = nil
+        inFlight[key] = nil
         if let result {
-            cache[url] = result
-            try? result.write(to: diskURL(for: url), options: Data.WritingOptions.atomic)
+            cache[key] = result
+            try? result.write(to: diskURL(for: url, maxPixelSize: maxPixelSize), options: Data.WritingOptions.atomic)
         }
         #if DEBUG
         print("[KIRI][ImagePerf] fetch complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) success=\(result != nil)")
         #endif
         return result
+    }
+
+    func prefetch(urls: [URL], maxPixelSize: Int) async {
+        await withTaskGroup(of: Void.self) { group in
+            for url in urls {
+                group.addTask { _ = await self.data(for: url, maxPixelSize: maxPixelSize) }
+            }
+        }
     }
 
     private static func downsample(_ data: Data, maxPixelSize: Int) -> Data? {
@@ -101,20 +116,28 @@ private actor KIRIImagePipeline {
     }
 }
 
+enum KIRIImagePrefetcher {
+    static func prefetch(_ urls: [URL], maxPixelSize: Int = 1200) async {
+        await KIRIImagePipeline.shared.prefetch(urls: urls, maxPixelSize: maxPixelSize)
+    }
+}
+
 /// API 이미지가 있으면 우선 표시하고, 없거나 실패하면 콘텐츠별 목 에셋을 사용한다.
 struct KIRIContentImage<Placeholder: View>: View {
     let imageURL: URL?
     let mockAssetName: String?
     let contentMode: ContentMode
+    let maxPixelSize: Int
     let placeholder: () -> Placeholder
     @State private var imageData: Data?
 
     init(imageURL: URL? = nil, mockAssetName: String? = nil,
-         contentMode: ContentMode = .fill,
+         contentMode: ContentMode = .fill, maxPixelSize: Int = 1200,
          @ViewBuilder placeholder: @escaping () -> Placeholder) {
         self.imageURL = imageURL
         self.mockAssetName = mockAssetName
         self.contentMode = contentMode
+        self.maxPixelSize = maxPixelSize
         self.placeholder = placeholder
     }
 
@@ -128,11 +151,11 @@ struct KIRIContentImage<Placeholder: View>: View {
                 fallback
             }
         }
-        .task(id: imageURL) {
+        .task(id: "\(imageURL?.absoluteString ?? ""):\(maxPixelSize)") {
             imageData = nil
             guard let imageURL else { return }
             let startedAt = Date()
-            imageData = await KIRIImagePipeline.shared.data(for: imageURL)
+            imageData = await KIRIImagePipeline.shared.data(for: imageURL, maxPixelSize: maxPixelSize)
             #if DEBUG
             print("[KIRI][ImagePerf] image ready elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000)) success=\(imageData != nil)")
             #endif

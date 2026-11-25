@@ -61,8 +61,7 @@ struct FamilyReviewCard: View {
                 )
 
             Text(nickname)
-                .font(KIRITypography.body)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.bodyLarge)
                 .foregroundStyle(KIRIColor.Text.primary)
         }
     }
@@ -77,10 +76,8 @@ struct FamilyReviewCard: View {
             reviewImage
 
             Text(review)
-                .font(KIRITypography.body)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.bodyLarge)
                 .foregroundStyle(KIRIColor.Text.primary)
-                .lineSpacing(4)
                 .fixedSize(
                     horizontal: false,
                     vertical: true
@@ -137,8 +134,7 @@ struct FamilyReviewCard: View {
                 )
 
                 Text("\(likeCount)")
-                    .font(KIRITypography.body)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.bodyLarge)
                     .foregroundStyle(
                         KIRIColor.Text.secondary
                     )

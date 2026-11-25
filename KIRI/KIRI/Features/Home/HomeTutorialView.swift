@@ -193,8 +193,7 @@ struct HomeTutorialView: View {
         if let rect = frames[target] {
             ZStack {
                 Text(text)
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
+                    .kiriTextStyle(KIRITypography.titleLarge)
                     .multilineTextAlignment(target == .invite ? .trailing : .leading)
                     .foregroundStyle(KIRIColor.Text.primary)
                     .fixedSize(horizontal: false, vertical: true)

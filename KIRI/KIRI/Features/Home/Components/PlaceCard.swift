@@ -26,7 +26,7 @@ struct PlaceCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
                         Text(title)
-                            .font(KIRITypography.headingSmall)
+                            .kiriTextStyle(KIRITypography.titleLarge)
                             .foregroundStyle(KIRIColor.Text.strong)
                             .lineLimit(1)
 
@@ -40,7 +40,7 @@ struct PlaceCard: View {
                                     .frame(width: 12, height: 12)
 
                                 Text(rating.formatted(.number.precision(.fractionLength(1))))
-                                    .font(KIRITypography.captionMedium)
+                                    .kiriTextStyle(KIRITypography.labelSmallStrong)
                             }
                             .foregroundStyle(KIRIColor.Text.tertiary)
                             .padding(.horizontal, 6)
@@ -51,7 +51,7 @@ struct PlaceCard: View {
                     }
 
                     Text(location)
-                        .font(KIRITypography.bodySmall)
+                        .kiriTextStyle(KIRITypography.bodyMediumStyle)
                         .foregroundStyle(KIRIColor.Text.secondary)
                 }
 
@@ -63,8 +63,7 @@ struct PlaceCard: View {
                             .frame(width: 12, height: 12)
 
                         Text(description)
-                            .font(KIRITypography.caption)
-                            .lineSpacing(2)
+                            .kiriTextStyle(KIRITypography.bodySmallStyle)
                             .lineLimit(2)
                     }
                     .foregroundStyle(KIRIColor.Text.tertiary)
@@ -96,7 +95,7 @@ struct PlaceCard: View {
             KIRIColor.Background.tertiary
 
             if imageURL != nil {
-                KIRIContentImage(imageURL: imageURL, contentMode: .fill) {
+                KIRIContentImage(imageURL: imageURL, contentMode: .fill, maxPixelSize: 768) {
                     imageFallback
                 }
                 .frame(width: 251, height: 144)

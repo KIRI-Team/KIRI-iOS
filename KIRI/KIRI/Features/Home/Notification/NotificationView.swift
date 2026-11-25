@@ -98,7 +98,7 @@ struct NotificationView: View {
                 .disabled(unreadCount == 0 || isMarkingAllRead)
             }
             .padding(.horizontal, 18)
-        }.frame(height: 52)
+        }.frame(height: 62)
     }
 
     private var filterSection: some View {

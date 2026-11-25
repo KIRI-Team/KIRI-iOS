@@ -543,8 +543,7 @@ struct RecordCalendarView: View {
             Text(
                 "\(String(displayedYear))년 \(String(displayedMonth))월"
             )
-            .font(KIRITypography.headingSmall)
-            .tracking(-0.72)
+            .kiriTextStyle(KIRITypography.titleLarge)
             .foregroundStyle(KIRIColor.Text.strong)
 
             Spacer()
@@ -643,8 +642,7 @@ struct RecordCalendarView: View {
                 stateContent(state, day: day)
             } else {
                 Text(String(day))
-                    .font(KIRITypography.body)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.bodyLarge)
                     .foregroundStyle(KIRIColor.Text.primary)
             }
         }
@@ -810,8 +808,7 @@ struct RecordCalendarView: View {
     private var upcomingSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("다가오는 약속")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
 
             if upcomingSchedules.isEmpty {
@@ -844,14 +841,12 @@ struct RecordCalendarView: View {
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text(schedule.title)
-                            .font(KIRITypography.headingSmall)
-                            .tracking(-0.72)
+                            .kiriTextStyle(KIRITypography.titleLarge)
                             .foregroundStyle(KIRIColor.Text.strong)
                             .lineLimit(1)
 
                         Text("일시 | \(shortDate(schedule.date))")
-                            .font(KIRITypography.bodySmall)
-                            .tracking(-0.56)
+                            .kiriTextStyle(KIRITypography.bodyMediumStyle)
                             .foregroundStyle(KIRIColor.Text.secondary)
                     }
                 }
@@ -891,8 +886,7 @@ struct RecordCalendarView: View {
         }()
 
         Text(title)
-            .font(KIRITypography.bodySmallMedium)
-            .tracking(-0.56)
+            .kiriTextStyle(KIRITypography.labelMedium)
             .foregroundStyle(
                 confirmed || completed
                     ? KIRIColor.Primary.default

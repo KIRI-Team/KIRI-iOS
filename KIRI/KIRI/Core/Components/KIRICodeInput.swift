@@ -79,8 +79,7 @@ struct KIRICodeInput: View {
 
             if let character {
                 Text(String(character))
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
+                    .kiriTextStyle(KIRITypography.titleLarge)
                     .foregroundStyle(KIRIColor.Text.strong)
             } else {
                 Rectangle()

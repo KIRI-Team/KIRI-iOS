@@ -130,9 +130,7 @@ struct ReviewDetailView: View {
 
             Text("\(review.familyName) 기록")
 
-                .font(KIRITypography.headingSmall)
-
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
 
                 .foregroundStyle(
 
@@ -172,9 +170,7 @@ struct ReviewDetailView: View {
 
         Text("약속 완료")
 
-            .font(KIRITypography.bodySmall)
-
-            .tracking(-0.56)
+            .kiriTextStyle(KIRITypography.bodyMediumStyle)
 
             .foregroundStyle(
 
@@ -222,9 +218,7 @@ struct ReviewDetailView: View {
 
             Text(review.title)
 
-                .font(KIRITypography.title)
-
-                .tracking(-1.12)
+                .kiriTextStyle(KIRITypography.displayLarge)
 
                 .foregroundStyle(
 
@@ -244,9 +238,7 @@ struct ReviewDetailView: View {
 
                     Text("인원확인")
 
-                        .font(KIRITypography.body)
-
-                        .tracking(-0.64)
+                        .kiriTextStyle(KIRITypography.bodyLarge)
 
                         .foregroundStyle(
 
@@ -276,9 +268,7 @@ struct ReviewDetailView: View {
 
                 Text(review.date)
 
-                    .font(KIRITypography.body)
-
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.bodyLarge)
 
                     .foregroundStyle(
 
@@ -302,9 +292,7 @@ struct ReviewDetailView: View {
 
         Text("\(review.familyName) 님의 한 줄")
 
-            .font(KIRITypography.headingSmall)
-
-            .tracking(-0.72)
+            .kiriTextStyle(KIRITypography.titleLarge)
 
             .foregroundStyle(
 
@@ -348,9 +336,7 @@ struct ReviewDetailView: View {
 
                 Text((localDraft ?? review.draft)?.comment ?? review.review)
 
-                    .font(KIRITypography.body)
-
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.bodyLarge)
 
                     .foregroundStyle(
 
@@ -358,7 +344,6 @@ struct ReviewDetailView: View {
 
                     )
 
-                    .lineSpacing(9.6)
 
                     .fixedSize(
 
@@ -374,9 +359,7 @@ struct ReviewDetailView: View {
 
                 Text("\(review.writtenDate) 작성")
 
-                    .font(KIRITypography.bodySmall)
-
-                    .tracking(-0.56)
+                    .kiriTextStyle(KIRITypography.bodyMediumStyle)
 
                     .foregroundStyle(
 
@@ -490,9 +473,7 @@ struct ReviewDetailView: View {
 
             }
 
-            .font(KIRITypography.body)
-
-            .tracking(-0.64)
+            .kiriTextStyle(KIRITypography.bodyLarge)
 
             .foregroundStyle(
 
@@ -836,9 +817,7 @@ struct ReviewDetailView: View {
 
                 Text(title)
 
-                    .font(KIRITypography.bodySmall)
-
-                    .tracking(-0.56)
+                    .kiriTextStyle(KIRITypography.bodyMediumStyle)
 
 
 
@@ -872,9 +851,7 @@ struct ReviewDetailView: View {
 
         Text("연결된 가족만 볼 수 있는 기록이에요")
 
-            .font(KIRITypography.bodySmall)
-
-            .tracking(-0.56)
+            .kiriTextStyle(KIRITypography.bodyMediumStyle)
 
             .foregroundStyle(
 

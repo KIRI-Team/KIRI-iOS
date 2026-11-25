@@ -98,7 +98,7 @@ struct FamilySettingsView: View {
     private var header: some View {
         ZStack {
             Text("가족 기본 설정")
-                .font(.system(size: 18, weight: .semibold))
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.textPrimary)
 
             HStack {
@@ -109,7 +109,7 @@ struct FamilySettingsView: View {
                 Spacer()
             }
         }
-        .frame(height: 52)
+        .frame(height: 62)
     }
 
     // MARK: - Family Name

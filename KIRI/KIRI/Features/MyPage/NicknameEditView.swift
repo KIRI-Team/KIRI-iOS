@@ -159,15 +159,13 @@ struct NicknameEditView: View {
     private var nicknameInput: some View {
         HStack(spacing: 4) {
             Text("지금닉네임:")
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .fontWeight(.bold)
                 .foregroundStyle(KIRIColor.Input.placeholderDefault)
                 .fixedSize()
 
             TextField("", text: $editedNickname)
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .fontWeight(.bold)
                 .foregroundStyle(KIRIColor.Input.placeholderDefault)
                 .tint(KIRIColor.Primary.default)

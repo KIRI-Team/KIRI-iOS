@@ -304,9 +304,7 @@ struct RecordBucketListView: View {
 
             Text("초대를 발송했습니다!")
 
-                .font(KIRITypography.headingSmall)
-
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
 
                 .foregroundStyle(KIRIColor.Text.strong)
 
@@ -448,8 +446,7 @@ struct RecordBucketListView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .top, spacing: 8) {
                         Text(item.mission.title)
-                            .font(KIRITypography.headingSmall)
-                            .tracking(-0.72)
+                            .kiriTextStyle(KIRITypography.titleLarge)
                             .foregroundStyle(KIRIColor.Text.strong)
                             .multilineTextAlignment(.leading)
                             .lineLimit(2)
@@ -529,9 +526,7 @@ struct RecordBucketListView: View {
 
         Text(title)
 
-            .font(KIRITypography.bodySmallMedium)
-
-            .tracking(-0.56)
+            .kiriTextStyle(KIRITypography.labelMedium)
 
             .foregroundStyle(
 
@@ -617,7 +612,7 @@ private struct BucketItemActionSheet: View {
                     itemImage(group.representative.mission.imageUrl)
                     VStack(alignment: .leading, spacing: 7) {
                         Text(group.representative.mission.title)
-                            .font(KIRITypography.headingMedium)
+                            .kiriTextStyle(KIRITypography.headingMediumStyle)
                             .foregroundStyle(KIRIColor.Text.strong)
                             .lineLimit(3)
                         if group.items.count == 1 {

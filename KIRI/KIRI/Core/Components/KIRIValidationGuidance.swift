@@ -43,8 +43,7 @@ struct KIRIValidationGuidance: View {
         ) {
             ForEach(items, id: \.self) { item in
                 Text("✓ \(item)")
-                    .font(KIRITypography.captionMedium)
-                    .tracking(-0.48)
+                    .kiriTextStyle(KIRITypography.labelSmall)
                     .foregroundStyle(textColor)
                     .frame(
                         minHeight: 17,

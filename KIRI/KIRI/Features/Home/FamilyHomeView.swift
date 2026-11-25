@@ -831,8 +831,7 @@ struct FamilyHomeView: View {
     private var homeNavigationBar: some View {
         ZStack {
                 Text(familyName ?? "가족공간")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
 
             HStack {
@@ -880,8 +879,7 @@ struct FamilyHomeView: View {
         ) {
             HStack {
                 Text("답변 모아보기")
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
+                    .kiriTextStyle(KIRITypography.titleLarge)
                     .foregroundStyle(KIRIColor.Text.strong)
                     .homeTutorialMeasured(.answerCollection)
 
@@ -904,8 +902,7 @@ struct FamilyHomeView: View {
                             )
 
                         Text("가족 초대하기")
-                            .font(KIRITypography.caption)
-                            .tracking(-0.48)
+                            .kiriTextStyle(KIRITypography.bodySmallStyle)
                     }
                     .foregroundStyle(KIRIColor.Text.secondary)
                     .padding(.horizontal, 12)
@@ -1050,15 +1047,13 @@ struct FamilyHomeView: View {
         ) {
             HStack {
                 Text(showsMissionFace ? "이번주 미션이에요!" : "오늘 나의 질문카드")
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
+                    .kiriTextStyle(KIRITypography.titleLarge)
                     .foregroundStyle(KIRIColor.Text.strong)
 
                 Spacer()
 
                 Text("다른 가족들의 답변을 기다려요!")
-                    .font(KIRITypography.caption)
-                    .tracking(-0.48)
+                    .kiriTextStyle(KIRITypography.bodySmallStyle)
                     .foregroundStyle(KIRIColor.Text.secondary)
             }
 
@@ -1120,8 +1115,7 @@ struct FamilyHomeView: View {
             spacing: 16
         ) {
             Text("엄마와 함께라면 여기!")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
                 .homeTutorialMeasured(.recommendationTitle)
@@ -1221,8 +1215,7 @@ struct FamilyHomeView: View {
             spacing: 16
         ) {
             Text("오늘 가을분위기를 느끼고 싶다면")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .padding(.horizontal, 18)
 
@@ -1249,8 +1242,24 @@ struct FamilyHomeView: View {
         .onAppear {
             // 세로 스크롤로 두 번째 추천 섹션에 접근한 경우에도 다음 페이지를
             // 미리 받아 카드 끝에서 빈 구간이 생기지 않게 합니다.
-            Task { await loadMoreRecommendations() }
+            Task {
+                await prefetchOutdoorImages()
+                await loadMoreRecommendations()
+            }
         }
+    }
+
+    private func prefetchOutdoorImages() async {
+        let urls = outdoorMissions.prefix(3).compactMap(\.imageUrl)
+        guard !urls.isEmpty else { return }
+        let startedAt = Date()
+        #if DEBUG
+        print("[KIRI][HomePerf] autumn image prefetch started count=\(urls.count)")
+        #endif
+        await KIRIImagePrefetcher.prefetch(urls, maxPixelSize: 768)
+        #if DEBUG
+        print("[KIRI][HomePerf] autumn image prefetch complete elapsedMs=\(Int(Date().timeIntervalSince(startedAt) * 1000))")
+        #endif
     }
 
     @ViewBuilder

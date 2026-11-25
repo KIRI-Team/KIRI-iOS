@@ -75,8 +75,7 @@ struct FamilyCodeInputView: View {
                 .padding(.top, 50)
 
                 Text("영문과 숫자로 구성된 6자리 코드를 입력해주세요.")
-                    .font(KIRITypography.captionMedium)
-                    .tracking(-0.48)
+                    .kiriTextStyle(KIRITypography.labelSmall)
                     .foregroundStyle(validationColor)
                     .padding(.top, 10)
 

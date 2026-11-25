@@ -81,8 +81,7 @@ struct InvitationSendMethodSheet: View {
     private var header: some View {
         HStack(alignment: .center) {
             Text("초대장 발송 방법을 선택해주세요")
-                .font(KIRITypography.headingMedium)
-                .tracking(-0.8)
+                .kiriTextStyle(KIRITypography.headingMediumStyle)
                 .foregroundStyle(KIRIColor.Text.strong)
 
             Spacer()
@@ -148,15 +147,13 @@ struct InvitationSendMethodSheet: View {
                     spacing: 4
                 ) {
                     Text(title)
-                        .font(KIRITypography.headingSmall)
-                        .tracking(-0.72)
+                        .kiriTextStyle(KIRITypography.titleLarge)
                         .foregroundStyle(
                             KIRIColor.Text.strong
                         )
 
                     Text(description)
-                        .font(KIRITypography.caption)
-                        .tracking(-0.48)
+                        .kiriTextStyle(KIRITypography.bodySmallStyle)
                         .foregroundStyle(
                             KIRIColor.Text.tertiary
                         )

@@ -755,7 +755,7 @@ struct PushNotificationView: View {
                 }
 
                 Text(alarmTimeText(hour: draftHour, minute: draftMinute))
-                    .font(KIRITypography.headingMedium)
+                    .kiriTextStyle(KIRITypography.headingMediumStyle)
                     .foregroundStyle(KIRIColor.Text.accent)
                     .padding(.top, 20)
 
@@ -889,7 +889,7 @@ struct AddressSettingsView: View {
                 if familyId == nil {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("가족공간에 참여하면 우리집 주소를 설정할 수 있어요")
-                            .font(KIRITypography.headingMedium)
+                            .kiriTextStyle(KIRITypography.headingMediumStyle)
                             .foregroundStyle(KIRIColor.Text.strong)
                         Text("가족공간을 만들거나 초대 링크로 참여한 뒤 다시 시도해주세요.")
                             .font(KIRITypography.bodySmall)
@@ -950,7 +950,7 @@ struct AddressSettingsView: View {
     private func savedContent(_ value: FamilyAddressUpdateResult) -> some View {
         VStack(alignment: .leading, spacing: 24) {
             Text("우리 집 주소가 등록되었어요")
-                .font(KIRITypography.headingMedium)
+                .kiriTextStyle(KIRITypography.headingMediumStyle)
                 .foregroundStyle(KIRIColor.Text.strong)
             VStack(alignment: .leading, spacing: 8) {
                 Text("등록된 주소").font(KIRITypography.caption).foregroundStyle(KIRIColor.Text.tertiary)
@@ -986,7 +986,7 @@ struct AddressSettingsView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
                 Text(isEditing ? "우리 집 주소를 수정해주세요" : "우리 집 주소 작성하기")
-                    .font(KIRITypography.headingMedium)
+                    .kiriTextStyle(KIRITypography.headingMediumStyle)
                     .foregroundStyle(KIRIColor.Text.strong)
                 Text("우편번호 찾기에서 기본 주소를 선택한 뒤 상세 주소를 입력해주세요.")
                     .font(KIRITypography.bodySmall)
