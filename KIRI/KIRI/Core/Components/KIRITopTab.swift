@@ -37,8 +37,7 @@ struct KIRITopTab<Item: Hashable>: View {
         } label: {
             VStack(spacing: 8) {
                 Text(title(item))
-                    .font(KIRITypography.headingSmall)
-                    .tracking(-0.72)
+                    .kiriTextStyle(KIRITypography.titleLarge)
                     .foregroundStyle(
                         isSelected
                             ? KIRIColor.Tab.contentActive

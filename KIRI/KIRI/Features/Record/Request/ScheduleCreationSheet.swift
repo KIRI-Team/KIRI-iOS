@@ -149,7 +149,7 @@ struct ScheduleCreationSheet: View {
             appBar(title: "일정 선택", onBack: { step = .form })
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Text("날짜와 시간을 선택해 주세요").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong)
+                    Text("날짜와 시간을 선택해 주세요").kiriTextStyle(KIRITypography.headingMediumStyle).foregroundStyle(KIRIColor.Text.strong)
                     DatePicker("날짜", selection: $date, in: Date()..., displayedComponents: .date).datePickerStyle(.graphical).tint(KIRIColor.Primary.default)
                     DatePicker("시간", selection: $time, displayedComponents: .hourAndMinute).datePickerStyle(.wheel).frame(height: 150)
                 }.padding(18)
@@ -161,7 +161,7 @@ struct ScheduleCreationSheet: View {
     private var dateTimePickerSheet: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("날짜선택")
-                .font(KIRITypography.headingMedium)
+                .kiriTextStyle(KIRITypography.headingMediumStyle)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 18)
@@ -390,7 +390,7 @@ struct ScheduleCreationSheet: View {
             appBar(title: "가족 구성원 선택", onBack: { isMemberPickerPresented = false })
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("함께하고 싶은 가족을 선택해 주세요").font(KIRITypography.headingMedium).foregroundStyle(KIRIColor.Text.strong).padding(.bottom, 8)
+                    Text("함께하고 싶은 가족을 선택해 주세요").kiriTextStyle(KIRITypography.headingMediumStyle).foregroundStyle(KIRIColor.Text.strong).padding(.bottom, 8)
                     if !membersLoaded {
                         ProgressView("가족 구성원을 불러오는 중")
                             .frame(maxWidth: .infinity, minHeight: 120)

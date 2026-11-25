@@ -20,8 +20,7 @@ struct KIRIChip: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(KIRITypography.bodySmallMedium)
-                .tracking(-0.56)
+                .kiriTextStyle(KIRITypography.labelMedium)
                 .foregroundStyle(
                     isSelected
                         ? KIRIColor.Chip.contentSelected

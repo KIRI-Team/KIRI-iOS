@@ -22,7 +22,7 @@ struct KIRIToast: View {
                     .frame(width: 24, height: 24)
             }
             Text(message)
-                .font(KIRITypography.headingSmall)
+                .kiriTextStyle(KIRITypography.toastMessage)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)

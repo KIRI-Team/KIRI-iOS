@@ -53,11 +53,6 @@ struct FamilyNameEditView: View {
                             .font(KIRITypography.title)
                             .foregroundStyle(KIRIColor.textPrimary)
 
-                        Text("가족명은 월 1회 수정 가능합니다")
-                            .font(KIRITypography.subtitle)
-                            .foregroundStyle(KIRIColor.textSecondary)
-                            .padding(.top, 12)
-
                         KIRITextField(
                             placeholder: "이름을 입력하세요.",
                             text: $editedFamilyName,

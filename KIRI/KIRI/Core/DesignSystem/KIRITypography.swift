@@ -9,6 +9,31 @@
 //
 
 import SwiftUI
+import UIKit
+
+struct KIRITextStyle {
+    enum Weight: String {
+        case regular = "Regular"
+        case medium = "Medium"
+        case semiBold = "SemiBold"
+    }
+
+    let font: Font
+    let fontName: String
+    let weight: Weight
+    let fontSize: CGFloat
+    let letterSpacing: CGFloat
+    let lineHeight: CGFloat
+    let usesExplicitLineHeight: Bool
+
+    var lineSpacing: CGFloat {
+        guard usesExplicitLineHeight else { return 0 }
+        // SwiftUI's lineSpacing is added to the font's own leading. Use the
+        // actual Pretendard UIFont metric instead of subtracting fontSize.
+        let metricsLineHeight = UIFont(name: fontName, size: fontSize)?.lineHeight ?? fontSize
+        return max(0, lineHeight - metricsLineHeight)
+    }
+}
 
 enum KIRITypography {
 
@@ -38,7 +63,7 @@ enum KIRITypography {
         size: 24
     )
 
-    /// 20 / 30 / Medium / -4%
+    /// Figma Heading/Medium: 20 / 28 / Medium / -4%
     static let headingMedium = pretendard(
         name: mediumName,
         size: 20
@@ -109,6 +134,30 @@ enum KIRITypography {
         size: 10
     )
 
+    // MARK: - Figma Text Styles
+
+    // Tracking is stored in points after converting Figma's percentage value:
+    // fontSize × percent / 100. The line height is applied by kiriTextStyle().
+    static let displayLarge = style(size: 28, lineHeight: 40, weight: .medium, trackingPercent: -2)
+    static let displayMedium = style(size: 24, lineHeight: 36, weight: .regular, trackingPercent: -2)
+    static let headingLargeStyle = style(size: 24, lineHeight: 32, weight: .semiBold, trackingPercent: -2)
+    static let headingMediumStyle = style(size: 20, lineHeight: 28, weight: .medium, trackingPercent: -4)
+    static let titleLarge = style(size: 18, lineHeight: 27, weight: .medium, trackingPercent: -4)
+    static let titleMedium = style(size: 16, lineHeight: 24, weight: .medium, trackingPercent: -4)
+    static let bodyLarge3 = style(size: 20, lineHeight: 30, weight: .medium, trackingPercent: -4)
+    static let bodyLarge2 = style(size: 18, lineHeight: 27, weight: .medium, trackingPercent: -4)
+    static let bodyLarge = style(size: 16, lineHeight: 26, weight: .regular, trackingPercent: -4)
+    static let bodyMediumStyle = style(size: 14, lineHeight: 21, weight: .regular, trackingPercent: -4)
+    static let bodySmallStyle = style(size: 12, lineHeight: 18, weight: .regular, trackingPercent: -4)
+    static let labelLarge = style(size: 16, lineHeight: 23, weight: .medium, trackingPercent: -4)
+    static let labelMedium = style(size: 14, lineHeight: 20, weight: .medium, trackingPercent: -4)
+    static let labelSmall = style(size: 12, lineHeight: 17, weight: .medium, trackingPercent: -4)
+    static let labelSmallStrong = style(size: 12, lineHeight: 17, weight: .semiBold, trackingPercent: -4)
+    static let captionStyle = style(size: 11, lineHeight: 16, weight: .regular, trackingPercent: -2)
+    static let micro = style(size: 10, lineHeight: 14, weight: .medium, trackingPercent: -4)
+    static let toastMessage = style(size: 18, lineHeight: 22, weight: .medium, trackingPercent: -4, usesExplicitLineHeight: false)
+    static let toastAction = style(size: 14, lineHeight: 17, weight: .regular, trackingPercent: -4)
+
     // MARK: - Role
 
     /// 가족 역할 한글
@@ -137,5 +186,47 @@ enum KIRITypography {
             name,
             fixedSize: size
         )
+    }
+
+    private static func style(
+        size: CGFloat,
+        lineHeight: CGFloat,
+        weight: KIRITextStyle.Weight,
+        trackingPercent: CGFloat,
+        usesExplicitLineHeight: Bool = true
+    ) -> KIRITextStyle {
+        let fontName: String
+        switch weight {
+        case .regular: fontName = regularName
+        case .medium: fontName = mediumName
+        case .semiBold: fontName = semiBoldName
+        }
+
+        return KIRITextStyle(
+            font: pretendard(name: fontName, size: size),
+            fontName: fontName,
+            weight: weight,
+            fontSize: size,
+            letterSpacing: size * trackingPercent / 100,
+            lineHeight: lineHeight,
+            usesExplicitLineHeight: usesExplicitLineHeight
+        )
+    }
+}
+
+extension View {
+    /// Applies the complete Figma text style in one place. Callers should not
+    /// add another tracking or lineSpacing modifier after this method.
+    @ViewBuilder
+    func kiriTextStyle(_ style: KIRITextStyle) -> some View {
+        if style.usesExplicitLineHeight {
+            font(style.font)
+                .tracking(style.letterSpacing)
+                .lineSpacing(style.lineSpacing)
+        } else {
+            // Figma Auto line-height: preserve the font's native metrics.
+            font(style.font)
+                .tracking(style.letterSpacing)
+        }
     }
 }

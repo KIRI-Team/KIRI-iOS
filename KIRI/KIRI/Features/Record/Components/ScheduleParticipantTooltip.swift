@@ -88,8 +88,7 @@ struct ScheduleParticipantTooltip: View {
             }
 
             Text(participant.role)
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .foregroundStyle(
                     participant.isJoining
                         ? KIRIColor.Text.primary

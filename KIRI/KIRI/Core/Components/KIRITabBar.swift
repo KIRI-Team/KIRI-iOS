@@ -96,13 +96,8 @@ struct KIRITabBar: View {
                 Text(
                     title(for: tab)
                 )
-                .font(KIRITypography.navigation)
-                .tracking(
-                    isSelected
-                        ? -0.1
-                        : 0
-                )
-                .frame(height: 12)
+                .kiriTextStyle(KIRITypography.micro)
+                .frame(height: 14)
             }
             .foregroundStyle(
                 isSelected

@@ -89,13 +89,7 @@ struct MissionView: View {
                         .font(KIRITypography.headingSmall)
                         .foregroundStyle(KIRIColor.Text.strong)
                     HStack {
-                        Button { } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 20, weight: .regular))
-                                .foregroundStyle(KIRIColor.Text.strong)
-                                .frame(width: 44, height: 44)
-                        }
-                        .buttonStyle(.plain)
+                        KIRIBackButton(action: {})
                         Spacer()
                     }
                     .padding(.horizontal, 8)
@@ -589,11 +583,15 @@ private struct MissionFilterView: View {
 
     private var filterHeader: some View {
         HStack {
-            Button { dismiss() } label: { Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }
+            KIRIBackButton(action: { dismiss() })
             Spacer()
             Text("미션").font(KIRITypography.headingSmall)
             Spacer()
-            Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }
+            Button { dismiss() } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 18, weight: .medium))
+                    .frame(width: 52, height: 52)
+            }
         }
         .foregroundStyle(KIRIColor.Text.strong)
         .padding(.horizontal, 8)
@@ -770,7 +768,7 @@ private struct MissionFilterScheduleSelectionView: View {
         ZStack {
             KIRIColor.Background.base.ignoresSafeArea()
             VStack(spacing: 0) {
-                HStack { Button { dismiss() } label: { Image(systemName: "chevron.left").font(.system(size: 18, weight: .medium)).frame(width: 44, height: 44) }; Spacer(); Text("날짜 선택").font(KIRITypography.headingSmall); Spacer(); Color.clear.frame(width: 44, height: 44) }
+                HStack { KIRIBackButton(action: { dismiss() }); Spacer(); Text("날짜 선택").kiriTextStyle(KIRITypography.titleLarge); Spacer(); Color.clear.frame(width: 52, height: 52) }
                     .foregroundStyle(KIRIColor.Text.strong).padding(.horizontal, 8).frame(height: 62)
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {

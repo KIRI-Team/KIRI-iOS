@@ -189,15 +189,13 @@ struct KIRITextField: View {
             ZStack(alignment: .leading) {
                 if text.isEmpty {
                     Text(placeholder)
-                        .font(KIRITypography.bodyMedium)
-                        .tracking(-0.64)
+                        .kiriTextStyle(KIRITypography.titleMedium)
                         .foregroundStyle(placeholderColor)
                         .allowsHitTesting(false)
                 }
 
                 TextField("", text: $text)
-                    .font(KIRITypography.bodyMedium)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(contentColor)
                     .tint(KIRIColor.Primary.default)
                     .focused($isFocused)
@@ -218,7 +216,9 @@ struct KIRITextField: View {
             }
         }
         .padding(.horizontal, 24)
-        .frame(height: 54)
+        // Figma KIRI/Input: 354×56pt. Keep the shared field height aligned
+        // across onboarding, settings, search, and form screens.
+        .frame(height: 56)
         .background(backgroundColor)
         .clipShape(
             RoundedRectangle(
@@ -242,8 +242,7 @@ struct KIRITextField: View {
         _ text: String
     ) -> some View {
         Text(text)
-            .font(KIRITypography.captionMedium)
-            .tracking(-0.48)
+            .kiriTextStyle(KIRITypography.labelSmallStrong)
             .foregroundStyle(helperColor)
             .padding(.horizontal, 4)
     }

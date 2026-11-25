@@ -31,8 +31,7 @@ struct KIRIPrimaryButton: View {
                 }
 
                 Text(title)
-                    .font(KIRITypography.button)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .frame(
                         maxWidth: .infinity,
                         alignment: .center

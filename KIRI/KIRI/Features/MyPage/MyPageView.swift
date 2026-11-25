@@ -121,7 +121,7 @@ struct MyPageView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 Text("가족공간이 필요해요")
-                    .font(KIRITypography.headingMedium)
+                    .kiriTextStyle(KIRITypography.headingMediumStyle)
                     .foregroundStyle(KIRIColor.Text.strong)
 
                 Text("가족공간을 만들거나 초대받은 가족공간에 참여하면 가족 설정을 이용할 수 있어요.")

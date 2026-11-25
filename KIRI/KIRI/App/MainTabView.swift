@@ -33,6 +33,7 @@ struct MainTabView: View {
     let onLogout: () -> Void
     let onDeleteAccount: () async -> String?
     let onUpdateFamilyName: (String) async -> String?
+    let onLoadFamilyInvite: () async throws -> String
 
     @State private var selectedTab: AppTab = .home
     @State private var homeTutorialStore: HomeTutorialStore
@@ -56,6 +57,9 @@ struct MainTabView: View {
         onLogout: @escaping () -> Void
         , onDeleteAccount: @escaping () async -> String? = { nil },
         onUpdateFamilyName: @escaping (String) async -> String? = { _ in nil }
+        , onLoadFamilyInvite: @escaping () async throws -> String = {
+            throw AuthServiceError.missingStoredSession
+        }
     ) {
         self.userMode = userMode
         self.familyName = familyName
@@ -71,6 +75,7 @@ struct MainTabView: View {
         self.onLogout = onLogout
         self.onDeleteAccount = onDeleteAccount
         self.onUpdateFamilyName = onUpdateFamilyName
+        self.onLoadFamilyInvite = onLoadFamilyInvite
         _homeTutorialStore = State(
             initialValue: HomeTutorialStore(
                 mode: {
@@ -168,7 +173,8 @@ struct MainTabView: View {
                         pendingScheduleId = scheduleId
                         selectedTab = .record
                     }
-                }
+                },
+                onLoadFamilyInvite: onLoadFamilyInvite
             )
 
         case .mission:

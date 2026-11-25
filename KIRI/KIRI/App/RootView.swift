@@ -85,6 +85,9 @@ struct RootView: View {
                         },
                         onUpdateFamilyName: { value in
                             await router.updateFamilyName(value)
+                        },
+                        onLoadFamilyInvite: {
+                            try await router.loadFamilyInviteCode()
                         }
                     )
                 }

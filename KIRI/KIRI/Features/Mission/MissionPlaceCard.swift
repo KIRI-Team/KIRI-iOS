@@ -143,8 +143,7 @@ struct MissionPlaceCard: View {
                     )
                 )
             )
-            .font(KIRITypography.navigation)
-            .tracking(-0.4)
+            .kiriTextStyle(KIRITypography.micro)
             .foregroundStyle(KIRIColor.Text.tertiary)
             .frame(height: 14)
         }

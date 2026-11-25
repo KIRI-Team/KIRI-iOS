@@ -67,6 +67,7 @@ struct HomeView: View {
     let onFamilyJoined: (String, String, Int?) -> Void
     let onExploreMission: () -> Void
     let onSelectNotification: (NotificationDestination) -> Void
+    let onLoadFamilyInvite: () async throws -> String
 
     @State private var didApplyDebugReset = false
     @State private var tutorialFrames: [HomeTutorialTarget: CGRect] = [:]
@@ -85,6 +86,9 @@ struct HomeView: View {
         onFamilyJoined: @escaping (String, String, Int?) -> Void = { _, _, _ in },
         onExploreMission: @escaping () -> Void,
         onSelectNotification: @escaping (NotificationDestination) -> Void = { _ in }
+        , onLoadFamilyInvite: @escaping () async throws -> String = {
+            throw AuthServiceError.missingStoredSession
+        }
     ) {
         self.userMode = userMode
         self.familyName = familyName
@@ -99,6 +103,7 @@ struct HomeView: View {
         self.onFamilyJoined = onFamilyJoined
         self.onExploreMission = onExploreMission
         self.onSelectNotification = onSelectNotification
+        self.onLoadFamilyInvite = onLoadFamilyInvite
     }
 
     private var tutorialCompleted: Bool {
@@ -159,6 +164,7 @@ struct HomeView: View {
                     loadsServerQuestion: true,
                     onExploreMission: onExploreMission,
                     onSelectNotification: onSelectNotification
+                    , onLoadFamilyInvite: onLoadFamilyInvite
             )
 
         case .browse:

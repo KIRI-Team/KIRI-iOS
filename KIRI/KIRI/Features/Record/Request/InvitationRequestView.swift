@@ -98,8 +98,7 @@ struct InvitationRequestView: View {
     private var navigationBar: some View {
         ZStack {
             Text(isScheduleChange ? "일정 변경알림" : "요청알림")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(KIRIColor.Text.strong)
 
             HStack {
@@ -154,8 +153,7 @@ struct InvitationRequestView: View {
     private var invitationSentence: some View {
         HStack(spacing: 5) {
             Text("\(request.senderRole)이 저장한 미션이에요!")
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .foregroundStyle(KIRIColor.Text.primary)
 
             Image("invite_behind")
@@ -211,13 +209,11 @@ struct InvitationRequestView: View {
                 spacing: 6
             ) {
                 Text("활동명")
-                .font(KIRITypography.captionMedium)
-                .tracking(-0.48)
+                .kiriTextStyle(KIRITypography.labelSmall)
                 .foregroundStyle(KIRIColor.Text.tertiary)
 
                 Text(request.title)
-                .font(KIRITypography.headingLarge)
-                .tracking(-0.96)
+                .kiriTextStyle(KIRITypography.headingLargeStyle)
                 .foregroundStyle(KIRIColor.Text.strong)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -246,16 +242,14 @@ struct InvitationRequestView: View {
                     )
 
                 Text(request.date)
-                    .font(KIRITypography.bodySmall)
-                    .tracking(-0.56)
+                    .kiriTextStyle(KIRITypography.bodyMediumStyle)
                     .foregroundStyle(
                         KIRIColor.Text.secondary
                     )
             }
 
             Text(request.participants)
-                .font(KIRITypography.bodySmall)
-                .tracking(-0.56)
+                .kiriTextStyle(KIRITypography.bodyMediumStyle)
                 .foregroundStyle(KIRIColor.Text.secondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -281,8 +275,7 @@ struct InvitationRequestView: View {
             onMissionDetail?()
         } label: {
             Text("자세히 보러가기")
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .foregroundStyle(KIRIColor.Text.primary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 45)
@@ -306,15 +299,13 @@ struct InvitationRequestView: View {
             spacing: 2
         ) {
             Text("행사설명")
-                .font(KIRITypography.headingSmall)
-                .tracking(-0.72)
+                .kiriTextStyle(KIRITypography.titleLarge)
                 .foregroundStyle(
                     KIRIColor.Text.tertiary
                 )
 
             Text(request.description)
-                .font(KIRITypography.body)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.bodyLarge)
                 .foregroundStyle(
                     KIRIColor.Text.primary
                 )
@@ -349,15 +340,13 @@ struct InvitationRequestView: View {
             spacing: 8
         ) {
             Text("가족에게 한 줄")
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .foregroundStyle(
                     KIRIColor.Text.primary
                 )
 
             Text(request.familyMessage)
-                .font(KIRITypography.bodySmall)
-                .tracking(-0.56)
+                .kiriTextStyle(KIRITypography.bodyMediumStyle)
                 .foregroundStyle(
                     KIRIColor.Text.secondary
                 )
@@ -380,8 +369,7 @@ struct InvitationRequestView: View {
                 onCancel()
             } label: {
                 Text("취소")
-                    .font(KIRITypography.button)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(KIRIColor.Text.primary)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
@@ -402,8 +390,7 @@ struct InvitationRequestView: View {
                 }
             } label: {
                 Text("약속 확정하기")
-                    .font(KIRITypography.button)
-                    .tracking(-0.64)
+                    .kiriTextStyle(KIRITypography.titleMedium)
                     .foregroundStyle(KIRIColor.Text.onGreen)
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)

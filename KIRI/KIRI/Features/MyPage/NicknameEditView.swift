@@ -72,11 +72,6 @@ struct NicknameEditView: View {
                             .font(KIRITypography.title)
                             .foregroundStyle(KIRIColor.textPrimary)
 
-                        Text("닉네임은 월 1회 수정 가능합니다")
-                            .font(KIRITypography.subtitle)
-                            .foregroundStyle(KIRIColor.textSecondary)
-                            .padding(.top, 12)
-
                         nicknameInput
                             .padding(.top, 40)
                     }
@@ -164,15 +159,13 @@ struct NicknameEditView: View {
     private var nicknameInput: some View {
         HStack(spacing: 4) {
             Text("지금닉네임:")
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .fontWeight(.bold)
                 .foregroundStyle(KIRIColor.Input.placeholderDefault)
                 .fixedSize()
 
             TextField("", text: $editedNickname)
-                .font(KIRITypography.bodyMedium)
-                .tracking(-0.64)
+                .kiriTextStyle(KIRITypography.titleMedium)
                 .fontWeight(.bold)
                 .foregroundStyle(KIRIColor.Input.placeholderDefault)
                 .tint(KIRIColor.Primary.default)

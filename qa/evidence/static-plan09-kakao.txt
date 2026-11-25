@@ -1,0 +1,5 @@
+정적 검토 증빙 (2026-11-25)
+- RecordView.swift:120-126: InvitationView의 onSendKakao가 handleKakaoInvitation()을 호출
+- RecordView.swift:428-437: handleKakaoInvitation() 본문은 TODO 주석 후 selectedInvitation=nil, selectedTab=.bucket만 수행
+- 카카오 SDK 호출, OS 공유 시트, 초대 링크 생성/전달, 성공·취소·실패 분기가 없음
+- 실제 서버 요청·수신자 계정 검증은 수행하지 않음
