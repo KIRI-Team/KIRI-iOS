@@ -675,12 +675,14 @@
     "TC-NOTI-05-006"
   ],
   "상태별 집계": {
-    "MAPPED": 655,
+    "MAPPED": 648,
     "POLICY_PENDING": 11,
-    "STATIC_MISMATCH": 3
+    "STATIC_MISMATCH": 3,
+    "CODE_VERIFIED": 7
   },
   "생성된 결함 ID": [
-    "BUG-001"
+    "BUG-001",
+    "BUG-002"
   ],
   "다음 검증 대상": "격리된 dev 계정·데이터 준비 후 P0 배치 실행"
 }

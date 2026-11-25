@@ -7,7 +7,8 @@
 - P0/P1: 494 / 175
 
 ## 상태
-- MAPPED: 655
+- MAPPED: 648
+- CODE_VERIFIED: 7
 - STATIC_MISMATCH: 3
 - POLICY_PENDING: 11
 
@@ -52,3 +53,8 @@
 ## 정적 불일치
 - `STATIC_MISMATCH` 3건: TC-PLAN-09-002, 003, 004 (BUG-001). 카카오 공유 선택 경로가 TODO이며 실제 공유 호출이 없다. 제품 코드는 QA 중 수정하지 않았다.
 - 정적 불일치는 실제 서버 실행 FAIL과 구분했다. 관련 실행은 테스트 계정·수신자 환경 확보 후 회귀해야 한다.
+
+## BUG-002 회귀 결과
+- 관련 TC 7건은 `CODE_VERIFIED`로 재분류했다. 수정 전 로컬 `familyInviteCode` guard를 정적 확인하고 서버 초대 조회 경로와 세션 저장 연결, Debug Simulator 빌드를 확인했다.
+- 실계정의 Bearer 요청·FAMILY200_6/FAMILY200_9 응답·초대코드 및 링크 화면·복사·공유·앱 재실행은 테스트 계정과 데이터가 없어 미검증이다.
+- 결함 보고: `BUG-002` (수정 완료, 실서버 회귀 대기)
