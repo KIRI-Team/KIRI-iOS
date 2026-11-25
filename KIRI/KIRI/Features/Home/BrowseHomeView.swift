@@ -88,6 +88,9 @@ struct BrowseHomeView: View {
                     isRecommended: false,
                     imageURL: mission.imageUrl,
                     isBookmarked: $selectedMissionBookmark,
+                    isBrowseMode: true,
+                    onFamilyCreated: onFamilyCreated,
+                    onFamilyJoined: onFamilyJoined,
                     onBack: { selectedMission = nil }
                 )
             }
